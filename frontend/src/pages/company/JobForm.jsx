@@ -5,6 +5,7 @@ import { toast } from "sonner";
 import DashboardLayout from "../../components/DashboardLayout";
 import api, { formatApiError } from "../../lib/api";
 import { COMPANY_MENU } from "./menu";
+import { ADMIN_MENU } from "../admin/menu";
 import { LOCATIONS, JOB_TYPES, EDUCATION_LEVELS, CATEGORIES } from "../../lib/constants";
 
 const EMPTY = {
@@ -13,7 +14,7 @@ const EMPTY = {
   responsibilities: "", requirements: "", benefits: "", deadline: "", whatsapp: "",
 };
 
-export default function JobForm() {
+export default function JobForm({ admin = false }) {
   const { id } = useParams();
   const isEdit = Boolean(id);
   const navigate = useNavigate();
@@ -21,14 +22,17 @@ export default function JobForm() {
   const [loading, setLoading] = useState(isEdit);
   const [saving, setSaving] = useState(false);
 
+  const menu = admin ? ADMIN_MENU : COMPANY_MENU;
+  const backPath = admin ? "/admin/jobs" : "/company/jobs";
+
   useEffect(() => {
     if (!isEdit) return;
-    api.get("/company/jobs")
+    api.get(admin ? "/admin/jobs" : "/company/jobs")
       .then((r) => {
         const job = r.data.find((j) => j.id === id);
         if (!job) {
           toast.error("Lowongan tidak ditemukan");
-          navigate("/company/jobs");
+          navigate(backPath);
           return;
         }
         setForm({
@@ -40,9 +44,9 @@ export default function JobForm() {
           deadline: job.deadline || "", whatsapp: job.whatsapp || "",
         });
       })
-      .catch(() => navigate("/company/jobs"))
+      .catch(() => navigate(backPath))
       .finally(() => setLoading(false));
-  }, [id, isEdit, navigate]);
+  }, [id, isEdit, navigate, admin, backPath]);
 
   const set = (key) => (e) => setForm({ ...form, [key]: e.target.value });
 
@@ -52,13 +56,18 @@ export default function JobForm() {
     const payload = { ...form, salary_min: Number(form.salary_min) || 0, salary_max: Number(form.salary_max) || 0 };
     try {
       if (isEdit) {
-        await api.put(`/company/jobs/${id}`, payload);
-        toast.success("Lowongan diperbarui dan kembali menunggu persetujuan admin");
+        if (admin) {
+          await api.put(`/admin/jobs/${id}`, payload);
+          toast.success("Lowongan berhasil diperbarui");
+        } else {
+          await api.put(`/company/jobs/${id}`, payload);
+          toast.success("Lowongan diperbarui dan kembali menunggu persetujuan admin");
+        }
       } else {
         await api.post("/company/jobs", payload);
         toast.success("Lowongan terkirim. Status: Menunggu Persetujuan Admin");
       }
-      navigate("/company/jobs");
+      navigate(backPath);
     } catch (err) {
       toast.error(formatApiError(err));
     } finally {
@@ -72,15 +81,15 @@ export default function JobForm() {
 
   if (loading)
     return (
-      <DashboardLayout menu={COMPANY_MENU} title="Lowongan">
+      <DashboardLayout menu={menu} title="Lowongan">
         <div className="flex justify-center py-16"><Loader2 className="h-8 w-8 animate-spin text-sky-600" /></div>
       </DashboardLayout>
     );
 
   return (
-    <DashboardLayout menu={COMPANY_MENU} title={isEdit ? "Edit Lowongan" : "Tambah Lowongan"}>
+    <DashboardLayout menu={menu} title={isEdit ? "Edit Lowongan" : "Tambah Lowongan"}>
       <div className="max-w-3xl" data-testid="job-form-page">
-        {!isEdit && (
+        {!isEdit && !admin && (
           <div className="mb-5 rounded-xl border border-sky-200 bg-sky-50 px-4 py-3 flex gap-3 text-sm text-sky-900" data-testid="moderation-info">
             <AlertCircle className="h-5 w-5 shrink-0" />
             <p>Lowongan yang dikirim akan berstatus <b>Menunggu Persetujuan Admin</b> dan tampil setelah disetujui.</p>

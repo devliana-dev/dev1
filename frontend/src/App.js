@@ -98,6 +98,7 @@ function App() {
 
             <Route path="/admin" element={protect("admin", <AdminDashboard />)} />
             <Route path="/admin/jobs" element={protect("admin", <AdminJobs />)} />
+            <Route path="/admin/jobs/:id/edit" element={protect("admin", <JobForm admin />)} />
             <Route path="/admin/companies" element={protect("admin", <AdminCompanies />)} />
             <Route path="/admin/candidates" element={protect("admin", <AdminCandidates />)} />
             <Route path="/admin/applications" element={protect("admin", <AdminApplications />)} />

@@ -170,18 +170,31 @@ export default function Home() {
 
       {/* CTA */}
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16" data-testid="cta-section">
-        <div className="rounded-2xl bg-slate-900 px-6 py-12 sm:p-14 text-center relative overflow-hidden">
-          <div className="absolute -top-20 -right-20 h-64 w-64 rounded-full bg-sky-600/20 blur-3xl" />
-          <div className="absolute -bottom-24 -left-16 h-64 w-64 rounded-full bg-sky-400/10 blur-3xl" />
-          <h2 className="relative font-display text-2xl sm:text-3xl lg:text-4xl font-bold text-white">Sedang Mencari Karyawan?</h2>
-          <p className="relative mt-3 text-slate-300 max-w-xl mx-auto">Pasang lowongan dan temukan kandidat terbaik.</p>
-          <Link
-            to="/register-company"
-            className="relative inline-flex items-center h-12 px-8 mt-8 rounded-lg bg-sky-600 text-white font-semibold hover:bg-sky-500 transition-colors"
-            data-testid="cta-post-job-btn"
-          >
-            Pasang Lowongan Gratis
-          </Link>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="rounded-2xl bg-white border border-slate-200 px-6 py-10 sm:p-12 text-center shadow-sm">
+            <h2 className="font-display text-2xl sm:text-3xl font-bold text-slate-900">Sedang Mencari Kerja?</h2>
+            <p className="mt-3 text-slate-500 max-w-sm mx-auto">Ratusan lowongan dari perusahaan terverifikasi menunggumu. Gratis, tanpa syarat.</p>
+            <Link
+              to="/jobs"
+              className="inline-flex items-center h-12 px-8 mt-7 rounded-lg bg-sky-600 text-white font-semibold hover:bg-sky-700 transition-colors"
+              data-testid="cta-find-job-btn"
+            >
+              Cari Lowongan Sekarang
+            </Link>
+          </div>
+          <div className="rounded-2xl bg-slate-900 px-6 py-10 sm:p-12 text-center relative overflow-hidden">
+            <div className="absolute -top-20 -right-20 h-64 w-64 rounded-full bg-sky-600/20 blur-3xl" />
+            <div className="absolute -bottom-24 -left-16 h-64 w-64 rounded-full bg-sky-400/10 blur-3xl" />
+            <h2 className="relative font-display text-2xl sm:text-3xl font-bold text-white">Sedang Mencari Karyawan?</h2>
+            <p className="relative mt-3 text-slate-300 max-w-sm mx-auto">Pasang lowongan dan temukan kandidat terbaik.</p>
+            <Link
+              to="/register-company"
+              className="relative inline-flex items-center h-12 px-8 mt-7 rounded-lg bg-sky-600 text-white font-semibold hover:bg-sky-500 transition-colors"
+              data-testid="cta-post-job-btn"
+            >
+              Pasang Lowongan Gratis
+            </Link>
+          </div>
         </div>
       </section>
     </div>

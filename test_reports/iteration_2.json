@@ -1,0 +1,26 @@
+{
+  "summary": "Iteration 2 focused regression on NEW features. Backend: 11 pytest passed / 1 skipped (test_iteration2.py) — verified 14 active seeded jobs, new jobs 'Operator Produksi'@Majalengka & 'Marketing Cafe'@Kuningan appear on /api/jobs, search q=Admin/Cirebon/Kasir + nonsense-returns-0 + combined filters, PUT /api/admin/jobs/{id} preserves status=active (does NOT reset to pending), Company2 (Grage) cannot PUT Company1 (Batik) job (returns 404 → tenant isolation ok), /auth/register saves role=candidate and /auth/register-company saves role=company (verified via /auth/me). Frontend Playwright: Home dual CTAs (cta-find-job-btn → /jobs, cta-post-job-btn → /register-company) work, Register role tabs (role-company-choice / role-candidate-choice) navigate correctly both directions, /jobs list shows 14 lowongan and search 'Operator Produksi' finds new job, Job detail page has working WhatsApp wa.me link with prefilled text containing job title + Bagikan + Lamar buttons, Admin login → /admin/jobs shows 16 edit-job-<id> pencil buttons → clicking navigates to /admin/jobs/:id/edit with data-testid=job-form → jf-title-input editable → jf-submit-btn saves and redirects back to /admin/jobs. Mobile 390x844: no horizontal scroll on / and /jobs. Iteration-1 broader regression already covered by /app/backend/tests/backend_test.py (28/28 passed previously) and left untouched.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "test_report_links": [
+    "/app/backend/tests/test_iteration2.py",
+    "/app/backend/tests/backend_test.py",
+    "/app/test_reports/pytest/iteration2_results.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "PUT /api/company/jobs/{id} forcibly resets status to pending even when trivial edits are made — good for moderation but harsh UX. Consider a lighter 'edit-active-without-resubmit' path for typo fixes (or explicit 'submit for re-review' toggle).",
+    "Admin PUT /api/admin/jobs/{id} accepts full JobIn payload but does not regenerate slug when title/location change. If admin edits title heavily, the SEO slug can become stale. Consider regenerating slug (with redirect) or exposing an explicit slug field.",
+    "Company cross-tenant PUT correctly returns 404 (find_one filter includes company_id). Returning 403 would be more semantically correct but 404 also avoids info-leak — acceptable.",
+    "Seed job list has grown to 16 entries embedded in server.py (~lines 850-965). Extract to /app/backend/seed_data.py or JSON to keep server.py under 700 lines (echoed from iter1).",
+    "Console shows 401 on /api/auth/me for anonymous visitors on homepage — expected but noisy; consider suppressing via response check-before-request or 200-with-null-user pattern."
+  ],
+  "updated_files": ["/app/backend/tests/test_iteration2.py"],
+  "success_rate": {"backend": "100% (11/11 executed, 1 skipped due to no seeded CV)", "frontend": "100% (all 7 flows passed)"},
+  "test_credentials": "admin=muhamadwahid.sih@gmail.com/admin123, company=demo@perusahaan.com/password123, company2=info@gragemultimedia.com/password123, candidate=budi@example.com/password123",
+  "seed_data_creation": "test_iteration2.py creates a TEST_ItEdit job via COMPANY (Batik), admin approves it, admin edits it, then teardown deletes it. Register tests create test-cand-<uuid>@example.com and test-comp-<uuid>@example.com accounts (not cleaned — harmless). Admin AdminJobs edit via Playwright appended '[E2E]' to whichever job was first in list; benign but re-running many times will accumulate suffixes — recommend main agent runs seed reset if aesthetics matter.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Two pytest files: /app/backend/tests/backend_test.py (full 28-test suite from iter1) and /app/backend/tests/test_iteration2.py (NEW features). Both require: export REACT_APP_BACKEND_URL=https://cbn-lowongan.preview.emergentagent.com. All NEW iteration-2 features (role tabs, admin edit UI, dual CTA, 2 new jobs, admin PUT preserves status, cross-tenant isolation) verified end-to-end. Frontend Playwright script is inline (not saved) — reproduce from iteration_2.json summary if needed.",
+  "rca of the issue": "N/A — no defects found."
+}

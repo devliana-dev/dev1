@@ -25,7 +25,14 @@ Website lowongan kerja lokal CirebonKarir.com yang mempertemukan pencari kerja d
 - Backend lengkap: auth (register/login/logout/me), register-company, public jobs/companies/meta, apply multipart + CV upload, candidate/company/admin endpoints, auto-expire jobs, seed data (6 perusahaan, 14 lowongan, 2 lamaran, 11 kategori).
 - Frontend: Home (hero search, kategori populer, lowongan terbaru, kenapa, CTA), Jobs (filter lengkap + search + pagination + drawer filter mobile), JobDetail (JSON-LD JobPosting, WhatsApp, share), ApplyJob, Companies + CompanyDetail, ForCompanies, Login/Register/RegisterCompany, 3 dashboard lengkap, halaman statis footer, 404.
 - SEO: meta/OG, robots.txt, sitemap.xml, slug URL (`/jobs/:slug`, `/companies/:slug`).
-- Testing: 28 pytest backend + Playwright e2e — 100% lulus (`/app/test_reports/iteration_1.json`).
+- Testing iterasi 1: 28 pytest backend + Playwright e2e — 100% lulus (`/app/test_reports/iteration_1.json`).
+
+## Iterasi 2 — Verifikasi & Pelengkapan (24 Jun 2026)
+- Register kini punya pilihan role (tab Pencari Kerja / Perusahaan di /register & /register-company).
+- Admin bisa EDIT lowongan via UI (`/admin/jobs/:id/edit`, JobForm mode admin, status tidak berubah).
+- Homepage dual CTA: "Sedang Mencari Kerja?" → /jobs dan "Sedang Mencari Karyawan?" → /register-company.
+- Sample data ditambah: Operator Produksi (Majalengka), Marketing Cafe (Kuningan) → total 14 lowongan aktif.
+- Testing iterasi 2: 11 pytest baru + 7 flow Playwright — 100% lulus (`/app/test_reports/iteration_2.json`, `/app/backend/tests/test_iteration2.py`). Termasuk: isolasi antar-perusahaan (cross-tenant PUT 404), admin PUT menjaga status, role tersimpan benar, mobile 390px tanpa horizontal scroll.
 
 ## Akun Demo
 - Admin: muhamadwahid.sih@gmail.com / admin123

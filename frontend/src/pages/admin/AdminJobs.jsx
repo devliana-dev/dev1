@@ -1,5 +1,6 @@
 import { useEffect, useState, useCallback } from "react";
-import { Loader2, Check, X, Trash2, Briefcase } from "lucide-react";
+import { Link } from "react-router-dom";
+import { Loader2, Check, X, Trash2, Briefcase, Pencil } from "lucide-react";
 import { toast } from "sonner";
 import DashboardLayout from "../../components/DashboardLayout";
 import StatusBadge from "../../components/StatusBadge";
@@ -130,6 +131,9 @@ export default function AdminJobs() {
                               </button>
                             </>
                           )}
+                          <Link to={`/admin/jobs/${job.id}/edit`} title="Edit" className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-sky-100 text-sky-700 hover:bg-sky-200" data-testid={`edit-job-${job.id}`}>
+                            <Pencil className="h-4 w-4" />
+                          </Link>
                           <button onClick={() => remove(job)} title="Hapus" className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-red-100 text-red-600 hover:bg-red-200" data-testid={`delete-job-${job.id}`}>
                             <Trash2 className="h-4 w-4" />
                           </button>

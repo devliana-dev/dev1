@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { Loader2 } from "lucide-react";
+import { Loader2, User, Building2 } from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
 import { formatApiError } from "../../lib/api";
 
@@ -35,8 +35,16 @@ export default function Register() {
     <div className="min-h-[80vh] flex items-center justify-center px-4 py-12 page-fade" data-testid="register-page">
       <div className="w-full max-w-md">
         <div className="text-center mb-8">
-          <h1 className="font-display text-2xl font-bold text-slate-900">Daftar Pencari Kerja</h1>
+          <h1 className="font-display text-2xl font-bold text-slate-900">Buat Akun Baru</h1>
           <p className="text-sm text-slate-500 mt-1">Buat akun gratis dan mulai melamar pekerjaan</p>
+        </div>
+        <div className="grid grid-cols-2 gap-2 mb-4" data-testid="register-role-choice">
+          <div className="h-12 rounded-lg bg-slate-900 text-white text-sm font-semibold flex items-center justify-center gap-1.5" data-testid="role-candidate-active">
+            <User className="h-4 w-4" /> Pencari Kerja
+          </div>
+          <Link to="/register-company" className="h-12 rounded-lg bg-white border border-slate-300 text-slate-600 text-sm font-semibold flex items-center justify-center gap-1.5 hover:bg-slate-50 transition-colors" data-testid="role-company-choice">
+            <Building2 className="h-4 w-4" /> Perusahaan
+          </Link>
         </div>
         <form onSubmit={handleSubmit} className="bg-white rounded-xl border border-slate-200 p-6 sm:p-8 space-y-4" data-testid="register-form">
           {error && <div className="rounded-lg bg-red-50 border border-red-200 text-red-700 text-sm px-4 py-3" data-testid="register-error">{error}</div>}

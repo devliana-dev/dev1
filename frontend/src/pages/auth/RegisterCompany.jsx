@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { Loader2, Building2 } from "lucide-react";
+import { Loader2, Building2, User } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "../../context/AuthContext";
 import { formatApiError } from "../../lib/api";
@@ -42,6 +42,14 @@ export default function RegisterCompany() {
           </span>
           <h1 className="font-display text-2xl font-bold text-slate-900">Daftar Sebagai Perusahaan</h1>
           <p className="text-sm text-slate-500 mt-1">Pasang lowongan gratis dan temukan kandidat terbaik</p>
+        </div>
+        <div className="grid grid-cols-2 gap-2 mb-4" data-testid="register-role-choice">
+          <Link to="/register" className="h-12 rounded-lg bg-white border border-slate-300 text-slate-600 text-sm font-semibold flex items-center justify-center gap-1.5 hover:bg-slate-50 transition-colors" data-testid="role-candidate-choice">
+            <User className="h-4 w-4" /> Pencari Kerja
+          </Link>
+          <div className="h-12 rounded-lg bg-slate-900 text-white text-sm font-semibold flex items-center justify-center gap-1.5" data-testid="role-company-active">
+            <Building2 className="h-4 w-4" /> Perusahaan
+          </div>
         </div>
         <form onSubmit={handleSubmit} className="bg-white rounded-xl border border-slate-200 p-6 sm:p-8 space-y-4" data-testid="register-company-form">
           {error && <div className="rounded-lg bg-red-50 border border-red-200 text-red-700 text-sm px-4 py-3" data-testid="register-company-error">{error}</div>}
