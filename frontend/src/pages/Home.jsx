@@ -32,15 +32,31 @@ export default function Home() {
   return (
     <div className="page-fade">
       {/* Hero */}
-      <section className="relative bg-slate-900" data-testid="hero-section">
+      <section className="relative bg-slate-900 overflow-hidden" data-testid="hero-section">
+        {/* Ilustrasi kota Cirebon */}
         <img
-          src="https://images.pexels.com/photos/32327756/pexels-photo-32327756.jpeg"
-          alt=""
-          className="absolute inset-0 h-full w-full object-cover opacity-30"
+          src="https://static.prod-images.emergentagent.com/jobs/e16bb991-4078-4c7d-8bc9-0b3048e379f2/images/061515a567cbc559e71f085ec39b55e5e0a9fb1c91c3514a4473561bdd452f3b.jpeg"
+          alt="Ilustrasi Kota Cirebon"
+          className="absolute inset-x-0 bottom-0 w-full h-full object-cover object-bottom opacity-70"
+          style={{ maskImage: "linear-gradient(to bottom, transparent 0%, black 45%)", WebkitMaskImage: "linear-gradient(to bottom, transparent 0%, black 45%)" }}
         />
-        <div className="absolute inset-0 bg-slate-900/60" />
-        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 sm:py-24">
-          <h1 className="font-display text-4xl sm:text-5xl lg:text-6xl tracking-tight font-extrabold text-white max-w-3xl leading-tight">
+        <div className="absolute inset-0 bg-gradient-to-b from-slate-900/70 via-slate-900/30 to-transparent" />
+        {/* Ornamen batik Mega Mendung */}
+        <div
+          className="absolute top-0 inset-x-0 h-16 opacity-25"
+          style={{
+            backgroundImage: "url('https://static.prod-images.emergentagent.com/jobs/e16bb991-4078-4c7d-8bc9-0b3048e379f2/images/9b03ff12a9955343767b58b3b54524aaa920e101e1111c9c2d3cedd6856350a2.jpeg')",
+            backgroundRepeat: "repeat-x",
+            backgroundSize: "auto 100%",
+            mixBlendMode: "screen",
+          }}
+          aria-hidden="true"
+        />
+        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-20 pb-24 sm:pt-28 sm:pb-32">
+          <span className="inline-flex items-center gap-2 rounded-full px-4 py-1.5 bg-sky-500/15 border border-sky-400/30 text-sky-300 text-xs font-semibold tracking-wide backdrop-blur" data-testid="hero-badge">
+            Portal Lowongan Kerja #1 di Cirebon
+          </span>
+          <h1 className="mt-5 font-display text-4xl sm:text-5xl lg:text-6xl tracking-tight font-extrabold text-white max-w-3xl leading-tight">
             Temukan Pekerjaan Impianmu di <span className="text-sky-400">Cirebon</span>
           </h1>
           <p className="mt-4 text-base sm:text-lg text-slate-300 max-w-2xl leading-relaxed">

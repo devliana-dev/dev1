@@ -34,6 +34,9 @@ Website lowongan kerja lokal CirebonKarir.com yang mempertemukan pencari kerja d
 - Sample data ditambah: Operator Produksi (Majalengka), Marketing Cafe (Kuningan) → total 14 lowongan aktif.
 - Testing iterasi 2: 11 pytest baru + 7 flow Playwright — 100% lulus (`/app/test_reports/iteration_2.json`, `/app/backend/tests/test_iteration2.py`). Termasuk: isolasi antar-perusahaan (cross-tenant PUT 404), admin PUT menjaga status, role tersimpan benar, mobile 390px tanpa horizontal scroll.
 
+## Iterasi 3 — Polish Hero Homepage (24 Jun 2026)
+- Hero homepage dipercantik: ilustrasi flat kota Cirebon (Keraton/gapura, gunung Ciremai) sebagai latar dengan gradient fade, strip ornamen batik Mega Mendung (repeat-x, blend screen) di tepi atas, badge "Portal Lowongan Kerja #1 di Cirebon". Gambar di-generate via image generation tool (URL static.prod-images.emergentagent.com). Diverifikasi desktop 1920px & mobile 390px (tanpa horizontal scroll).
+
 ## Akun Demo
 - Admin: muhamadwahid.sih@gmail.com / admin123
 - Perusahaan: demo@perusahaan.com / password123
