@@ -1,0 +1,125 @@
+{
+  "theme": "light",
+  "typography": {
+    "heading_font": "Plus Jakarta Sans",
+    "body_font": "Inter",
+    "scales": {
+      "h1": "text-4xl sm:text-5xl lg:text-6xl tracking-tight font-extrabold text-slate-900",
+      "h2": "text-2xl sm:text-3xl lg:text-4xl tracking-tight font-bold text-slate-900",
+      "h3": "text-xl sm:text-2xl font-semibold text-slate-800",
+      "body": "text-base leading-relaxed text-slate-600",
+      "small": "text-sm text-slate-500"
+    }
+  },
+  "colors": {
+    "primary": "#0F172A",
+    "secondary": "#0284C7",
+    "accent": "#38BDF8",
+    "background": "#F8FAFC",
+    "surface": "#FFFFFF",
+    "text_main": "#0F172A",
+    "text_muted": "#64748B",
+    "border": "#E2E8F0",
+    "success": "#10B981",
+    "warning": "#F59E0B",
+    "danger": "#EF4444"
+  },
+  "visual_enhancers": {
+    "border_radius": "rounded-xl for main cards, rounded-lg for buttons and smaller elements, rounded-2xl for prominent marketing containers.",
+    "shadows": "shadow-sm for default card states, shadow-md with -translate-y-1 for interactive hover states.",
+    "whitespace": "Generous spacing. Use p-6 or p-8 inside cards, gap-6 or gap-8 between layout sections to ensure uncluttered feel.",
+    "glassmorphism": "backdrop-blur-xl bg-white/80 border-b border-slate-200 for sticky headers."
+  },
+  "components": {
+    "buttons": "Clear, easily clickable. Minimum 44px height for mobile tap targets. Rounded-lg. Primary button in secondary blue (#0284C7) or primary navy (#0F172A).",
+    "job_cards": "Card with padding p-5 or p-6. Top row: Company Logo (h-12 w-12 rounded-lg object-cover border border-slate-100), Job Title, Company Name. Badges for Job Type and 'Baru'. Subtle hover translate-y-1 with shadow-md.",
+    "inputs": "Height 44px or 48px, rounded-lg, border border-slate-300, focus:ring-2 focus:ring-sky-500. Clear placeholder text.",
+    "category_chips": "Rounded-full, px-4 py-2, bg-white border border-slate-200, hover:bg-slate-50 text-slate-700 text-sm font-medium transition-colors.",
+    "badges": "px-2.5 py-0.5 rounded-full text-xs font-semibold. e.g. bg-blue-100 text-blue-800 for job types."
+  },
+  "layouts": {
+    "general": "High whitespace, mobile-first priority. Ensure touch targets are large and text is highly legible.",
+    "homepage": "Hero section with background image (overlay bg-slate-900/70) OR clean split layout with solid light background and minimal graphic. Large search box prominent. Followed by popular categories and latest jobs grid (grid-cols-1 md:grid-cols-2 lg:grid-cols-3).",
+    "dashboards": "Sidebar navigation (hidden on mobile behind hamburger). Main content area with dense bento grid (grid-cols-1 md:grid-cols-2 lg:grid-cols-3) for stats, standard vertical list layout for jobs/applicants.",
+    "job_detail": "Two column on desktop: Left (Main job description, requirements), Right (Sticky apply card with salary, location, WhatsApp button, Apply button)."
+  },
+  "motion": {
+    "hover": "Subtle transform translate-y-[-2px] and shadow elevation for cards. Background color shifts for buttons.",
+    "page_transition": "Simple fade-in (opacity 0 to 1) for main content areas to prevent jarring loads."
+  },
+  "accessibility": {
+    "contrast": "Ensure text contrast against white/slate background is APCA/WCAG compliant.",
+    "touch_targets": "All clickable elements min 44x44px for mobile devices.",
+    "focus": "Clear focus rings on all interactive elements (focus:outline-none focus:ring-2 focus:ring-offset-2).",
+    "testing": "All interactive and key informational elements MUST include a data-testid attribute in kebab-case (e.g., data-testid='apply-job-button')."
+  },
+  "media": {
+    "icons": "Use lucide-react for all icons. Keep strokes clean and consistent.",
+    "images": {
+      "hero_background": [
+        {
+          "url": "https://images.pexels.com/photos/32327756/pexels-photo-32327756.jpeg",
+          "category": "hero",
+          "description": "Jakarta urban skyline for hero background overlay"
+        },
+        {
+          "url": "https://images.pexels.com/photos/8101502/pexels-photo-8101502.jpeg",
+          "category": "hero_alternate",
+          "description": "Two young professional women smiling in an office"
+        }
+      ],
+      "company_logos": [
+        {
+          "url": "https://images.pexels.com/photos/26576975/pexels-photo-26576975.jpeg",
+          "category": "logo",
+          "description": "Favour Media logo"
+        },
+        {
+          "url": "https://images.unsplash.com/photo-1644166186783-35d911470ff0?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjA1NzB8MHwxfHNlYXJjaHwxfHxicmFuZCUyMGxvZ28lMjB3aGl0ZSUyMGJhY2tncm91bmR8ZW58MHx8fHwxNzg3NTUwMzgxfDA&ixlib=rb-4.1.0&q=85",
+          "category": "logo",
+          "description": "Mercedes Benz logo"
+        },
+        {
+          "url": "https://images.unsplash.com/photo-1586867026567-b9b63ae58472?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjA1NzB8MHwxfHNlYXJjaHw0fHxicmFuZCUyMGxvZ28lMjB3aGl0ZSUyMGJhY2tncm91bmR8ZW58MHx8fHwxNzg3NTUwMzgxfDA&ixlib=rb-4.1.0&q=85",
+          "category": "logo",
+          "description": "Marshall logo"
+        }
+      ],
+      "avatars": [
+        {
+          "url": "https://images.unsplash.com/photo-1751552805465-e4005aadd81d?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NTY2Njl8MHwxfHNlYXJjaHwzfHxwcm9mZXNzaW9uYWwlMjBvZmZpY2UlMjB3b3JrZXIlMjBpbmRvbmVzaWF8ZW58MHx8fHwxNzg3NTUwMzc3fDA&ixlib=rb-4.1.0&q=85",
+          "category": "avatar",
+          "description": "Professional woman"
+        },
+        {
+          "url": "https://images.unsplash.com/photo-1588144606768-3a6a1edf7729?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NTY2Njl8MHwxfHNlYXJjaHwyfHxwcm9mZXNzaW9uYWwlMjBvZmZpY2UlMjB3b3JrZXIlMjBpbmRvbmVzaWF8ZW58MHx8fHwxNzg3NTUwMzc3fDA&ixlib=rb-4.1.0&q=85",
+          "category": "avatar",
+          "description": "Professional working on laptop"
+        }
+      ]
+    }
+  },
+  "instructions_to_main_agent": [
+    "Ensure all text is strictly in Bahasa Indonesia.",
+    "Implement a light theme as requested, emphasizing lots of white space (p-6, p-8) and uncluttered views.",
+    "Use standard Tailwind classes. Do not use generic 🤖🧠 emojis. Use lucide-react icons.",
+    "NEVER use transparent backgrounds for sticky headers or dropdown menus. Use solid white or glassmorphism (backdrop-blur-xl bg-white/90).",
+    "Provide clear testing attributes (data-testid) for all buttons, inputs, and links.",
+    "Use standard HTML inputs for basic text/search, but Shadcn components for complex interactions like Select, Dialog, Tabs.",
+    "Do not use full-screen gradients. Keep the background clean white (#FFFFFF) or very light slate (#F8FAFC).",
+    "Create 3 distinct dashboards (Candidate, Company, Admin) and a public facing job listing/search page.",
+    "Buttons should have clear color definitions: Primary actions in Navy (#0F172A) or Blue (#0284C7).",
+    "You have .js files not .tsx file, so write components strictly as .js / .jsx semantics without TypeScript typings.",
+    "For Shadcn components, use or adapt the .js versions.",
+    "Apply specific formatting for job numbers like salary (Rp 5.000.000) natively."
+  ],
+  "UNIVERSAL_GUIDELINES_FOR_MAIN_AGENT": [
+    "Prioritize using pre-existing components from src/components/ui when applicable.",
+    "You MUST NOT apply universal transition (transition: all). Use specific property transitions.",
+    "You MUST NOT center align the app container (.App { text-align: center; }). Keep text left-aligned by default for readability.",
+    "Always use modern button styles with interaction animations & color relevant to the app style.",
+    "Missing categories = main agent will use placeholder text which is FORBIDDEN. Use the provided image URLs.",
+    "Use sonner for toasts.",
+    "Create depth through layered design elements with z-index hierarchy."
+  ]
+}

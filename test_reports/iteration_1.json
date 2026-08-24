@@ -1,0 +1,26 @@
+{
+  "summary": "Full backend + frontend end-to-end verification of CirebonKarir.com. Wrote 28 pytest cases covering auth (3 roles), meta, public job listing/filter/detail, RBAC (403 on cross-role access), pending-job invisibility, candidate apply flow with real PDF upload, duplicate application block, company job creation + admin approval visibility, admin approve/reject job, company/candidate/category CRUD, block-candidate-then-login-403, and CV download auth (401 anon / 200 owner). All 28 passed. Frontend Playwright tests covered: homepage hero + latest jobs + categories chips, hero search -> /jobs with filtered results, job detail with apply/whatsapp/share buttons, Lamar redirect-to-login-then-back-to-apply, candidate login + dashboard, RBAC redirect (candidate hitting /admin redirected to /candidate/dashboard), admin login + all admin sub-pages (jobs, companies, candidates, categories), company login + applicants + new-job form, 404 page, and mobile viewport hamburger. Everything works.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "test_report_links": [
+    "/app/backend/tests/backend_test.py",
+    "/app/test_reports/pytest/pytest_results.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "backend/.env sets CORS_ORIGINS=\"*\" and CORSMiddleware is initialized with allow_credentials=True. Per browser spec, wildcard origin cannot be combined with credentials; real browsers will silently drop the httpOnly cookie on cross-origin requests. Currently only Bearer-token-in-localStorage keeps the app working. Recommend restricting CORS_ORIGINS to explicit frontend URL(s).",
+    "server.py is ~1000 lines and contains routers + models + seed data + storage helpers. Split into modules (auth, jobs, company, admin, seed) for maintainability.",
+    "Login brute-force lockout uses (ip:email) key and increments count on every failure including the 6th, 7th... it never resets the locked_until window until a successful login. Consider resetting count after lock window expires so legitimate users are not perpetually locked if they keep trying.",
+    "set_auth_cookie uses samesite=none + secure=true, which is correct for cross-site preview URLs but requires HTTPS everywhere; document this for local dev.",
+    "attach_company mutates the passed dict in place then returns it; slightly non-obvious. Minor style issue.",
+    "expire_jobs runs on nearly every public endpoint; low volume today but consider a background scheduler if data grows.",
+    "No rate limiting on /api/auth/register or /api/jobs/{id}/apply. Spam risk."
+  ],
+  "updated_files": ["/app/backend/tests/backend_test.py"],
+  "success_rate": {"backend": "100%", "frontend": "100%"},
+  "test_credentials": "admin=muhamadwahid.sih@gmail.com/admin123, company=demo@perusahaan.com/password123, candidate=budi@example.com/password123",
+  "seed_data_creation": "Backend tests create TEST_-prefixed jobs/categories/candidates and clean them up (delete pending/rejected TEST jobs, delete TEST categories, TEST candidate register+block persists but harmless). One approved TEST job was cleaned up manually via admin API after tests.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "backend_test.py is pytest-based and requires REACT_APP_BACKEND_URL env exported before running: `export REACT_APP_BACKEND_URL=https://cbn-lowongan.preview.emergentagent.com && pytest backend/tests/backend_test.py -v`. All flows already validated on 2026-01. If retesting, avoid running the wrong-password test more than 4x per IP (15-min lockout kicks in at 5)."
+}
