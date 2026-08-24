@@ -66,6 +66,12 @@ Website lowongan kerja lokal CirebonKarir.com yang mempertemukan pencari kerja d
 
 ### P1
 - Lupa/reset password (endpoint dasar bisa ditambah).
+## Iterasi 7 — Fitur Blog (24 Jun 2026)
+- Backend: koleksi `blog_posts` + endpoint publik GET /api/blog (list) & GET /api/blog/{slug} (detail, 404 bila tidak ada); `seed_blog_posts()` di startup (4 artikel contoh tips dunia kerja: wawancara, CV, UMK/hak pekerja, strategi cari kerja 2026).
+- Frontend: komponen `BlogCard.jsx` (gambar, tanggal, chip kategori, judul, tombol Selengkapnya); section Blog di bawah homepage (setelah CTA, sebelum footer) + tombol "Lihat Semua Artikel"; halaman `/blog` (grid semua artikel, empty state) dan `/blog/:slug` (artikel penuh + document.title SEO); menu "Blog" ditambahkan di navbar & footer.
+- Terverifikasi: API list/detail/404 OK; homepage, /blog, /blog/:slug, mobile 390px tanpa horizontal scroll.
+- Catatan: belum ada CMS admin untuk kelola artikel (konten via DB). Kandidat backlog P2.
+
 - Notifikasi email (Resend) saat status lamaran berubah / lowongan disetujui.
 - Halaman edit lowongan untuk admin di UI (API sudah ada: PUT /api/admin/jobs/{id}).
 

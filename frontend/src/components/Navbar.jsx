@@ -8,6 +8,7 @@ const NAV_LINKS = [
   { to: "/jobs", label: "Cari Lowongan" },
   { to: "/companies", label: "Perusahaan" },
   { to: "/untuk-perusahaan", label: "Untuk Perusahaan" },
+  { to: "/blog", label: "Blog" },
 ];
 
 export default function Navbar() {

@@ -8,6 +8,7 @@ import {
 import api from "../lib/api";
 import { LOCATIONS } from "../lib/constants";
 import JobListItem from "../components/JobListItem";
+import BlogCard from "../components/BlogCard";
 
 const KATEGORI_CARDS = [
   { label: "Admin", icon: User, to: "/jobs?category=Admin" },
@@ -322,6 +323,43 @@ export default function Home() {
           </div>
         </div>
       </section>
+      {/* Blog */}
+      <BlogSection />
     </div>
+  );
+}
+
+function BlogSection() {
+  const [posts, setPosts] = useState([]);
+
+  useEffect(() => {
+    api.get("/blog", { params: { limit: 4 } }).then((r) => setPosts(r.data)).catch(() => {});
+  }, []);
+
+  if (posts.length === 0) return null;
+
+  return (
+    <section className="bg-white border-t border-slate-200" data-testid="blog-section">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-14">
+        <div className="text-center">
+          <h2 className="font-display text-2xl sm:text-3xl font-bold text-slate-900">Blog</h2>
+          <p className="text-sm text-slate-500 mt-1">Tips dan informasi seputar dunia kerja</p>
+        </div>
+        <div className="mt-9 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5" data-testid="blog-section-grid">
+          {posts.map((p) => (
+            <BlogCard key={p.id} post={p} />
+          ))}
+        </div>
+        <div className="mt-9 text-center">
+          <Link
+            to="/blog"
+            className="inline-flex items-center gap-1.5 h-11 px-6 rounded-lg border border-slate-300 bg-white text-sm font-semibold text-slate-700 hover:bg-slate-50 transition-colors"
+            data-testid="view-all-blog-btn"
+          >
+            Lihat Semua Artikel <ArrowRight className="h-4 w-4" />
+          </Link>
+        </div>
+      </div>
+    </section>
   );
 }

@@ -15,6 +15,8 @@ import ApplyJob from "@/pages/ApplyJob";
 import Companies from "@/pages/Companies";
 import CompanyDetail from "@/pages/CompanyDetail";
 import ForCompanies from "@/pages/ForCompanies";
+import Blog from "@/pages/Blog";
+import BlogDetail from "@/pages/BlogDetail";
 import Login from "@/pages/auth/Login";
 import Register from "@/pages/auth/Register";
 import RegisterCompany from "@/pages/auth/RegisterCompany";
@@ -74,6 +76,8 @@ function App() {
               <Route path="/companies" element={<Companies />} />
               <Route path="/companies/:slug" element={<CompanyDetail />} />
               <Route path="/untuk-perusahaan" element={<ForCompanies />} />
+              <Route path="/blog" element={<Blog />} />
+              <Route path="/blog/:slug" element={<BlogDetail />} />
               <Route path="/login" element={<Login />} />
               <Route path="/register" element={<Register />} />
               <Route path="/register-company" element={<RegisterCompany />} />

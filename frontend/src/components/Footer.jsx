@@ -25,6 +25,7 @@ export default function Footer() {
               <li><Link to="/tentang-kami" className="hover:text-white transition-colors" data-testid="footer-about-link">Tentang Kami</Link></li>
               <li><Link to="/jobs" className="hover:text-white transition-colors" data-testid="footer-jobs-link">Cari Lowongan</Link></li>
               <li><Link to="/untuk-perusahaan" className="hover:text-white transition-colors" data-testid="footer-companies-link">Untuk Perusahaan</Link></li>
+              <li><Link to="/blog" className="hover:text-white transition-colors" data-testid="footer-blog-link">Blog</Link></li>
             </ul>
           </div>
           <div>

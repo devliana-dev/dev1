@@ -450,6 +450,58 @@ async def company_detail(slug: str):
     return {"company": company, "jobs": [attach_company(j, cmap) for j in jobs]}
 
 
+# ---------- Blog ----------
+@api_router.get("/blog")
+async def list_blog_posts(limit: int = 20):
+    posts = await db.blog_posts.find({}, {"_id": 0}).sort("created_at", -1).to_list(limit)
+    return posts
+
+
+@api_router.get("/blog/{slug}")
+async def blog_post_detail(slug: str):
+    post = await db.blog_posts.find_one({"slug": slug}, {"_id": 0})
+    if not post:
+        raise HTTPException(status_code=404, detail="Artikel tidak ditemukan")
+    return post
+
+
+async def seed_blog_posts():
+    if await db.blog_posts.count_documents({}) > 0:
+        return
+    posts = [
+        {"id": str(uuid.uuid4()), "slug": "5-tips-lolos-wawancara-kerja-fresh-graduate",
+         "title": "5 Tips Lolos Wawancara Kerja untuk Fresh Graduate",
+         "category": "Tips Karier",
+         "image": "https://images.unsplash.com/photo-1521791136064-7986c2920216?crop=entropy&cs=srgb&fm=jpg&q=85&w=800",
+         "excerpt": "Wawancara kerja pertama sering bikin gugup. Simak 5 tips praktis agar Anda tampil percaya diri dan lolos seleksi.",
+         "content": "Wawancara kerja adalah momen penentu dalam proses rekrutmen. Bagi fresh graduate, pengalaman pertama ini sering kali menegangkan. Berikut lima tips yang bisa Anda terapkan.\n\nPertama, pelajari profil perusahaan sebelum wawancara. Ketahui bidang usaha, produk, dan budaya kerjanya. Kedua, siapkan jawaban untuk pertanyaan umum seperti kelebihan, kekurangan, dan alasan melamar. Latih jawaban Anda dengan bahasa yang natural, bukan hafalan kaku.\n\nKetiga, berpakaian rapi dan datang lebih awal, minimal 15 menit sebelum jadwal. Keempat, tunjukkan antusiasme melalui bahasa tubuh: jabat tangan dengan yakin, jaga kontak mata, dan tersenyum. Kelima, siapkan satu atau dua pertanyaan untuk pewawancara agar Anda terlihat serius dengan posisi tersebut.\n\nIngat, perusahaan lokal dan UMKM di Cirebon umumnya lebih menilai sikap, kejujuran, dan kemauan belajar dibanding pengalaman semata. Semoga sukses!",
+         "created_at": "2026-06-20T08:00:00+00:00"},
+        {"id": str(uuid.uuid4()), "slug": "cara-menulis-cv-yang-menarik-perhatian-hrd",
+         "title": "Cara Menulis CV yang Menarik Perhatian HRD",
+         "category": "Tips Karier",
+         "image": "https://images.pexels.com/photos/590044/pexels-photo-590044.jpeg?auto=compress&cs=tinysrgb&w=800",
+         "excerpt": "HRD hanya butuh beberapa detik untuk menilai CV Anda. Begini cara membuat CV yang langsung dilirik.",
+         "content": "CV adalah kesan pertama Anda di mata HRD. Rata-rata rekruter hanya membaca CV selama 6-10 detik sebelum memutuskan lanjut atau tidak.\n\nMulailah dengan format yang rapi: satu halaman untuk pemula, font sederhana, dan struktur jelas berisi data diri, pendidikan, pengalaman, dan keahlian. Hindari foto yang tidak formal dan informasi yang tidak relevan.\n\nTulis pengalaman dengan fokus pada hasil, bukan sekadar tugas. Misalnya, bukan hanya 'melayani pelanggan', tetapi 'melayani rata-rata 50 pelanggan per hari dengan rating kepuasan 95%'. Angka membuat CV Anda lebih meyakinkan.\n\nTerakhir, sesuaikan CV dengan lowongan yang dilamar. Jika melamar posisi kasir, tonjolkan ketelitian dan pengalaman transaksi. Simpan CV dalam format PDF agar tampilannya tidak berubah saat dibuka perusahaan.",
+         "created_at": "2026-06-12T08:00:00+00:00"},
+        {"id": str(uuid.uuid4()), "slug": "mengenal-hak-pekerja-dan-umk-cirebon-2026",
+         "title": "Mengenal Hak Pekerja dan UMK Cirebon 2026",
+         "category": "Info Ketenagakerjaan",
+         "image": "https://images.unsplash.com/photo-1592220769343-8a128527c5f1?crop=entropy&cs=srgb&fm=jpg&q=85&w=800",
+         "excerpt": "Sebelum menandatangani kontrak, pahami dulu hak-hak dasar Anda sebagai pekerja, termasuk soal UMK dan jam kerja.",
+         "content": "Setiap pekerja di Indonesia dilindungi oleh undang-undang ketenagakerjaan. Memahami hak dasar Anda penting agar tidak dirugikan saat bekerja.\n\nUpah Minimum Kabupaten/Kota (UMK) adalah standar upah terendah yang wajib dibayarkan perusahaan kepada pekerja dengan masa kerja kurang dari satu tahun. Besaran UMK berbeda di setiap daerah, termasuk Kota Cirebon, Kabupaten Cirebon, Majalengka, Kuningan, dan Indramayu. Pastikan gaji yang ditawarkan tidak di bawah UMK daerah tersebut.\n\nSelain upah, pekerja berhak atas jam kerja maksimal 40 jam per minggu, cuti tahunan, cuti melahirkan, serta jaminan BPJS Kesehatan dan Ketenagakerjaan untuk pekerja formal. Untuk pekerja informal atau harian, pastikan kesepakatan upah dan jam kerja tertulis jelas.\n\nJika Anda menemukan lowongan yang meminta biaya pendaftaran atau menahan ijazah asli, waspadalah — itu adalah ciri umum penipuan lowongan kerja. Semua lowongan di CirebonKarir.com telah melewati moderasi, namun tetap laporkan jika menemukan kejanggalan.",
+         "created_at": "2026-06-05T08:00:00+00:00"},
+        {"id": str(uuid.uuid4()), "slug": "strategi-jitu-mencari-kerja-di-tahun-2026",
+         "title": "Strategi Jitu Mencari Kerja di Tahun 2026",
+         "category": "Tips Karier",
+         "image": "https://images.pexels.com/photos/5077060/pexels-photo-5077060.jpeg?auto=compress&cs=tinysrgb&w=800",
+         "excerpt": "Persaingan kerja semakin ketat. Terapkan strategi ini agar pencarian kerja Anda lebih terarah dan cepat membuahkan hasil.",
+         "content": "Mencari kerja di tahun 2026 membutuhkan strategi yang lebih cerdas dibanding sekadar mengirim lamaran ke banyak tempat.\n\nPertama, tentukan target yang jelas: posisi, lokasi, dan rentang gaji yang realistis. Dengan target spesifik, Anda bisa fokus pada lowongan yang benar-benar cocok. Kedua, manfaatkan portal lowongan lokal seperti CirebonKarir.com dan aktifkan rutinitas melamar setiap hari — konsistensi mengalahkan keberuntungan.\n\nKetiga, perkuat profil Anda: perbarui CV, lengkapi data diri, dan siapkan nomor WhatsApp aktif agar perusahaan mudah menghubungi. Keempat, jangan abaikan jaringan pertemanan — banyak lowongan UMKM justru tersebar dari mulut ke mulut.\n\nTerakhir, evaluasi setiap penolakan. Jika sering gagal di tahap wawancara, berarti kemampuan komunikasi yang perlu dilatih. Jika lamaran tidak pernah dilirik, perbaiki CV Anda. Terus bergerak dan semangat!",
+         "created_at": "2026-05-28T08:00:00+00:00"},
+    ]
+    await db.blog_posts.insert_many(posts)
+    logger.info("Blog posts seeded")
+
+
 # ---------- File download ----------
 @api_router.get("/files/{path:path}")
 async def download_file(path: str, request: Request, auth: str = Query(None)):
@@ -999,6 +1051,7 @@ async def startup():
     await seed_admin()
     await seed_categories()
     await seed_demo_data()
+    await seed_blog_posts()
     await expire_jobs()
 
 
