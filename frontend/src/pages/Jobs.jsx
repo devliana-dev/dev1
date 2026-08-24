@@ -3,7 +3,7 @@ import { useSearchParams } from "react-router-dom";
 import { Search, MapPin, SlidersHorizontal, X, ChevronLeft, ChevronRight } from "lucide-react";
 import api from "../lib/api";
 import { LOCATIONS, JOB_TYPES, EDUCATION_LEVELS, CATEGORIES, SALARY_RANGES } from "../lib/constants";
-import JobCard from "../components/JobCard";
+import JobListItem from "../components/JobListItem";
 
 function FilterGroup({ title, options, value, onChange, testId }) {
   return (
@@ -150,15 +150,15 @@ export default function Jobs() {
             </div>
 
             {loading ? (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+              <div className="space-y-4">
                 {[...Array(6)].map((_, i) => (
-                  <div key={i} className="h-52 rounded-xl bg-white border border-slate-200 animate-pulse" />
+                  <div key={i} className="h-24 rounded-lg bg-white border border-slate-200 animate-pulse" />
                 ))}
               </div>
             ) : data.items.length === 0 ? (
-              <div className="bg-white rounded-xl border border-slate-200 p-12 text-center" data-testid="no-jobs-found">
+              <div className="bg-white rounded-lg border border-slate-200 p-12 text-center" data-testid="no-jobs-found">
                 <MapPin className="h-10 w-10 text-slate-300 mx-auto mb-3" />
-                <h3 className="font-display font-semibold text-slate-900">Tidak ada lowongan ditemukan</h3>
+                <h3 className="font-display font-semibold text-slate-900">Lowongan tidak ditemukan.</h3>
                 <p className="text-sm text-slate-500 mt-1">Coba ubah kata kunci atau hapus beberapa filter.</p>
                 {hasFilter && (
                   <button onClick={clearAll} className="mt-4 inline-flex h-10 px-5 items-center rounded-lg bg-slate-900 text-white text-sm font-semibold" data-testid="reset-filter-btn">
@@ -168,9 +168,9 @@ export default function Jobs() {
               </div>
             ) : (
               <>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-5" data-testid="jobs-grid">
+                <div className="space-y-4" data-testid="jobs-grid">
                   {data.items.map((job) => (
-                    <JobCard key={job.id} job={job} />
+                    <JobListItem key={job.id} job={job} />
                   ))}
                 </div>
                 {data.pages > 1 && (

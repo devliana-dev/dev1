@@ -3,7 +3,7 @@ import { Link, useParams } from "react-router-dom";
 import { BadgeCheck, MapPin, Globe, Instagram, Loader2, Building2 } from "lucide-react";
 import api from "../lib/api";
 import { logoUrl } from "../lib/format";
-import JobCard from "../components/JobCard";
+import JobListItem from "../components/JobListItem";
 
 export default function CompanyDetail() {
   const { slug } = useParams();
@@ -75,9 +75,9 @@ export default function CompanyDetail() {
           Perusahaan ini belum memiliki lowongan aktif.
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+        <div className="space-y-4" data-testid="company-jobs-list">
           {jobs.map((job) => (
-            <JobCard key={job.id} job={job} />
+            <JobListItem key={job.id} job={job} />
           ))}
         </div>
       )}

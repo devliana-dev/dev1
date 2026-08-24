@@ -3,7 +3,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { Search, MapPin, Newspaper, MousePointerClick, ShieldCheck, ArrowRight, Briefcase } from "lucide-react";
 import api from "../lib/api";
 import { LOCATIONS, POPULAR_CATEGORIES } from "../lib/constants";
-import JobCard from "../components/JobCard";
+import JobListItem from "../components/JobListItem";
 
 export default function Home() {
   const navigate = useNavigate();
@@ -14,7 +14,7 @@ export default function Home() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    api.get("/jobs", { params: { limit: 6 } })
+    api.get("/jobs", { params: { limit: 8 } })
       .then((r) => setJobs(r.data.items))
       .catch(() => {})
       .finally(() => setLoading(false));
@@ -123,24 +123,24 @@ export default function Home() {
             <h2 className="font-display text-2xl sm:text-3xl font-bold text-slate-900">Lowongan Terbaru</h2>
             <p className="text-sm text-slate-500 mt-1">Lowongan yang baru saja dipasang oleh perusahaan</p>
           </div>
-          <Link to="/jobs" className="hidden sm:inline-flex items-center gap-1 text-sm font-semibold text-sky-700 hover:text-sky-800" data-testid="view-all-jobs-link">
-            Lihat Semua <ArrowRight className="h-4 w-4" />
+          <Link to="/jobs" className="hidden sm:inline-flex items-center gap-1.5 h-11 px-5 rounded-lg border border-slate-300 bg-white text-sm font-semibold text-slate-700 hover:bg-slate-50 transition-colors" data-testid="view-all-jobs-link">
+            Lihat Semua Lowongan <ArrowRight className="h-4 w-4" />
           </Link>
         </div>
         {loading ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+          <div className="space-y-4">
             {[...Array(6)].map((_, i) => (
-              <div key={i} className="h-52 rounded-xl bg-white border border-slate-200 animate-pulse" />
+              <div key={i} className="h-24 rounded-lg bg-white border border-slate-200 animate-pulse" />
             ))}
           </div>
         ) : jobs.length === 0 ? (
-          <div className="bg-white rounded-xl border border-slate-200 p-10 text-center text-slate-500" data-testid="no-jobs-message">
-            Belum ada lowongan tersedia.
+          <div className="bg-white rounded-lg border border-slate-200 p-10 text-center text-slate-500" data-testid="no-jobs-message">
+            Belum ada lowongan.
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+          <div className="space-y-4" data-testid="latest-jobs-list">
             {jobs.map((job) => (
-              <JobCard key={job.id} job={job} />
+              <JobListItem key={job.id} job={job} />
             ))}
           </div>
         )}

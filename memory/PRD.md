@@ -38,6 +38,13 @@ Website lowongan kerja lokal CirebonKarir.com yang mempertemukan pencari kerja d
 - Hero homepage dipercantik: ilustrasi flat kota Cirebon (Keraton/gapura, gunung Ciremai) sebagai latar dengan gradient fade, badge "Portal Lowongan Kerja #1 di Cirebon".
 - Bug fix 2: pita batik di tepi bawah hero tampil sebagai noise gelap (bitmap jpeg hasil konversi). Sempat diganti SVG vektor, lalu atas permintaan user ornamen Mega Mendung **dihapus sepenuhnya** dari hero (div ornamen di Home.jsx dihapus, file `/app/frontend/public/megamendung.svg` dihapus). Hero kini: ilustrasi kota Cirebon + badge + search, tepi bawah bersih navy → strip statistik. Diverifikasi screenshot desktop & mobile.
 
+## Iterasi 4 — Redesain Job Listing Horizontal (24 Jun 2026)
+- Komponen baru `/app/frontend/src/components/JobListItem.jsx`: horizontal row card (logo kiri object-contain, label "INFO LOWONGAN", judul bold, perusahaan+lokasi+waktu, badge kategori soft sky, tombol "Lamar Sekarang" → job detail). `JobCard.jsx` (grid card) dihapus.
+- Dipakai di: Home (Lowongan Terbaru, limit 8, tombol "Lihat Semua Lowongan"), /jobs (hasil search+filter), halaman detail perusahaan.
+- Empty state disesuaikan: "Belum ada lowongan." / "Lowongan tidak ditemukan." Skeleton loading berbentuk baris horizontal.
+- Responsive: desktop [logo|info|kategori|lamar]; mobile stack (logo+info, lalu chip+button) tanpa horizontal scroll (terverifikasi 1920/768/390).
+- Diverifikasi screenshot: klik "Lamar Sekarang" → `/jobs/:slug` detail tetap berfungsi; kombinasi search+filter (q=kasir & Full Time → 2 hasil) bekerja.
+
 ## Akun Demo
 - Admin: muhamadwahid.sih@gmail.com / admin123
 - Perusahaan: demo@perusahaan.com / password123
