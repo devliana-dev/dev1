@@ -36,7 +36,7 @@ Website lowongan kerja lokal CirebonKarir.com yang mempertemukan pencari kerja d
 
 ## Iterasi 3 — Polish Hero Homepage (24 Jun 2026)
 - Hero homepage dipercantik: ilustrasi flat kota Cirebon (Keraton/gapura, gunung Ciremai) sebagai latar dengan gradient fade, badge "Portal Lowongan Kerja #1 di Cirebon".
-- Bug fix 2: pita batik di tepi bawah hero tampil sebagai noise gelap (bitmap jpeg hasil konversi). Diperbaiki total: ornamen diganti SVG vektor buatan tangan (`/app/frontend/public/megamendung.svg` — 3 baris lengkung awan Mega Mendung, tile 220px seamless, stroke sky-blue). PNG lama dihapus. Diverifikasi testing agent (iterasi 4, `/app/test_reports/iteration_4.json`) — 100% lulus.
+- Bug fix 2: pita batik di tepi bawah hero tampil sebagai noise gelap (bitmap jpeg hasil konversi). Sempat diganti SVG vektor, lalu atas permintaan user ornamen Mega Mendung **dihapus sepenuhnya** dari hero (div ornamen di Home.jsx dihapus, file `/app/frontend/public/megamendung.svg` dihapus). Hero kini: ilustrasi kota Cirebon + badge + search, tepi bawah bersih navy → strip statistik. Diverifikasi screenshot desktop & mobile.
 
 ## Akun Demo
 - Admin: muhamadwahid.sih@gmail.com / admin123

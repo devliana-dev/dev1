@@ -41,16 +41,6 @@ export default function Home() {
           style={{ maskImage: "linear-gradient(to bottom, transparent 0%, black 45%)", WebkitMaskImage: "linear-gradient(to bottom, transparent 0%, black 45%)" }}
         />
         <div className="absolute inset-0 bg-gradient-to-b from-slate-900/70 via-slate-900/30 to-transparent" />
-        {/* Ornamen batik Mega Mendung */}
-        <div
-          className="absolute bottom-0 inset-x-0 h-14 sm:h-16"
-          style={{
-            backgroundImage: "url('/megamendung.svg')",
-            backgroundRepeat: "repeat-x",
-            backgroundSize: "auto 100%",
-          }}
-          aria-hidden="true"
-        />
         <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-20 pb-24 sm:pt-28 sm:pb-32">
           <span className="inline-flex items-center gap-2 rounded-full px-4 py-1.5 bg-sky-500/15 border border-sky-400/30 text-sky-300 text-xs font-semibold tracking-wide backdrop-blur" data-testid="hero-badge">
             Portal Lowongan Kerja #1 di Cirebon
