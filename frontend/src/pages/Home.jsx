@@ -2,29 +2,27 @@ import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import {
   Search, MapPin, Newspaper, MousePointerClick, ShieldCheck, ArrowRight, Briefcase,
-  ClipboardList, Calculator, Handshake, Warehouse, Megaphone, Car, Coffee, Store,
-  Settings, Laptop, Code2, Headset, Wallet, LayoutGrid,
+  ClipboardList, Calculator, Megaphone, Car, Coffee, Settings, Code2, LayoutGrid,
+  Flame, BadgeCheck, Zap, TrendingUp, Package, User,
 } from "lucide-react";
 import api from "../lib/api";
 import { LOCATIONS } from "../lib/constants";
 import JobListItem from "../components/JobListItem";
 
 const KATEGORI_CARDS = [
-  { label: "Administrasi", icon: ClipboardList, to: "/jobs?category=Admin" },
+  { label: "Admin", icon: User, to: "/jobs?category=Admin" },
   { label: "Kasir", icon: Calculator, to: "/jobs?q=Kasir" },
-  { label: "Sales", icon: Handshake, to: "/jobs?category=Sales" },
-  { label: "Staff Gudang", icon: Warehouse, to: "/jobs?category=Gudang" },
+  { label: "Sales", icon: TrendingUp, to: "/jobs?category=Sales" },
   { label: "Marketing", icon: Megaphone, to: "/jobs?category=Marketing" },
+  { label: "Staff Gudang", icon: Package, to: "/jobs?category=Gudang" },
   { label: "Driver", icon: Car, to: "/jobs?category=Driver" },
   { label: "Barista", icon: Coffee, to: "/jobs?q=Barista" },
-  { label: "Restoran / UMKM", icon: Store, to: "/jobs?category=F%26B" },
   { label: "Operator", icon: Settings, to: "/jobs?q=Operator" },
-  { label: "Freelance", icon: Laptop, to: "/jobs?job_type=Freelance" },
-  { label: "IT / Software", icon: Code2, to: "/jobs?category=IT" },
-  { label: "Customer Service", icon: Headset, to: "/jobs?q=Customer%20Service" },
-  { label: "Keuangan", icon: Wallet, to: "/jobs?category=Finance" },
+  { label: "IT / Komputer", icon: Code2, to: "/jobs?category=IT" },
   { label: "Lainnya", icon: LayoutGrid, to: "/jobs?category=Lainnya" },
 ];
+
+const HERO_CHIPS = ["Admin", "Kasir", "Sales", "Marketing", "Driver", "Barista", "Gudang", "Operator", "Freelance"];
 
 const AREA_LOKER = [
   { label: "Cirebon", to: "/jobs?location=Kota%20Cirebon" },
@@ -61,28 +59,28 @@ export default function Home() {
   return (
     <div className="page-fade">
       {/* Hero */}
-      <section className="relative bg-slate-900 overflow-hidden" data-testid="hero-section">
+      <section className="relative overflow-hidden bg-sky-50" data-testid="hero-section">
         {/* Ilustrasi kota Cirebon */}
         <img
-          src="https://static.prod-images.emergentagent.com/jobs/e16bb991-4078-4c7d-8bc9-0b3048e379f2/images/061515a567cbc559e71f085ec39b55e5e0a9fb1c91c3514a4473561bdd452f3b.jpeg"
+          src="https://static.prod-images.emergentagent.com/jobs/e16bb991-4078-4c7d-8bc9-0b3048e379f2/images/23b45a427faf79d00a76c65b5d693786d77e1bd010063aa4bd2f00597b17d9d2.jpeg"
           alt="Ilustrasi Kota Cirebon"
-          className="absolute inset-x-0 bottom-0 w-full h-full object-cover object-bottom opacity-70"
-          style={{ maskImage: "linear-gradient(to bottom, transparent 0%, black 45%)", WebkitMaskImage: "linear-gradient(to bottom, transparent 0%, black 45%)" }}
+          className="absolute inset-0 w-full h-full object-cover object-right"
         />
-        <div className="absolute inset-0 bg-gradient-to-b from-slate-900/70 via-slate-900/30 to-transparent" />
-        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-20 pb-24 sm:pt-28 sm:pb-32">
-          <span className="inline-flex items-center gap-2 rounded-full px-4 py-1.5 bg-sky-500/15 border border-sky-400/30 text-sky-300 text-xs font-semibold tracking-wide backdrop-blur" data-testid="hero-badge">
-            Portal Lowongan Kerja #1 di Cirebon
-          </span>
-          <h1 className="mt-5 font-display text-4xl sm:text-5xl lg:text-6xl tracking-tight font-extrabold text-white max-w-3xl leading-tight">
-            Temukan Pekerjaan Impianmu di <span className="text-sky-400">Cirebon</span>
+        <div
+          className="absolute inset-0"
+          style={{ background: "linear-gradient(90deg, rgba(240,249,255,0.98) 0%, rgba(240,249,255,0.94) 30%, rgba(240,249,255,0.6) 50%, rgba(240,249,255,0.05) 72%)" }}
+        />
+        <div className="absolute inset-0 bg-sky-50/70 sm:hidden" />
+        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-14 pb-28 sm:pt-20 sm:pb-36">
+          <h1 className="font-display text-4xl sm:text-5xl lg:text-6xl tracking-tight font-extrabold text-slate-900 max-w-2xl leading-tight">
+            Temukan Pekerjaan Impianmu di <span className="text-sky-600">Cirebon</span>
           </h1>
-          <p className="mt-4 text-base sm:text-lg text-slate-300 max-w-2xl leading-relaxed">
+          <p className="mt-4 text-base sm:text-lg text-slate-600 max-w-xl leading-relaxed">
             Cari lowongan kerja terbaru dari berbagai perusahaan dan UMKM di Cirebon dan sekitarnya.
           </p>
 
-          <form onSubmit={search} className="mt-8 bg-white rounded-2xl p-2.5 shadow-lg flex flex-col md:flex-row gap-2 max-w-3xl" data-testid="hero-search-form">
-            <div className="flex items-center gap-2 flex-1 px-3 h-12 rounded-lg bg-slate-50 border border-slate-200">
+          <form onSubmit={search} className="mt-8 bg-white rounded-full p-2 shadow-xl border border-slate-100 flex flex-col md:flex-row gap-2 max-w-3xl" data-testid="hero-search-form">
+            <div className="flex items-center gap-2 flex-1 px-4 h-12">
               <Search className="h-5 w-5 text-slate-400 shrink-0" />
               <input
                 type="text"
@@ -93,7 +91,7 @@ export default function Home() {
                 data-testid="hero-search-input"
               />
             </div>
-            <div className="flex items-center gap-2 px-3 h-12 rounded-lg bg-slate-50 border border-slate-200 md:w-56">
+            <div className="flex items-center gap-2 px-4 h-12 md:w-56 md:border-l border-slate-200">
               <MapPin className="h-5 w-5 text-slate-400 shrink-0" />
               <select
                 value={location}
@@ -109,61 +107,107 @@ export default function Home() {
             </div>
             <button
               type="submit"
-              className="h-12 px-6 rounded-lg bg-sky-600 text-white text-sm font-semibold hover:bg-sky-700 transition-colors"
+              className="h-12 px-7 rounded-full bg-sky-600 text-white text-sm font-semibold hover:bg-sky-700 transition-colors inline-flex items-center justify-center gap-2"
               data-testid="hero-search-btn"
             >
-              Cari Lowongan
+              <Search className="h-4 w-4 md:hidden" /> Cari Lowongan
             </button>
           </form>
 
+          <div className="mt-6 flex flex-wrap items-center gap-2" data-testid="popular-categories">
+            <span className="inline-flex items-center gap-1.5 text-sm font-semibold text-slate-700 mr-1">
+              <Flame className="h-4 w-4 text-orange-500" /> Populer:
+            </span>
+            {HERO_CHIPS.map((cat) => (
+              <button
+                key={cat}
+                onClick={() => navigate(`/jobs?q=${encodeURIComponent(cat)}`)}
+                className="rounded-full px-4 py-2 bg-white border border-slate-200 text-slate-700 text-sm font-medium shadow-sm hover:border-sky-400 hover:text-sky-700 transition-colors"
+                data-testid={`category-chip-${cat.toLowerCase().replace(/[\s/]+/g, "-")}`}
+              >
+                {cat}
+              </button>
+            ))}
+          </div>
         </div>
       </section>
 
-      {/* Kategori Pekerjaan + Area Loker */}
-      <section className="bg-slate-900" data-testid="kategori-area-section">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-14 sm:py-16">
-          <h2 className="font-display text-2xl sm:text-3xl font-bold text-white">Kategori Pekerjaan</h2>
-          <p className="text-sm text-slate-400 mt-1">Temukan pekerjaan sesuai dengan minat dan keahlian Anda</p>
-          <div className="mt-8 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-7 gap-3.5" data-testid="kategori-grid">
+      {/* Feature bar */}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 -mt-16 sm:-mt-20 relative z-10" data-testid="feature-bar">
+        <div className="bg-white rounded-2xl shadow-xl border border-slate-100 px-6 py-7 sm:px-10 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 sm:gap-8">
+          {[
+            { icon: Briefcase, title: "Lowongan Terbaru", desc: "Ribuan lowongan kerja terbaru setiap harinya" },
+            { icon: BadgeCheck, title: "Perusahaan Terpercaya", desc: "Perusahaan terverifikasi untuk keamanan pencari kerja" },
+            { icon: Zap, title: "Mudah & Cepat", desc: "Proses melamar kerja yang mudah dan cepat" },
+            { icon: MapPin, title: "Lokal Cirebon", desc: "Lowongan kerja dari Cirebon dan sekitarnya" },
+          ].map((f) => (
+            <div key={f.title} className="flex items-start gap-4" data-testid={`feature-bar-${f.title.toLowerCase().replace(/[\s&]+/g, "-")}`}>
+              <span className="inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-sky-600 text-white">
+                <f.icon className="h-5 w-5" />
+              </span>
+              <div>
+                <h3 className="font-display font-bold text-slate-900 text-sm">{f.title}</h3>
+                <p className="text-xs text-slate-500 mt-1 leading-relaxed">{f.desc}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Kategori Populer + Area Loker */}
+      <section className="pt-14 sm:pt-16" data-testid="kategori-area-section">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex items-end justify-between">
+            <div>
+              <h2 className="font-display text-2xl sm:text-3xl font-bold text-slate-900">Kategori Populer</h2>
+              <p className="text-sm text-slate-500 mt-1">Temukan pekerjaan sesuai dengan minat dan keahlian Anda</p>
+            </div>
+            <Link to="/jobs" className="hidden sm:inline-flex items-center gap-1.5 text-sm font-semibold text-sky-700 hover:text-sky-800" data-testid="lihat-semua-kategori-link">
+              Lihat Semua Kategori <ArrowRight className="h-4 w-4" />
+            </Link>
+          </div>
+          <div className="mt-7 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3.5" data-testid="kategori-grid">
             {KATEGORI_CARDS.map((k) => (
               <Link
                 key={k.label}
                 to={k.to}
-                className="group flex flex-col items-center justify-center gap-3 rounded-xl border border-slate-700/80 bg-slate-800/60 px-3 py-6 cursor-pointer hover:bg-slate-800 hover:border-sky-500/60 transition-[background-color,border-color] duration-200"
+                className="group flex flex-col items-center justify-center gap-3 rounded-xl border border-slate-200 bg-white px-3 py-6 cursor-pointer shadow-sm hover:shadow-md hover:border-sky-300 transition-[box-shadow,border-color] duration-200"
                 data-testid={`kategori-${k.label.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`}
               >
-                <k.icon className="h-8 w-8 text-sky-400 group-hover:text-sky-300 transition-colors" />
-                <span className="text-sm font-semibold text-slate-100 text-center leading-tight">{k.label}</span>
+                <k.icon className="h-8 w-8 text-sky-600 group-hover:text-sky-500 transition-colors" />
+                <span className="text-sm font-semibold text-slate-700 text-center leading-tight">{k.label}</span>
               </Link>
             ))}
           </div>
 
-          <div className="mt-14 pt-12 border-t border-slate-800" data-testid="area-loker-section">
-            <h2 className="font-display text-2xl sm:text-3xl font-bold text-white">Area Loker</h2>
-            <p className="text-sm text-slate-400 mt-1">Temukan lowongan kerja berdasarkan lokasi pilihan Anda</p>
-            <div className="mt-8 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4" data-testid="area-loker-grid">
+          <div className="mt-14" data-testid="area-loker-section">
+            <h2 className="font-display text-2xl sm:text-3xl font-bold text-slate-900">Area Loker</h2>
+            <p className="text-sm text-slate-500 mt-1">Temukan lowongan kerja berdasarkan lokasi pilihan Anda</p>
+            <div className="mt-7 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4" data-testid="area-loker-grid">
               {AREA_LOKER.map((a) => (
                 <Link
                   key={a.label}
                   to={a.to}
-                  className="group rounded-xl border border-slate-700/80 bg-slate-800/60 p-6 cursor-pointer hover:bg-slate-800 hover:border-sky-500/60 transition-[background-color,border-color] duration-200"
+                  className="group rounded-xl border border-slate-200 bg-white p-6 cursor-pointer shadow-sm hover:shadow-md hover:border-sky-300 transition-[box-shadow,border-color] duration-200"
                   data-testid={`area-${a.label.toLowerCase()}`}
                 >
-                  <MapPin className="h-7 w-7 text-sky-400 group-hover:text-sky-300 transition-colors" />
-                  <h3 className="mt-3 font-display font-bold text-white text-lg">{a.label}</h3>
-                  <span className="mt-1.5 inline-flex items-center gap-1.5 text-sm font-semibold text-sky-400">
+                  <span className="inline-flex h-11 w-11 items-center justify-center rounded-full bg-sky-100 text-sky-600 group-hover:bg-sky-600 group-hover:text-white transition-colors">
+                    <MapPin className="h-5 w-5" />
+                  </span>
+                  <h3 className="mt-3 font-display font-bold text-slate-900 text-lg">{a.label}</h3>
+                  <span className="mt-1.5 inline-flex items-center gap-1.5 text-sm font-semibold text-sky-700">
                     Lihat Lowongan <ArrowRight className="h-4 w-4 group-hover:translate-x-0.5 transition-transform" />
                   </span>
                 </Link>
               ))}
             </div>
-            <div className="mt-8 rounded-xl border border-slate-700/80 bg-slate-800/60 px-5 py-4 flex flex-col sm:flex-row sm:items-center gap-4 justify-between">
-              <p className="text-sm text-slate-300 flex items-start gap-2.5">
-                <MapPin className="h-5 w-5 text-sky-400 shrink-0" />
+            <div className="mt-8 rounded-xl border border-slate-200 bg-white shadow-sm px-5 py-4 flex flex-col sm:flex-row sm:items-center gap-4 justify-between">
+              <p className="text-sm text-slate-600 flex items-start gap-2.5">
+                <MapPin className="h-5 w-5 text-sky-600 shrink-0" />
                 <span>
-                  <span className="font-semibold text-white">Belum menemukan lokasi yang Anda cari?</span>
+                  <span className="font-semibold text-slate-900">Belum menemukan lokasi yang Anda cari?</span>
                   <br />
-                  <span className="text-slate-400">Gunakan fitur pencarian untuk menemukan lowongan di lokasi lainnya.</span>
+                  <span className="text-slate-500">Gunakan fitur pencarian untuk menemukan lowongan di lokasi lainnya.</span>
                 </span>
               </p>
               <Link

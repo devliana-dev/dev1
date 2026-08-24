@@ -57,6 +57,13 @@ Website lowongan kerja lokal CirebonKarir.com yang mempertemukan pencari kerja d
 - Pencari kerja: budi@example.com / password123
 
 ## Backlog
+## Iterasi 6 — Redesain Homepage ala Referensi Terang (24 Jun 2026)
+- Hero diganti tema terang: ilustrasi baru Cirebon siang hari (waterfront, perahu layar, ornamen Mega Mendung sudut, gradient overlay ke kiri; overlay ekstra `bg-sky-50/70` khusus mobile), search pill rounded-full, chips "Populer:" kembali di hero (9 chips), badge "#1" dihapus.
+- Feature bar baru (4 item: Lowongan Terbaru, Perusahaan Terpercaya, Mudah & Cepat, Lokal Cirebon) — card putih overlap bawah hero (-mt-16/20).
+- Kategori diubah jadi "Kategori Populer" tema terang: 10 card putih (Admin, Kasir, Sales, Marketing, Staff Gudang, Driver, Barista, Operator, IT/Komputer, Lainnya) + link "Lihat Semua Kategori →".
+- Area Loker direstyle ke tema terang (card putih, icon MapPin bulat sky, "Lihat Lowongan →"), panel bantuan lokasi tetap.
+- Terverifikasi: desktop sesuai referensi, kategori-driver → /jobs?category=Driver (2 hasil), mobile 390px tanpa horizontal scroll.
+
 ### P1
 - Lupa/reset password (endpoint dasar bisa ditambah).
 - Notifikasi email (Resend) saat status lamaran berubah / lowongan disetujui.
