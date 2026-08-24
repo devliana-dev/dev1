@@ -116,6 +116,26 @@ code {
     animation: pageFade 0.35s ease-out;
 }
 
+@page {
+    size: A4;
+    margin: 12mm;
+}
+
+@media print {
+    body * {
+        visibility: hidden;
+    }
+    #cv-print-area, #cv-print-area * {
+        visibility: visible;
+    }
+    #cv-print-area {
+        position: absolute;
+        left: 0;
+        top: 0;
+        width: 100%;
+    }
+}
+
 @keyframes pageFade {
     from { opacity: 0; transform: translateY(6px); }
     to { opacity: 1; transform: translateY(0); }

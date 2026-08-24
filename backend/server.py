@@ -167,7 +167,8 @@ def attach_company(job: dict, cmap: dict) -> dict:
 
 async def save_upload(user_id: str, file: UploadFile, kind: str) -> dict:
     ext = file.filename.rsplit(".", 1)[-1].lower() if "." in file.filename else "bin"
-    allowed = {"cv": {"pdf", "doc", "docx"}, "logo": {"jpg", "jpeg", "png", "webp"}}[kind]
+    allowed = {"cv": {"pdf", "doc", "docx"}, "logo": {"jpg", "jpeg", "png", "webp"},
+               "payment": {"jpg", "jpeg", "png", "webp", "pdf"}}[kind]
     if ext not in allowed:
         raise HTTPException(status_code=400, detail=f"Format file tidak didukung. Gunakan: {', '.join(sorted(allowed))}")
     data = await file.read()
@@ -508,13 +509,13 @@ async def download_file(path: str, request: Request, auth: str = Query(None)):
     record = await db.files.find_one({"storage_path": path, "is_deleted": False}, {"_id": 0})
     if not record:
         raise HTTPException(status_code=404, detail="File tidak ditemukan")
-    if record.get("kind") == "cv":
+    if record.get("kind") in ("cv", "payment"):
         token = extract_token(request, auth)
         user = await get_user_by_token(token) if token else None
         if not user:
             raise HTTPException(status_code=401, detail="Tidak memiliki akses")
         allowed = user["role"] == "admin" or user["id"] == record.get("owner_user_id")
-        if not allowed and user["role"] == "company":
+        if not allowed and user["role"] == "company" and record.get("kind") == "cv":
             company = await db.companies.find_one({"user_id": user["id"]})
             if company:
                 allowed = bool(await db.applications.find_one({"cv_path": path, "company_id": company["id"]}))
@@ -857,6 +858,455 @@ async def admin_delete_category(cat_id: str, user=Depends(require_role("admin"))
     return {"message": "Kategori dihapus"}
 
 
+# ---------- CV Profesional ----------
+CV_TEMPLATE_LIST = [
+    {"id": "modern", "name": "Template Modern", "description": "Header berwarna dengan aksen profesional"},
+    {"id": "ats", "name": "Template ATS", "description": "Format sederhana yang ramah sistem ATS"},
+    {"id": "minimalis", "name": "Template Minimalis", "description": "Dua kolom bersih dan ringkas"},
+]
+
+CV_DEFAULT_SETTINGS = {
+    "id": "cv_settings",
+    "package_name": "CV Profesional 30 Hari",
+    "price": 10000,
+    "duration_days": 30,
+    "payment_methods": [],
+}
+
+
+async def get_cv_settings():
+    settings = await db.cv_settings.find_one({"id": "cv_settings"}, {"_id": 0})
+    if not settings:
+        settings = {**CV_DEFAULT_SETTINGS, "updated_at": now_iso()}
+        await db.cv_settings.insert_one(settings)
+        settings.pop("_id", None)
+    return settings
+
+
+async def write_cv_log(subscription_id, user_id, action, old_status, new_status, actor, notes=""):
+    await db.cv_activation_logs.insert_one({
+        "id": str(uuid.uuid4()), "subscription_id": subscription_id, "user_id": user_id,
+        "action": action, "old_status": old_status, "new_status": new_status,
+        "activated_by": actor, "notes": notes, "created_at": now_iso(),
+    })
+
+
+async def expire_cv_subscriptions():
+    now = now_iso()
+    expired = await db.cv_subscriptions.find({"status": "active", "expires_at": {"$lte": now, "$ne": ""}}, {"_id": 0}).to_list(500)
+    for s in expired:
+        await db.cv_subscriptions.update_one({"id": s["id"]}, {"$set": {"status": "expired", "updated_at": now}})
+        await write_cv_log(s["id"], s["user_id"], "Subscription expired", "active", "expired", "system")
+
+
+async def get_cv_subscriptions(user_id):
+    await expire_cv_subscriptions()
+    return await db.cv_subscriptions.find({"user_id": user_id}, {"_id": 0}).sort("created_at", -1).to_list(100)
+
+
+def has_cv_access(subs):
+    now = now_iso()
+    return any(s["status"] == "active" and (s.get("expires_at") or "") > now for s in subs)
+
+
+async def require_cv_premium(user=Depends(require_role("candidate"))):
+    subs = await get_cv_subscriptions(user["id"])
+    if not has_cv_access(subs):
+        raise HTTPException(status_code=403, detail="Fitur ini memerlukan akses CV Profesional yang aktif")
+    return user
+
+
+class CvSettingsIn(BaseModel):
+    package_name: str
+    price: int
+    duration_days: int
+    payment_methods: list = []
+
+
+class CvDocIn(BaseModel):
+    name: str
+    template: str = "modern"
+    data: dict = {}
+
+
+class CvRejectIn(BaseModel):
+    reason: str = ""
+
+
+@api_router.get("/cv-professional/status")
+async def cv_status(user=Depends(require_role("candidate"))):
+    settings = await get_cv_settings()
+    subs = await get_cv_subscriptions(user["id"])
+    current = (next((s for s in subs if s["status"] == "active"), None)
+               or next((s for s in subs if s["status"] == "pending"), None)
+               or (subs[0] if subs else None))
+    return {
+        "settings": {"package_name": settings["package_name"], "price": settings["price"],
+                     "duration_days": settings["duration_days"]},
+        "has_access": has_cv_access(subs),
+        "subscription": current,
+    }
+
+
+@api_router.get("/cv-professional/payment-info")
+async def cv_payment_info(user=Depends(require_role("candidate"))):
+    settings = await get_cv_settings()
+    return {"package_name": settings["package_name"], "price": settings["price"],
+            "duration_days": settings["duration_days"], "payment_methods": settings.get("payment_methods", [])}
+
+
+@api_router.post("/cv-professional/subscribe")
+async def cv_subscribe(payment_method: str = Form(...), proof: UploadFile = File(...),
+                       user=Depends(require_role("candidate"))):
+    settings = await get_cv_settings()
+    if settings["price"] <= 0 or settings["duration_days"] <= 0:
+        raise HTTPException(status_code=500, detail="Konfigurasi paket belum valid")
+    subs = await get_cv_subscriptions(user["id"])
+    if has_cv_access(subs):
+        raise HTTPException(status_code=400, detail="Anda masih memiliki akses CV Profesional aktif")
+    if any(s["status"] == "pending" for s in subs):
+        raise HTTPException(status_code=400, detail="Pengajuan Anda sedang menunggu verifikasi admin")
+    saved = await save_upload(user["id"], proof, "payment")
+    now = now_iso()
+    sub = {"id": str(uuid.uuid4()), "user_id": user["id"], "package_name": settings["package_name"],
+           "price": settings["price"], "duration_days": settings["duration_days"], "status": "pending",
+           "payment_method": payment_method, "payment_proof": saved["path"],
+           "payment_proof_filename": saved["filename"], "requested_at": now, "activated_at": "",
+           "expires_at": "", "activated_by": "", "rejected_at": "", "rejection_reason": "",
+           "created_at": now, "updated_at": now}
+    await db.cv_subscriptions.insert_one(sub)
+    await write_cv_log(sub["id"], user["id"], "Pengajuan dibuat", "", "pending", user["email"],
+                       f"Metode: {payment_method}")
+    sub.pop("_id", None)
+    return sub
+
+
+@api_router.get("/cv-professional/templates")
+async def cv_templates(user=Depends(require_cv_premium)):
+    return CV_TEMPLATE_LIST
+
+
+@api_router.get("/cv-professional/my-cvs")
+async def cv_my_list(user=Depends(require_role("candidate"))):
+    return await db.cv_documents.find({"user_id": user["id"]}, {"_id": 0, "data": 0}).sort("updated_at", -1).to_list(100)
+
+
+@api_router.get("/cv-professional/cvs/{cv_id}")
+async def cv_get(cv_id: str, user=Depends(require_role("candidate"))):
+    doc = await db.cv_documents.find_one({"id": cv_id, "user_id": user["id"]}, {"_id": 0})
+    if not doc:
+        raise HTTPException(status_code=404, detail="CV tidak ditemukan")
+    return doc
+
+
+@api_router.post("/cv-professional/cvs")
+async def cv_create(data: CvDocIn, user=Depends(require_cv_premium)):
+    if data.template not in {t["id"] for t in CV_TEMPLATE_LIST}:
+        raise HTTPException(status_code=400, detail="Template tidak valid")
+    now = now_iso()
+    doc = {"id": str(uuid.uuid4()), "user_id": user["id"], "name": data.name.strip() or "CV Tanpa Nama",
+           "template": data.template, "data": data.data, "created_at": now, "updated_at": now}
+    await db.cv_documents.insert_one(doc)
+    doc.pop("_id", None)
+    return doc
+
+
+@api_router.put("/cv-professional/cvs/{cv_id}")
+async def cv_update(cv_id: str, data: CvDocIn, user=Depends(require_cv_premium)):
+    if data.template not in {t["id"] for t in CV_TEMPLATE_LIST}:
+        raise HTTPException(status_code=400, detail="Template tidak valid")
+    result = await db.cv_documents.update_one({"id": cv_id, "user_id": user["id"]},
+        {"$set": {"name": data.name.strip() or "CV Tanpa Nama", "template": data.template,
+                  "data": data.data, "updated_at": now_iso()}})
+    if result.matched_count == 0:
+        raise HTTPException(status_code=404, detail="CV tidak ditemukan")
+    return await db.cv_documents.find_one({"id": cv_id}, {"_id": 0})
+
+
+@api_router.post("/cv-professional/cvs/{cv_id}/duplicate")
+async def cv_duplicate(cv_id: str, user=Depends(require_cv_premium)):
+    doc = await db.cv_documents.find_one({"id": cv_id, "user_id": user["id"]}, {"_id": 0})
+    if not doc:
+        raise HTTPException(status_code=404, detail="CV tidak ditemukan")
+    now = now_iso()
+    new_doc = {"id": str(uuid.uuid4()), "user_id": user["id"], "name": f"{doc['name']} (Salinan)",
+               "template": doc["template"], "data": doc["data"], "created_at": now, "updated_at": now}
+    await db.cv_documents.insert_one(new_doc)
+    new_doc.pop("_id", None)
+    return new_doc
+
+
+@api_router.delete("/cv-professional/cvs/{cv_id}")
+async def cv_delete(cv_id: str, user=Depends(require_role("candidate"))):
+    result = await db.cv_documents.delete_one({"id": cv_id, "user_id": user["id"]})
+    if result.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="CV tidak ditemukan")
+    return {"message": "CV dihapus"}
+
+
+def parse_cv_text(text: str) -> dict:
+    lines = [l.strip() for l in text.splitlines() if l.strip()]
+    email_match = re.search(r"[\w.+-]+@[\w-]+\.[\w.]+", text)
+    phone_match = re.search(r"(\+62|62|08)\d[\d\s-]{7,13}", text)
+    parsed = {
+        "personal": {"name": lines[0] if lines else "", "email": email_match.group(0) if email_match else "",
+                     "phone": re.sub(r"[\s-]", "", phone_match.group(0)) if phone_match else "",
+                     "address": "", "city": ""},
+        "summary": "", "education": [], "experience": [], "skills": [],
+        "certifications": [], "organizations": [], "languages": [],
+    }
+    section_map = {"pendidikan": "education", "education": "education", "riwayat pendidikan": "education",
+                   "pengalaman": "experience", "experience": "experience", "pengalaman kerja": "experience",
+                   "keahlian": "skills", "skill": "skills", "keterampilan": "skills",
+                   "sertifikat": "certifications", "sertifikasi": "certifications",
+                   "organisasi": "organizations", "bahasa": "languages", "language": "languages"}
+    current = None
+    for line in lines[1:]:
+        low = line.lower().strip(": ")
+        matched = next((v for k, v in section_map.items() if low == k or low.startswith(k + " ")), None)
+        if matched:
+            current = matched
+            continue
+        if not current or len(line) < 3:
+            continue
+        clean = line.lstrip("-•* ")
+        if current == "skills":
+            parsed["skills"].append({"name": clean, "level": ""})
+        elif current == "languages":
+            parsed["languages"].append({"name": clean, "level": ""})
+        elif current == "education":
+            parsed["education"].append({"institution": clean, "major": "", "start_year": "", "end_year": "", "description": ""})
+        elif current == "experience":
+            parsed["experience"].append({"company": clean, "position": "", "start_date": "", "end_date": "", "description": ""})
+        elif current == "certifications":
+            parsed["certifications"].append({"name": clean, "issuer": "", "year": ""})
+        elif current == "organizations":
+            parsed["organizations"].append({"name": clean, "role": "", "period": "", "description": ""})
+    return parsed
+
+
+@api_router.post("/cv-professional/import-cv")
+async def cv_import(file: UploadFile = File(...), user=Depends(require_cv_premium)):
+    ext = file.filename.rsplit(".", 1)[-1].lower() if "." in file.filename else ""
+    if ext not in ("pdf", "docx"):
+        raise HTTPException(status_code=400, detail="Format file harus PDF atau DOCX")
+    data = await file.read()
+    if len(data) > 5 * 1024 * 1024:
+        raise HTTPException(status_code=400, detail="Ukuran file maksimal 5MB")
+    try:
+        import io
+        if ext == "pdf":
+            from pypdf import PdfReader
+            reader = PdfReader(io.BytesIO(data))
+            text = "\n".join((page.extract_text() or "") for page in reader.pages)
+        else:
+            import docx
+            document = docx.Document(io.BytesIO(data))
+            text = "\n".join(p.text for p in document.paragraphs)
+    except Exception:
+        raise HTTPException(status_code=400, detail="File tidak dapat dibaca. Pastikan CV berisi teks (bukan hasil scan gambar).")
+    if not text.strip():
+        raise HTTPException(status_code=400, detail="Tidak ada teks yang dapat dibaca dari file ini.")
+    return {"parsed": parse_cv_text(text)}
+
+
+# ---------- Admin: CV Profesional ----------
+@api_router.get("/admin/cv-professional/stats")
+async def admin_cv_stats(user=Depends(require_role("admin"))):
+    await expire_cv_subscriptions()
+    subs = await db.cv_subscriptions.find({}, {"_id": 0, "status": 1, "price": 1, "activated_at": 1}).to_list(5000)
+    return {
+        "total": len(subs),
+        "pending": sum(1 for s in subs if s["status"] == "pending"),
+        "active": sum(1 for s in subs if s["status"] == "active"),
+        "expired": sum(1 for s in subs if s["status"] == "expired"),
+        "rejected": sum(1 for s in subs if s["status"] == "rejected"),
+        "revenue": sum(s.get("price", 0) for s in subs if s.get("activated_at")),
+    }
+
+
+@api_router.get("/admin/cv-professional/subscriptions")
+async def admin_cv_subs(status: str = "", q: str = "", page: int = 1, limit: int = 10,
+                        user=Depends(require_role("admin"))):
+    await expire_cv_subscriptions()
+    query = {}
+    if status:
+        query["status"] = status
+    if q:
+        regex = {"$regex": re.escape(q), "$options": "i"}
+        users = await db.users.find({"$or": [{"name": regex}, {"email": regex}]}, {"id": 1}).to_list(500)
+        query["user_id"] = {"$in": [u["id"] for u in users]}
+    total = await db.cv_subscriptions.count_documents(query)
+    subs = await db.cv_subscriptions.find(query, {"_id": 0}).sort("created_at", -1).skip(max(page - 1, 0) * limit).limit(limit).to_list(limit)
+    user_map = {u["id"]: u for u in await db.users.find({}, {"_id": 0, "id": 1, "name": 1, "email": 1}).to_list(2000)}
+    for s in subs:
+        u = user_map.get(s["user_id"], {})
+        s["user_name"] = u.get("name", "-")
+        s["user_email"] = u.get("email", "-")
+    return {"items": subs, "total": total, "page": page, "pages": max(1, (total + limit - 1) // limit)}
+
+
+@api_router.get("/admin/cv-professional/subscriptions/{sub_id}")
+async def admin_cv_sub_detail(sub_id: str, user=Depends(require_role("admin"))):
+    sub = await db.cv_subscriptions.find_one({"id": sub_id}, {"_id": 0})
+    if not sub:
+        raise HTTPException(status_code=404, detail="Pengajuan tidak ditemukan")
+    u = await db.users.find_one({"id": sub["user_id"]}, {"_id": 0, "id": 1, "name": 1, "email": 1})
+    sub["user_name"] = (u or {}).get("name", "-")
+    sub["user_email"] = (u or {}).get("email", "-")
+    logs = await db.cv_activation_logs.find({"subscription_id": sub_id}, {"_id": 0}).sort("created_at", -1).to_list(100)
+    return {"subscription": sub, "logs": logs}
+
+
+@api_router.post("/admin/cv-professional/subscriptions/{sub_id}/approve")
+async def admin_cv_approve(sub_id: str, user=Depends(require_role("admin"))):
+    sub = await db.cv_subscriptions.find_one({"id": sub_id})
+    if not sub:
+        raise HTTPException(status_code=404, detail="Pengajuan tidak ditemukan")
+    if sub["status"] != "pending":
+        raise HTTPException(status_code=400, detail="Hanya pengajuan berstatus pending yang dapat diaktifkan")
+    settings = await get_cv_settings()
+    days = sub.get("duration_days") or settings["duration_days"]
+    now = datetime.now(timezone.utc)
+    expires = now + timedelta(days=days)
+    await db.cv_subscriptions.update_one({"id": sub_id}, {"$set": {
+        "status": "active", "activated_at": now.isoformat(), "expires_at": expires.isoformat(),
+        "activated_by": user["email"], "rejected_at": "", "rejection_reason": "", "updated_at": now_iso()}})
+    await write_cv_log(sub_id, sub["user_id"], "Pembayaran diaktifkan", "pending", "active", user["email"],
+                       f"Masa aktif {days} hari, berakhir {expires.date().isoformat()}")
+    return {"status": "active", "expires_at": expires.isoformat()}
+
+
+@api_router.post("/admin/cv-professional/subscriptions/{sub_id}/reject")
+async def admin_cv_reject(sub_id: str, data: CvRejectIn, user=Depends(require_role("admin"))):
+    sub = await db.cv_subscriptions.find_one({"id": sub_id})
+    if not sub:
+        raise HTTPException(status_code=404, detail="Pengajuan tidak ditemukan")
+    if sub["status"] != "pending":
+        raise HTTPException(status_code=400, detail="Hanya pengajuan berstatus pending yang dapat ditolak")
+    await db.cv_subscriptions.update_one({"id": sub_id}, {"$set": {
+        "status": "rejected", "rejected_at": now_iso(), "rejection_reason": data.reason, "updated_at": now_iso()}})
+    await write_cv_log(sub_id, sub["user_id"], "Pembayaran ditolak", "pending", "rejected", user["email"], data.reason)
+    return {"status": "rejected"}
+
+
+@api_router.post("/admin/cv-professional/subscriptions/{sub_id}/extend")
+async def admin_cv_extend(sub_id: str, user=Depends(require_role("admin"))):
+    sub = await db.cv_subscriptions.find_one({"id": sub_id})
+    if not sub:
+        raise HTTPException(status_code=404, detail="Pengajuan tidak ditemukan")
+    if sub["status"] not in ("active", "expired"):
+        raise HTTPException(status_code=400, detail="Hanya subscription aktif/expired yang dapat diperpanjang")
+    settings = await get_cv_settings()
+    days = sub.get("duration_days") or settings["duration_days"]
+    now = datetime.now(timezone.utc)
+    base = now
+    if sub.get("expires_at"):
+        try:
+            exp = datetime.fromisoformat(sub["expires_at"])
+            if exp > now:
+                base = exp
+        except ValueError:
+            pass
+    new_exp = base + timedelta(days=days)
+    await db.cv_subscriptions.update_one({"id": sub_id}, {"$set": {
+        "status": "active", "expires_at": new_exp.isoformat(),
+        "activated_at": sub.get("activated_at") or now.isoformat(),
+        "activated_by": user["email"], "updated_at": now_iso()}})
+    await write_cv_log(sub_id, sub["user_id"], "Subscription diperpanjang", sub["status"], "active",
+                       user["email"], f"Diperpanjang {days} hari hingga {new_exp.date().isoformat()}")
+    return {"status": "active", "expires_at": new_exp.isoformat()}
+
+
+@api_router.post("/admin/cv-professional/subscriptions/{sub_id}/cancel")
+async def admin_cv_cancel(sub_id: str, user=Depends(require_role("admin"))):
+    sub = await db.cv_subscriptions.find_one({"id": sub_id})
+    if not sub:
+        raise HTTPException(status_code=404, detail="Pengajuan tidak ditemukan")
+    if sub["status"] != "active":
+        raise HTTPException(status_code=400, detail="Hanya subscription aktif yang dapat dinonaktifkan")
+    await db.cv_subscriptions.update_one({"id": sub_id}, {"$set": {"status": "cancelled", "updated_at": now_iso()}})
+    await write_cv_log(sub_id, sub["user_id"], "Subscription dinonaktifkan", "active", "cancelled", user["email"])
+    return {"status": "cancelled"}
+
+
+@api_router.get("/admin/cv-professional/logs")
+async def admin_cv_logs(user=Depends(require_role("admin"))):
+    return await db.cv_activation_logs.find({}, {"_id": 0}).sort("created_at", -1).to_list(100)
+
+
+@api_router.get("/admin/cv-professional/settings")
+async def admin_cv_settings_get(user=Depends(require_role("admin"))):
+    return await get_cv_settings()
+
+
+@api_router.put("/admin/cv-professional/settings")
+async def admin_cv_settings_put(data: CvSettingsIn, user=Depends(require_role("admin"))):
+    if not data.package_name.strip():
+        raise HTTPException(status_code=400, detail="Nama paket wajib diisi")
+    if data.price <= 0:
+        raise HTTPException(status_code=400, detail="Harga tidak boleh kosong atau 0")
+    if data.duration_days <= 0:
+        raise HTTPException(status_code=400, detail="Durasi tidak boleh 0")
+    await db.cv_settings.update_one({"id": "cv_settings"}, {"$set": {
+        "package_name": data.package_name.strip(), "price": data.price,
+        "duration_days": data.duration_days, "payment_methods": data.payment_methods,
+        "updated_at": now_iso()}}, upsert=True)
+    return await get_cv_settings()
+
+
+async def seed_cv_demo():
+    if await db.cv_subscriptions.count_documents({}) > 0:
+        return
+    now = datetime.now(timezone.utc)
+    settings = await get_cv_settings()
+
+    async def demo_user(name, email):
+        existing = await db.users.find_one({"email": email})
+        if existing:
+            return existing
+        user = {"id": str(uuid.uuid4()), "name": name, "email": email, "phone": "081200000000",
+                "password_hash": hash_password("password123"), "role": "candidate", "blocked": False,
+                "education": "", "experience": "", "about": "", "cv_path": "", "cv_filename": "",
+                "created_at": now_iso()}
+        await db.users.insert_one(user)
+        return user
+
+    async def make_sub(email, name, status):
+        user = await demo_user(name, email)
+        requested = (now - timedelta(days=5)).isoformat()
+        sub = {"id": str(uuid.uuid4()), "user_id": user["id"], "package_name": settings["package_name"],
+               "price": settings["price"], "duration_days": settings["duration_days"], "status": status,
+               "payment_method": "Transfer Bank", "payment_proof": "", "payment_proof_filename": "",
+               "requested_at": requested, "activated_at": "", "expires_at": "", "activated_by": "",
+               "rejected_at": "", "rejection_reason": "", "created_at": requested, "updated_at": requested}
+        if status == "active":
+            sub["activated_at"] = (now - timedelta(days=10)).isoformat()
+            sub["expires_at"] = (now + timedelta(days=20)).isoformat()
+            sub["activated_by"] = ADMIN_EMAIL
+        elif status == "expired":
+            sub["activated_at"] = (now - timedelta(days=40)).isoformat()
+            sub["expires_at"] = (now - timedelta(days=10)).isoformat()
+            sub["activated_by"] = ADMIN_EMAIL
+        elif status == "rejected":
+            sub["rejected_at"] = (now - timedelta(days=2)).isoformat()
+            sub["rejection_reason"] = "Bukti pembayaran tidak terbaca"
+        await db.cv_subscriptions.insert_one(sub)
+        await write_cv_log(sub["id"], user["id"], "Pengajuan dibuat", "", "pending", email)
+        if status in ("active", "expired"):
+            await write_cv_log(sub["id"], user["id"], "Pembayaran diaktifkan", "pending", "active", ADMIN_EMAIL)
+        if status == "expired":
+            await write_cv_log(sub["id"], user["id"], "Subscription expired", "active", "expired", "system")
+        if status == "rejected":
+            await write_cv_log(sub["id"], user["id"], "Pembayaran ditolak", "pending", "rejected", ADMIN_EMAIL, sub["rejection_reason"])
+
+    await make_sub("budi@example.com", "Budi Santoso", "active")
+    await make_sub("andi.pratama@example.com", "Andi Pratama", "pending")
+    await make_sub("siti.rahma@example.com", "Siti Rahma", "expired")
+    await make_sub("dewi.lestari@example.com", "Dewi Lestari", "rejected")
+    logger.info("CV professional demo subscriptions seeded")
+
+
 # ---------- Seed ----------
 async def seed_admin():
     existing = await db.users.find_one({"email": ADMIN_EMAIL})
@@ -1043,6 +1493,8 @@ async def startup():
     await db.jobs.create_index("status")
     await db.companies.create_index("slug", unique=True)
     await db.login_attempts.create_index("identifier")
+    await db.cv_subscriptions.create_index("user_id")
+    await db.cv_subscriptions.create_index("status")
     try:
         await asyncio.to_thread(init_storage)
         logger.info("Object storage initialized")
@@ -1052,6 +1504,7 @@ async def startup():
     await seed_categories()
     await seed_demo_data()
     await seed_blog_posts()
+    await seed_cv_demo()
     await expire_jobs()
 
 

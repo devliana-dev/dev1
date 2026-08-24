@@ -76,6 +76,15 @@ Website lowongan kerja lokal CirebonKarir.com yang mempertemukan pencari kerja d
 - Halaman edit lowongan untuk admin di UI (API sudah ada: PUT /api/admin/jobs/{id}).
 
 ### P2
+## Iterasi 8 — Modul CV Profesional (premium Rp10.000/30 hari) (24 Jun 2026)
+- **Koleksi baru**: `cv_subscriptions`, `cv_activation_logs`, `cv_settings` (singleton: harga/durasi/metode pembayaran, editable admin), `cv_documents`.
+- **Backend** (`server.py`, section "CV Profesional"): user endpoints `/api/cv-professional/status|payment-info|subscribe (multipart bukti bayar)|templates|my-cvs|cvs CRUD|duplicate|import-cv (pypdf/python-docx parse konservatif, tanpa data palsu)`; admin endpoints `/api/admin/cv-professional/stats|subscriptions (search/status/pagination)|detail+logs|approve (expires_at auto +30 hari)|reject (+alasan)|extend (+30 hari dari max(expires_at, now))|cancel|logs|settings GET/PUT`.
+- **Proteksi**: dependency `require_cv_premium` (login + role candidate + subscription active + expires_at > now); auto-expire via `expire_cv_subscriptions()` (status → expired + log) dipanggil pada setiap akses status/list/admin; bukti pembayaran (kind=payment) dilindungi seperti CV (owner/admin only).
+- **Frontend**: menu "CV Profesional" (Crown) di sidebar candidate & admin; halaman `CvProfessional` (pricing/upgrade/pending/rejected+alasan+ajukan lagi/expired/premium dashboard + countdown sisa hari + warning ≤7 hari + galeri 3 template), `CvList` (edit/preview/download/duplikat/hapus), `CvBuilder` (form kiri + live preview kanan, 6 section dinamis, toggle preview mobile, Simpan/Download PDF), `CvImport` (upload → hasil parse → Periksa & Edit), `AdminCvProfessional` (statistik 6 kartu, tab Pengajuan/Pengaturan, detail expand + log + aksi).
+- **Template**: `components/cvTemplates.jsx` — modern/ats/minimalis, satu struktur data untuk semua template. PDF via print browser (@page A4, area print khusus).
+- **Seed demo**: budi=active(+20 hari), andi=pending, siti=expired, dewi=rejected; akun demo baru andi.pratama@ / siti.rahma@ / dewi.lestari@example.com (password123).
+- Deps baru: pypdf, python-docx. Belum ada: foto di CV (by design MVP), CMS admin untuk blog.
+
 - Simpan lowongan favorit (bookmark) untuk kandidat.
 - Pagination server-side di tabel admin.
 - Rate limiting endpoint register/apply.

@@ -25,6 +25,10 @@ import CandidateDashboard from "@/pages/candidate/CandidateDashboard";
 import MyApplications from "@/pages/candidate/MyApplications";
 import CandidateProfile from "@/pages/candidate/CandidateProfile";
 import CandidateCV from "@/pages/candidate/CandidateCV";
+import CvProfessional from "@/pages/candidate/CvProfessional";
+import CvList from "@/pages/candidate/CvList";
+import CvBuilder from "@/pages/candidate/CvBuilder";
+import CvImport from "@/pages/candidate/CvImport";
 
 import CompanyDashboard from "@/pages/company/CompanyDashboard";
 import CompanyProfile from "@/pages/company/CompanyProfile";
@@ -38,6 +42,7 @@ import AdminCompanies from "@/pages/admin/AdminCompanies";
 import AdminCandidates from "@/pages/admin/AdminCandidates";
 import AdminApplications from "@/pages/admin/AdminApplications";
 import AdminCategories from "@/pages/admin/AdminCategories";
+import AdminCvProfessional from "@/pages/admin/AdminCvProfessional";
 
 function ScrollToTop() {
   const { pathname } = useLocation();
@@ -92,6 +97,11 @@ function App() {
             <Route path="/candidate/applications" element={protect("candidate", <MyApplications />)} />
             <Route path="/candidate/profile" element={protect("candidate", <CandidateProfile />)} />
             <Route path="/candidate/cv" element={protect("candidate", <CandidateCV />)} />
+            <Route path="/candidate/cv-professional" element={protect("candidate", <CvProfessional />)} />
+            <Route path="/candidate/cv-professional/list" element={protect("candidate", <CvList />)} />
+            <Route path="/candidate/cv-professional/builder" element={protect("candidate", <CvBuilder />)} />
+            <Route path="/candidate/cv-professional/builder/:id" element={protect("candidate", <CvBuilder />)} />
+            <Route path="/candidate/cv-professional/import" element={protect("candidate", <CvImport />)} />
 
             <Route path="/company/dashboard" element={protect("company", <CompanyDashboard />)} />
             <Route path="/company/profile" element={protect("company", <CompanyProfile />)} />
@@ -107,6 +117,7 @@ function App() {
             <Route path="/admin/candidates" element={protect("admin", <AdminCandidates />)} />
             <Route path="/admin/applications" element={protect("admin", <AdminApplications />)} />
             <Route path="/admin/categories" element={protect("admin", <AdminCategories />)} />
+            <Route path="/admin/cv-professional" element={protect("admin", <AdminCvProfessional />)} />
 
             <Route path="*" element={<PublicLayout404 />} />
           </Routes>

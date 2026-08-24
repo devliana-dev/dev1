@@ -1,4 +1,4 @@
-import { LayoutDashboard, Briefcase, Building2, Users, Send, Tag } from "lucide-react";
+import { LayoutDashboard, Briefcase, Building2, Users, Send, Tag, Crown } from "lucide-react";
 
 export const ADMIN_MENU = [
   { to: "/admin", label: "Dashboard", icon: LayoutDashboard, end: true },
@@ -7,4 +7,5 @@ export const ADMIN_MENU = [
   { to: "/admin/candidates", label: "Pencari Kerja", icon: Users },
   { to: "/admin/applications", label: "Lamaran", icon: Send },
   { to: "/admin/categories", label: "Kategori", icon: Tag },
+  { to: "/admin/cv-professional", label: "CV Profesional", icon: Crown },
 ];

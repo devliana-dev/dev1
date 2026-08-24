@@ -40,3 +40,11 @@ export const COMPANY_STATUS = {
 };
 
 export const COMPANY_SIZES = ["1-10 karyawan", "10-50 karyawan", "50-100 karyawan", "100-500 karyawan", "> 500 karyawan"];
+
+export const CV_SUB_STATUS = {
+  pending: { label: "Menunggu Verifikasi", cls: "bg-amber-100 text-amber-800" },
+  active: { label: "Aktif", cls: "bg-emerald-100 text-emerald-800" },
+  expired: { label: "Expired", cls: "bg-slate-200 text-slate-600" },
+  rejected: { label: "Ditolak", cls: "bg-red-100 text-red-700" },
+  cancelled: { label: "Dinonaktifkan", cls: "bg-slate-100 text-slate-600" },
+};
