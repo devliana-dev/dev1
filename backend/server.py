@@ -16,6 +16,7 @@ from fastapi import (APIRouter, Depends, FastAPI, File, Form, HTTPException,
                      Query, Request, Response, UploadFile)
 from fastapi.responses import Response as RawResponse
 from motor.motor_asyncio import AsyncIOMotorClient
+from pymongo import ReturnDocument
 from pydantic import BaseModel, EmailStr
 from starlette.middleware.cors import CORSMiddleware
 
@@ -149,6 +150,7 @@ def require_role(*roles):
 async def expire_jobs():
     today = datetime.now(timezone.utc).date().isoformat()
     await db.jobs.update_many({"status": "active", "deadline": {"$lt": today, "$ne": ""}}, {"$set": {"status": "expired"}})
+    await db.jobs.update_many({"status": "active", "expires_at": {"$lte": now_iso(), "$ne": ""}}, {"$set": {"status": "expired"}})
 
 
 async def get_company_map():
@@ -633,6 +635,12 @@ async def company_stats(user=Depends(require_role("company"))):
             "total_applicants": applicants, "company_status": company["status"], "company_name": company["name"]}
 
 
+@api_router.get("/company/entitlement")
+async def company_entitlement(user=Depends(require_role("company"))):
+    company = await get_my_company(user)
+    return await get_company_entitlement(company)
+
+
 @api_router.get("/company/jobs")
 async def company_jobs(user=Depends(require_role("company"))):
     company = await get_my_company(user)
@@ -651,9 +659,17 @@ async def company_jobs(user=Depends(require_role("company"))):
 @api_router.post("/company/jobs")
 async def create_job(data: JobIn, user=Depends(require_role("company"))):
     company = await get_my_company(user)
+    ent = await get_company_entitlement(company)
+    if not ent["can_post"]:
+        raise HTTPException(status_code=403,
+                            detail="Kuota posting gratis bulan ini telah digunakan. Upgrade ke Member Perusahaan untuk posting lowongan dengan masa tayang 30 hari.")
+    if ent["mode"] == "free" and not await consume_free_quota(company["id"]):
+        raise HTTPException(status_code=403, detail="Kuota posting gratis bulan ini telah digunakan.")
     job = {"id": str(uuid.uuid4()), "company_id": company["id"],
            "slug": f"{slugify(data.title)}-{slugify(data.location)}-{uuid.uuid4().hex[:6]}",
-           **data.model_dump(), "status": "pending", "rejection_reason": "", "created_at": now_iso()}
+           **data.model_dump(), "status": "pending", "rejection_reason": "",
+           "listing_days": ent["listing_days"], "posting_mode": ent["mode"], "expires_at": "",
+           "created_at": now_iso()}
     await db.jobs.insert_one(job)
     job.pop("_id", None)
     return job
@@ -747,9 +763,13 @@ async def admin_jobs(status: str = "", user=Depends(require_role("admin"))):
 
 @api_router.post("/admin/jobs/{job_id}/approve")
 async def admin_approve_job(job_id: str, user=Depends(require_role("admin"))):
-    result = await db.jobs.update_one({"id": job_id}, {"$set": {"status": "active", "rejection_reason": ""}})
-    if result.matched_count == 0:
+    job = await db.jobs.find_one({"id": job_id})
+    if not job:
         raise HTTPException(status_code=404, detail="Lowongan tidak ditemukan")
+    update = {"status": "active", "rejection_reason": ""}
+    if job.get("listing_days"):
+        update["expires_at"] = (datetime.now(timezone.utc) + timedelta(days=job["listing_days"])).isoformat()
+    await db.jobs.update_one({"id": job_id}, {"$set": update})
     return {"status": "active"}
 
 
@@ -858,6 +878,204 @@ async def admin_delete_category(cat_id: str, user=Depends(require_role("admin"))
     return {"message": "Kategori dihapus"}
 
 
+# ---------- Membership & Monetisasi (sistem terpusat) ----------
+async def mle_log(actor_id, action, entity_type, entity_id, metadata=None):
+    await db.membership_audit_logs.insert_one({
+        "id": str(uuid.uuid4()), "actor_id": actor_id, "action": action,
+        "entity_type": entity_type, "entity_id": entity_id,
+        "metadata": metadata or {}, "created_at": now_iso()})
+
+
+async def seed_membership_products():
+    if await db.membership_products.count_documents({}) == 0:
+        now = now_iso()
+        await db.membership_products.insert_many([
+            {"id": str(uuid.uuid4()), "product_code": "cv_professional", "name": "CV Profesional",
+             "target_role": "job_seeker", "price": 10000, "duration_days": 30,
+             "description": "Template CV profesional, CV builder, import CV lama, dan download PDF selama 30 hari.",
+             "active": True, "created_at": now, "updated_at": now},
+            {"id": str(uuid.uuid4()), "product_code": "company_membership", "name": "Member Perusahaan",
+             "target_role": "company", "price": 50000, "duration_days": 90,
+             "description": "Masa tayang lowongan 30 hari dan posting tanpa batas kuota selama 3 bulan.",
+             "active": True, "created_at": now, "updated_at": now},
+        ])
+        logger.info("Membership products seeded")
+
+
+async def get_product(product_code):
+    p = await db.membership_products.find_one({"product_code": product_code}, {"_id": 0})
+    if not p:
+        raise HTTPException(status_code=404, detail="Produk tidak ditemukan")
+    return p
+
+
+async def get_payment_settings():
+    s = await db.payment_settings.find_one({"id": "payment_settings"}, {"_id": 0})
+    if not s:
+        legacy = await db.cv_settings.find_one({"id": "cv_settings"}, {"_id": 0})
+        s = {"id": "payment_settings", "payment_methods": (legacy or {}).get("payment_methods", []),
+             "updated_at": now_iso()}
+        await db.payment_settings.insert_one(s)
+        s.pop("_id", None)
+    return s
+
+
+async def expire_subscriptions():
+    now = now_iso()
+    expired = await db.subscriptions.find({"status": "active", "expires_at": {"$lte": now, "$ne": ""}}, {"_id": 0}).to_list(1000)
+    for s in expired:
+        await db.subscriptions.update_one({"id": s["id"]}, {"$set": {"status": "expired", "updated_at": now}})
+        await mle_log("system", "Subscription expired", "subscription", s["id"], {"product_type": s["product_type"]})
+
+
+async def has_entitlement(product_code, user_id=None, company_id=None):
+    await expire_subscriptions()
+    query = {"product_type": product_code, "status": "active", "expires_at": {"$gt": now_iso(), "$ne": ""}}
+    if user_id:
+        query["user_id"] = user_id
+    if company_id:
+        query["company_id"] = company_id
+    return bool(await db.subscriptions.find_one(query))
+
+
+async def get_active_subscription(product_code, user_id=None, company_id=None):
+    await expire_subscriptions()
+    query = {"product_type": product_code, "status": "active", "expires_at": {"$gt": now_iso(), "$ne": ""}}
+    if user_id:
+        query["user_id"] = user_id
+    if company_id:
+        query["company_id"] = company_id
+    return await db.subscriptions.find_one(query, {"_id": 0})
+
+
+async def get_or_create_quota(company_id):
+    now = datetime.now(timezone.utc)
+    key = {"company_id": company_id, "period_year": now.year, "period_month": now.month}
+    doc = await db.company_posting_quotas.find_one(key, {"_id": 0})
+    if not doc:
+        doc = {"id": str(uuid.uuid4()), **key, "free_post_limit": 1, "free_post_used": 0,
+               "created_at": now_iso(), "updated_at": now_iso()}
+        try:
+            await db.company_posting_quotas.insert_one(doc)
+        except Exception:
+            doc = await db.company_posting_quotas.find_one(key, {"_id": 0})
+        doc.pop("_id", None)
+    return doc
+
+
+async def consume_free_quota(company_id):
+    now = datetime.now(timezone.utc)
+    await get_or_create_quota(company_id)
+    result = await db.company_posting_quotas.find_one_and_update(
+        {"company_id": company_id, "period_year": now.year, "period_month": now.month,
+         "$expr": {"$lt": ["$free_post_used", "$free_post_limit"]}},
+        {"$inc": {"free_post_used": 1}, "$set": {"updated_at": now_iso()}},
+        return_document=ReturnDocument.AFTER)
+    return result is not None
+
+
+async def get_company_entitlement(company):
+    member_sub = await get_active_subscription("company_membership", company_id=company["id"])
+    quota = await get_or_create_quota(company["id"])
+    now = datetime.now(timezone.utc)
+    remaining = max(0, quota["free_post_limit"] - quota["free_post_used"])
+    quota_info = {"limit": quota["free_post_limit"], "used": quota["free_post_used"],
+                  "remaining": remaining, "period": f"{now.year}-{now.month:02d}"}
+    if member_sub:
+        return {"mode": "member", "can_post": True, "listing_days": 30, "is_member": True,
+                "member_expires_at": member_sub["expires_at"], "member_started_at": member_sub.get("started_at", ""),
+                "quota": quota_info}
+    if remaining > 0:
+        return {"mode": "free", "can_post": True, "listing_days": 7, "is_member": False,
+                "member_expires_at": "", "member_started_at": "", "quota": quota_info}
+    return {"mode": "none", "can_post": False, "listing_days": 0, "is_member": False,
+            "member_expires_at": "", "member_started_at": "", "quota": quota_info}
+
+
+@api_router.get("/membership/products")
+async def membership_products(user=Depends(get_current_user)):
+    return await db.membership_products.find({"active": True}, {"_id": 0}).to_list(20)
+
+
+@api_router.get("/membership/payment-info")
+async def membership_payment_info(user=Depends(get_current_user)):
+    s = await get_payment_settings()
+    return {"payment_methods": s.get("payment_methods", [])}
+
+
+@api_router.post("/membership/payments")
+async def create_payment(product_code: str = Form(...), payment_method: str = Form(...),
+                         proof: UploadFile = File(...), user=Depends(get_current_user)):
+    product = await get_product(product_code)
+    if not product.get("active"):
+        raise HTTPException(status_code=400, detail="Produk tidak tersedia")
+    company = None
+    if product["target_role"] == "job_seeker":
+        if user["role"] != "candidate":
+            raise HTTPException(status_code=403, detail="Produk ini khusus pencari kerja")
+        if await has_entitlement(product_code, user_id=user["id"]):
+            raise HTTPException(status_code=400, detail="Anda masih memiliki akses aktif untuk produk ini")
+    else:
+        if user["role"] != "company":
+            raise HTTPException(status_code=403, detail="Produk ini khusus perusahaan")
+        company = await get_my_company(user)
+    pending_q = {"product_code": product_code, "status": "pending", "user_id": user["id"]}
+    if company:
+        pending_q["company_id"] = company["id"]
+    if await db.payments.find_one(pending_q):
+        raise HTTPException(status_code=400, detail="Pembayaran Anda sedang menunggu verifikasi admin")
+    saved = await save_upload(user["id"], proof, "payment")
+    now = now_iso()
+    payment = {"id": str(uuid.uuid4()), "user_id": user["id"], "company_id": company["id"] if company else "",
+               "product_id": product["id"], "product_code": product_code, "product_name": product["name"],
+               "amount": product["price"], "duration_days": product["duration_days"],
+               "payment_method": payment_method, "payment_proof": saved["path"],
+               "payment_proof_filename": saved["filename"], "payment_provider": "manual",
+               "status": "pending", "submitted_at": now, "verified_at": "", "verified_by": "",
+               "rejection_reason": "", "created_at": now, "updated_at": now}
+    await db.payments.insert_one(payment)
+    await mle_log(user["id"], "Payment submitted", "payment", payment["id"],
+                  {"product_code": product_code, "amount": product["price"]})
+    payment.pop("_id", None)
+    return payment
+
+
+@api_router.get("/membership/payments")
+async def my_payments(user=Depends(get_current_user)):
+    return await db.payments.find({"user_id": user["id"]}, {"_id": 0}).sort("submitted_at", -1).to_list(100)
+
+
+async def migrate_cv_subscriptions():
+    if await db.migrations.find_one({"id": "cv_to_unified"}):
+        return
+    count = 0
+    status_map = {"pending": "pending", "active": "approved", "expired": "approved",
+                  "rejected": "rejected", "cancelled": "cancelled"}
+    async for s in db.cv_subscriptions.find({}):
+        pay_status = status_map.get(s["status"], "pending")
+        payment_id = str(uuid.uuid4())
+        await db.payments.insert_one({
+            "id": payment_id, "user_id": s["user_id"], "company_id": "", "product_id": "",
+            "product_code": "cv_professional", "product_name": s.get("package_name", "CV Profesional"),
+            "amount": s.get("price", 10000), "duration_days": s.get("duration_days", 30),
+            "payment_method": s.get("payment_method", ""), "payment_proof": s.get("payment_proof", ""),
+            "payment_proof_filename": s.get("payment_proof_filename", ""), "payment_provider": "manual",
+            "status": pay_status, "submitted_at": s.get("requested_at", now_iso()),
+            "verified_at": s.get("activated_at", ""), "verified_by": s.get("activated_by", ""),
+            "rejection_reason": s.get("rejection_reason", ""),
+            "created_at": s.get("created_at", now_iso()), "updated_at": now_iso()})
+        await db.subscriptions.insert_one({
+            "id": str(uuid.uuid4()), "user_id": s["user_id"], "company_id": "",
+            "product_type": "cv_professional", "package_id": "", "status": s["status"],
+            "price": s.get("price", 10000), "duration_days": s.get("duration_days", 30),
+            "started_at": s.get("activated_at", ""), "expires_at": s.get("expires_at", ""),
+            "payment_id": payment_id, "activated_by": s.get("activated_by", ""),
+            "created_at": s.get("created_at", now_iso()), "updated_at": now_iso()})
+        count += 1
+    await db.migrations.insert_one({"id": "cv_to_unified", "migrated": count, "created_at": now_iso()})
+    logger.info(f"Migrated {count} CV subscriptions to unified system")
+
+
 # ---------- CV Profesional ----------
 CV_TEMPLATE_LIST = [
     {"id": "modern", "name": "Template Modern", "description": "Header berwarna dengan aksen profesional"},
@@ -910,8 +1128,7 @@ def has_cv_access(subs):
 
 
 async def require_cv_premium(user=Depends(require_role("candidate"))):
-    subs = await get_cv_subscriptions(user["id"])
-    if not has_cv_access(subs):
+    if not await has_entitlement("cv_professional", user_id=user["id"]):
         raise HTTPException(status_code=403, detail="Fitur ini memerlukan akses CV Profesional yang aktif")
     return user
 
@@ -935,50 +1152,49 @@ class CvRejectIn(BaseModel):
 
 @api_router.get("/cv-professional/status")
 async def cv_status(user=Depends(require_role("candidate"))):
-    settings = await get_cv_settings()
-    subs = await get_cv_subscriptions(user["id"])
-    current = (next((s for s in subs if s["status"] == "active"), None)
-               or next((s for s in subs if s["status"] == "pending"), None)
-               or (subs[0] if subs else None))
-    return {
-        "settings": {"package_name": settings["package_name"], "price": settings["price"],
-                     "duration_days": settings["duration_days"]},
-        "has_access": has_cv_access(subs),
-        "subscription": current,
-    }
+    product = await get_product("cv_professional")
+    await expire_subscriptions()
+    subs = await db.subscriptions.find({"user_id": user["id"], "product_type": "cv_professional"}, {"_id": 0}).sort("created_at", -1).to_list(50)
+    payments = await db.payments.find({"user_id": user["id"], "product_code": "cv_professional"}, {"_id": 0}).sort("submitted_at", -1).to_list(50)
+    active = next((s for s in subs if s["status"] == "active" and (s.get("expires_at") or "") > now_iso()), None)
+    pending_pay = next((p for p in payments if p["status"] == "pending"), None)
+    sub = None
+    if active:
+        sub = {"status": "active", "package_name": product["name"], "price": active["price"],
+               "duration_days": active["duration_days"], "requested_at": active.get("started_at", ""),
+               "activated_at": active.get("started_at", ""), "expires_at": active.get("expires_at", ""),
+               "rejection_reason": ""}
+    elif pending_pay:
+        sub = {"status": "pending", "package_name": product["name"], "price": pending_pay["amount"],
+               "duration_days": pending_pay["duration_days"], "requested_at": pending_pay["submitted_at"],
+               "expires_at": "", "rejection_reason": ""}
+    elif payments and payments[0]["status"] == "rejected":
+        sub = {"status": "rejected", "package_name": product["name"], "price": payments[0]["amount"],
+               "duration_days": payments[0]["duration_days"], "requested_at": payments[0]["submitted_at"],
+               "expires_at": "", "rejection_reason": payments[0].get("rejection_reason", "")}
+    elif subs:
+        latest = subs[0]
+        sub = {"status": latest["status"], "package_name": product["name"], "price": latest["price"],
+               "duration_days": latest["duration_days"], "requested_at": latest.get("started_at", ""),
+               "expires_at": latest.get("expires_at", ""), "rejection_reason": ""}
+    return {"settings": {"package_name": product["name"], "price": product["price"],
+                         "duration_days": product["duration_days"]},
+            "has_access": bool(active), "subscription": sub}
 
 
 @api_router.get("/cv-professional/payment-info")
 async def cv_payment_info(user=Depends(require_role("candidate"))):
-    settings = await get_cv_settings()
-    return {"package_name": settings["package_name"], "price": settings["price"],
-            "duration_days": settings["duration_days"], "payment_methods": settings.get("payment_methods", [])}
+    product = await get_product("cv_professional")
+    settings = await get_payment_settings()
+    return {"package_name": product["name"], "price": product["price"],
+            "duration_days": product["duration_days"], "payment_methods": settings.get("payment_methods", [])}
 
 
 @api_router.post("/cv-professional/subscribe")
 async def cv_subscribe(payment_method: str = Form(...), proof: UploadFile = File(...),
                        user=Depends(require_role("candidate"))):
-    settings = await get_cv_settings()
-    if settings["price"] <= 0 or settings["duration_days"] <= 0:
-        raise HTTPException(status_code=500, detail="Konfigurasi paket belum valid")
-    subs = await get_cv_subscriptions(user["id"])
-    if has_cv_access(subs):
-        raise HTTPException(status_code=400, detail="Anda masih memiliki akses CV Profesional aktif")
-    if any(s["status"] == "pending" for s in subs):
-        raise HTTPException(status_code=400, detail="Pengajuan Anda sedang menunggu verifikasi admin")
-    saved = await save_upload(user["id"], proof, "payment")
-    now = now_iso()
-    sub = {"id": str(uuid.uuid4()), "user_id": user["id"], "package_name": settings["package_name"],
-           "price": settings["price"], "duration_days": settings["duration_days"], "status": "pending",
-           "payment_method": payment_method, "payment_proof": saved["path"],
-           "payment_proof_filename": saved["filename"], "requested_at": now, "activated_at": "",
-           "expires_at": "", "activated_by": "", "rejected_at": "", "rejection_reason": "",
-           "created_at": now, "updated_at": now}
-    await db.cv_subscriptions.insert_one(sub)
-    await write_cv_log(sub["id"], user["id"], "Pengajuan dibuat", "", "pending", user["email"],
-                       f"Metode: {payment_method}")
-    sub.pop("_id", None)
-    return sub
+    return await create_payment(product_code="cv_professional", payment_method=payment_method,
+                                proof=proof, user=user)
 
 
 @api_router.get("/cv-professional/templates")
@@ -1110,95 +1326,174 @@ async def cv_import(file: UploadFile = File(...), user=Depends(require_cv_premiu
     return {"parsed": parse_cv_text(text)}
 
 
-# ---------- Admin: CV Profesional ----------
-@api_router.get("/admin/cv-professional/stats")
-async def admin_cv_stats(user=Depends(require_role("admin"))):
-    await expire_cv_subscriptions()
-    subs = await db.cv_subscriptions.find({}, {"_id": 0, "status": 1, "price": 1, "activated_at": 1}).to_list(5000)
+# ---------- Admin: Membership & Monetisasi ----------
+class ProductIn(BaseModel):
+    name: str
+    price: int
+    duration_days: int
+    description: str = ""
+    active: bool = True
+
+
+class PaymentSettingsIn(BaseModel):
+    payment_methods: list = []
+
+
+@api_router.get("/admin/monetization/overview")
+async def admin_mon_overview(user=Depends(require_role("admin"))):
+    await expire_subscriptions()
+    payments = await db.payments.find({}, {"_id": 0, "status": 1, "amount": 1}).to_list(10000)
+    subs = await db.subscriptions.find({}, {"_id": 0, "status": 1, "product_type": 1, "company_id": 1}).to_list(10000)
+    active_company = [s for s in subs if s["status"] == "active" and s["product_type"] == "company_membership"]
     return {
-        "total": len(subs),
-        "pending": sum(1 for s in subs if s["status"] == "pending"),
-        "active": sum(1 for s in subs if s["status"] == "active"),
-        "expired": sum(1 for s in subs if s["status"] == "expired"),
-        "rejected": sum(1 for s in subs if s["status"] == "rejected"),
-        "revenue": sum(s.get("price", 0) for s in subs if s.get("activated_at")),
+        "revenue": sum(p.get("amount", 0) for p in payments if p["status"] == "approved"),
+        "payments_pending": sum(1 for p in payments if p["status"] == "pending"),
+        "payments_approved": sum(1 for p in payments if p["status"] == "approved"),
+        "payments_rejected": sum(1 for p in payments if p["status"] == "rejected"),
+        "cv_active": sum(1 for s in subs if s["status"] == "active" and s["product_type"] == "cv_professional"),
+        "member_active": sum(1 for s in subs if s["status"] == "active" and s["product_type"] == "company_membership"),
+        "subs_expired": sum(1 for s in subs if s["status"] == "expired"),
+        "member_companies": len({s["company_id"] for s in active_company if s.get("company_id")}),
     }
 
 
-@api_router.get("/admin/cv-professional/subscriptions")
-async def admin_cv_subs(status: str = "", q: str = "", page: int = 1, limit: int = 10,
-                        user=Depends(require_role("admin"))):
-    await expire_cv_subscriptions()
+@api_router.get("/admin/monetization/payments")
+async def admin_mon_payments(status: str = "", product: str = "", q: str = "", page: int = 1,
+                             limit: int = 10, user=Depends(require_role("admin"))):
     query = {}
     if status:
         query["status"] = status
+    if product:
+        query["product_code"] = product
     if q:
         regex = {"$regex": re.escape(q), "$options": "i"}
         users = await db.users.find({"$or": [{"name": regex}, {"email": regex}]}, {"id": 1}).to_list(500)
-        query["user_id"] = {"$in": [u["id"] for u in users]}
-    total = await db.cv_subscriptions.count_documents(query)
-    subs = await db.cv_subscriptions.find(query, {"_id": 0}).sort("created_at", -1).skip(max(page - 1, 0) * limit).limit(limit).to_list(limit)
-    user_map = {u["id"]: u for u in await db.users.find({}, {"_id": 0, "id": 1, "name": 1, "email": 1}).to_list(2000)}
-    for s in subs:
-        u = user_map.get(s["user_id"], {})
-        s["user_name"] = u.get("name", "-")
-        s["user_email"] = u.get("email", "-")
-    return {"items": subs, "total": total, "page": page, "pages": max(1, (total + limit - 1) // limit)}
+        comps = await db.companies.find({"name": regex}, {"id": 1}).to_list(500)
+        query["$or"] = [{"user_id": {"$in": [u["id"] for u in users]}},
+                        {"company_id": {"$in": [c["id"] for c in comps]}}]
+    total = await db.payments.count_documents(query)
+    items = await db.payments.find(query, {"_id": 0}).sort("created_at", -1).skip(max(page - 1, 0) * limit).limit(limit).to_list(limit)
+    user_map = {u["id"]: u for u in await db.users.find({}, {"_id": 0, "id": 1, "name": 1, "email": 1}).to_list(3000)}
+    comp_map = {c["id"]: c["name"] for c in await db.companies.find({}, {"_id": 0, "id": 1, "name": 1}).to_list(1000)}
+    for p in items:
+        u = user_map.get(p["user_id"], {})
+        p["user_name"] = u.get("name", "-")
+        p["user_email"] = u.get("email", "-")
+        p["company_name"] = comp_map.get(p.get("company_id", ""), "")
+    return {"items": items, "total": total, "page": page, "pages": max(1, (total + limit - 1) // limit)}
 
 
-@api_router.get("/admin/cv-professional/subscriptions/{sub_id}")
-async def admin_cv_sub_detail(sub_id: str, user=Depends(require_role("admin"))):
-    sub = await db.cv_subscriptions.find_one({"id": sub_id}, {"_id": 0})
-    if not sub:
-        raise HTTPException(status_code=404, detail="Pengajuan tidak ditemukan")
-    u = await db.users.find_one({"id": sub["user_id"]}, {"_id": 0, "id": 1, "name": 1, "email": 1})
-    sub["user_name"] = (u or {}).get("name", "-")
-    sub["user_email"] = (u or {}).get("email", "-")
-    logs = await db.cv_activation_logs.find({"subscription_id": sub_id}, {"_id": 0}).sort("created_at", -1).to_list(100)
-    return {"subscription": sub, "logs": logs}
+@api_router.get("/admin/monetization/payments/{payment_id}")
+async def admin_mon_payment_detail(payment_id: str, user=Depends(require_role("admin"))):
+    payment = await db.payments.find_one({"id": payment_id}, {"_id": 0})
+    if not payment:
+        raise HTTPException(status_code=404, detail="Pembayaran tidak ditemukan")
+    u = await db.users.find_one({"id": payment["user_id"]}, {"_id": 0, "name": 1, "email": 1})
+    payment["user_name"] = (u or {}).get("name", "-")
+    payment["user_email"] = (u or {}).get("email", "-")
+    if payment.get("company_id"):
+        c = await db.companies.find_one({"id": payment["company_id"]}, {"_id": 0, "name": 1})
+        payment["company_name"] = (c or {}).get("name", "")
+    return payment
 
 
-@api_router.post("/admin/cv-professional/subscriptions/{sub_id}/approve")
-async def admin_cv_approve(sub_id: str, user=Depends(require_role("admin"))):
-    sub = await db.cv_subscriptions.find_one({"id": sub_id})
-    if not sub:
-        raise HTTPException(status_code=404, detail="Pengajuan tidak ditemukan")
-    if sub["status"] != "pending":
-        raise HTTPException(status_code=400, detail="Hanya pengajuan berstatus pending yang dapat diaktifkan")
-    settings = await get_cv_settings()
-    days = sub.get("duration_days") or settings["duration_days"]
+@api_router.post("/admin/monetization/payments/{payment_id}/approve")
+async def admin_mon_approve(payment_id: str, user=Depends(require_role("admin"))):
+    payment = await db.payments.find_one({"id": payment_id})
+    if not payment:
+        raise HTTPException(status_code=404, detail="Pembayaran tidak ditemukan")
+    if payment["status"] != "pending":
+        raise HTTPException(status_code=400, detail="Hanya pembayaran berstatus pending yang dapat disetujui")
+    product = await get_product(payment["product_code"])
+    duration = payment.get("duration_days") or product["duration_days"]
     now = datetime.now(timezone.utc)
-    expires = now + timedelta(days=days)
-    await db.cv_subscriptions.update_one({"id": sub_id}, {"$set": {
-        "status": "active", "activated_at": now.isoformat(), "expires_at": expires.isoformat(),
-        "activated_by": user["email"], "rejected_at": "", "rejection_reason": "", "updated_at": now_iso()}})
-    await write_cv_log(sub_id, sub["user_id"], "Pembayaran diaktifkan", "pending", "active", user["email"],
-                       f"Masa aktif {days} hari, berakhir {expires.date().isoformat()}")
-    return {"status": "active", "expires_at": expires.isoformat()}
+    await expire_subscriptions()
+    owner_q = {"product_type": payment["product_code"], "status": "active"}
+    if payment.get("company_id"):
+        owner_q["company_id"] = payment["company_id"]
+    else:
+        owner_q["user_id"] = payment["user_id"]
+    existing = await db.subscriptions.find_one(owner_q)
+    if existing:
+        base = now
+        if existing.get("expires_at"):
+            try:
+                exp = datetime.fromisoformat(existing["expires_at"])
+                if exp > now:
+                    base = exp
+            except ValueError:
+                pass
+        new_exp = base + timedelta(days=duration)
+        await db.subscriptions.update_one({"id": existing["id"]}, {"$set": {
+            "expires_at": new_exp.isoformat(), "payment_id": payment_id, "updated_at": now_iso()}})
+        sub_id = existing["id"]
+        action = "Subscription extended"
+    else:
+        sub_id = str(uuid.uuid4())
+        new_exp = now + timedelta(days=duration)
+        await db.subscriptions.insert_one({
+            "id": sub_id, "user_id": payment["user_id"], "company_id": payment.get("company_id", ""),
+            "product_type": payment["product_code"], "package_id": payment.get("product_id", ""),
+            "status": "active", "price": payment["amount"], "duration_days": duration,
+            "started_at": now.isoformat(), "expires_at": new_exp.isoformat(),
+            "payment_id": payment_id, "activated_by": user["email"],
+            "created_at": now_iso(), "updated_at": now_iso()})
+        action = "Subscription activated"
+    await db.payments.update_one({"id": payment_id}, {"$set": {
+        "status": "approved", "verified_at": now_iso(), "verified_by": user["email"], "updated_at": now_iso()}})
+    await mle_log(user["id"], "Payment approved", "payment", payment_id,
+                  {"amount": payment["amount"], "product": payment["product_code"]})
+    await mle_log(user["id"], action, "subscription", sub_id,
+                  {"expires_at": new_exp.isoformat(), "duration_days": duration})
+    return {"status": "approved", "expires_at": new_exp.isoformat()}
 
 
-@api_router.post("/admin/cv-professional/subscriptions/{sub_id}/reject")
-async def admin_cv_reject(sub_id: str, data: CvRejectIn, user=Depends(require_role("admin"))):
-    sub = await db.cv_subscriptions.find_one({"id": sub_id})
-    if not sub:
-        raise HTTPException(status_code=404, detail="Pengajuan tidak ditemukan")
-    if sub["status"] != "pending":
-        raise HTTPException(status_code=400, detail="Hanya pengajuan berstatus pending yang dapat ditolak")
-    await db.cv_subscriptions.update_one({"id": sub_id}, {"$set": {
-        "status": "rejected", "rejected_at": now_iso(), "rejection_reason": data.reason, "updated_at": now_iso()}})
-    await write_cv_log(sub_id, sub["user_id"], "Pembayaran ditolak", "pending", "rejected", user["email"], data.reason)
+@api_router.post("/admin/monetization/payments/{payment_id}/reject")
+async def admin_mon_reject(payment_id: str, data: CvRejectIn, user=Depends(require_role("admin"))):
+    payment = await db.payments.find_one({"id": payment_id})
+    if not payment:
+        raise HTTPException(status_code=404, detail="Pembayaran tidak ditemukan")
+    if payment["status"] != "pending":
+        raise HTTPException(status_code=400, detail="Hanya pembayaran berstatus pending yang dapat ditolak")
+    await db.payments.update_one({"id": payment_id}, {"$set": {
+        "status": "rejected", "rejection_reason": data.reason, "verified_at": now_iso(),
+        "verified_by": user["email"], "updated_at": now_iso()}})
+    await mle_log(user["id"], "Payment rejected", "payment", payment_id, {"reason": data.reason})
     return {"status": "rejected"}
 
 
-@api_router.post("/admin/cv-professional/subscriptions/{sub_id}/extend")
-async def admin_cv_extend(sub_id: str, user=Depends(require_role("admin"))):
-    sub = await db.cv_subscriptions.find_one({"id": sub_id})
+@api_router.get("/admin/monetization/subscriptions")
+async def admin_mon_subs(product: str = "", status: str = "", page: int = 1, limit: int = 10,
+                         user=Depends(require_role("admin"))):
+    await expire_subscriptions()
+    query = {}
+    if product:
+        query["product_type"] = product
+    if status:
+        query["status"] = status
+    total = await db.subscriptions.count_documents(query)
+    items = await db.subscriptions.find(query, {"_id": 0}).sort("created_at", -1).skip(max(page - 1, 0) * limit).limit(limit).to_list(limit)
+    user_map = {u["id"]: u for u in await db.users.find({}, {"_id": 0, "id": 1, "name": 1, "email": 1}).to_list(3000)}
+    comp_map = {c["id"]: c["name"] for c in await db.companies.find({}, {"_id": 0, "id": 1, "name": 1}).to_list(1000)}
+    job_counts = {}
+    async for row in db.jobs.aggregate([{"$group": {"_id": "$company_id", "n": {"$sum": 1}}}]):
+        job_counts[row["_id"]] = row["n"]
+    for s in items:
+        u = user_map.get(s["user_id"], {})
+        s["user_name"] = u.get("name", "-")
+        s["user_email"] = u.get("email", "-")
+        s["company_name"] = comp_map.get(s.get("company_id", ""), "")
+        s["jobs_count"] = job_counts.get(s.get("company_id", ""), 0) if s.get("company_id") else 0
+    return {"items": items, "total": total, "page": page, "pages": max(1, (total + limit - 1) // limit)}
+
+
+@api_router.post("/admin/monetization/subscriptions/{sub_id}/extend")
+async def admin_mon_extend(sub_id: str, user=Depends(require_role("admin"))):
+    sub = await db.subscriptions.find_one({"id": sub_id})
     if not sub:
-        raise HTTPException(status_code=404, detail="Pengajuan tidak ditemukan")
+        raise HTTPException(status_code=404, detail="Subscription tidak ditemukan")
     if sub["status"] not in ("active", "expired"):
         raise HTTPException(status_code=400, detail="Hanya subscription aktif/expired yang dapat diperpanjang")
-    settings = await get_cv_settings()
-    days = sub.get("duration_days") or settings["duration_days"]
     now = datetime.now(timezone.utc)
     base = now
     if sub.get("expires_at"):
@@ -1208,103 +1503,67 @@ async def admin_cv_extend(sub_id: str, user=Depends(require_role("admin"))):
                 base = exp
         except ValueError:
             pass
-    new_exp = base + timedelta(days=days)
-    await db.cv_subscriptions.update_one({"id": sub_id}, {"$set": {
+    new_exp = base + timedelta(days=sub.get("duration_days", 30))
+    await db.subscriptions.update_one({"id": sub_id}, {"$set": {
         "status": "active", "expires_at": new_exp.isoformat(),
-        "activated_at": sub.get("activated_at") or now.isoformat(),
+        "started_at": sub.get("started_at") or now.isoformat(),
         "activated_by": user["email"], "updated_at": now_iso()}})
-    await write_cv_log(sub_id, sub["user_id"], "Subscription diperpanjang", sub["status"], "active",
-                       user["email"], f"Diperpanjang {days} hari hingga {new_exp.date().isoformat()}")
+    await mle_log(user["id"], "Subscription extended", "subscription", sub_id,
+                  {"expires_at": new_exp.isoformat(), "old_status": sub["status"]})
     return {"status": "active", "expires_at": new_exp.isoformat()}
 
 
-@api_router.post("/admin/cv-professional/subscriptions/{sub_id}/cancel")
-async def admin_cv_cancel(sub_id: str, user=Depends(require_role("admin"))):
-    sub = await db.cv_subscriptions.find_one({"id": sub_id})
+@api_router.post("/admin/monetization/subscriptions/{sub_id}/cancel")
+async def admin_mon_cancel(sub_id: str, user=Depends(require_role("admin"))):
+    sub = await db.subscriptions.find_one({"id": sub_id})
     if not sub:
-        raise HTTPException(status_code=404, detail="Pengajuan tidak ditemukan")
+        raise HTTPException(status_code=404, detail="Subscription tidak ditemukan")
     if sub["status"] != "active":
         raise HTTPException(status_code=400, detail="Hanya subscription aktif yang dapat dinonaktifkan")
-    await db.cv_subscriptions.update_one({"id": sub_id}, {"$set": {"status": "cancelled", "updated_at": now_iso()}})
-    await write_cv_log(sub_id, sub["user_id"], "Subscription dinonaktifkan", "active", "cancelled", user["email"])
+    await db.subscriptions.update_one({"id": sub_id}, {"$set": {"status": "cancelled", "updated_at": now_iso()}})
+    await mle_log(user["id"], "Subscription cancelled", "subscription", sub_id, {})
     return {"status": "cancelled"}
 
 
-@api_router.get("/admin/cv-professional/logs")
-async def admin_cv_logs(user=Depends(require_role("admin"))):
-    return await db.cv_activation_logs.find({}, {"_id": 0}).sort("created_at", -1).to_list(100)
+@api_router.get("/admin/monetization/products")
+async def admin_mon_products(user=Depends(require_role("admin"))):
+    return await db.membership_products.find({}, {"_id": 0}).to_list(50)
 
 
-@api_router.get("/admin/cv-professional/settings")
-async def admin_cv_settings_get(user=Depends(require_role("admin"))):
-    return await get_cv_settings()
-
-
-@api_router.put("/admin/cv-professional/settings")
-async def admin_cv_settings_put(data: CvSettingsIn, user=Depends(require_role("admin"))):
-    if not data.package_name.strip():
-        raise HTTPException(status_code=400, detail="Nama paket wajib diisi")
+@api_router.put("/admin/monetization/products/{product_id}")
+async def admin_mon_product_update(product_id: str, data: ProductIn, user=Depends(require_role("admin"))):
+    if not data.name.strip():
+        raise HTTPException(status_code=400, detail="Nama produk wajib diisi")
     if data.price <= 0:
         raise HTTPException(status_code=400, detail="Harga tidak boleh kosong atau 0")
     if data.duration_days <= 0:
         raise HTTPException(status_code=400, detail="Durasi tidak boleh 0")
-    await db.cv_settings.update_one({"id": "cv_settings"}, {"$set": {
-        "package_name": data.package_name.strip(), "price": data.price,
-        "duration_days": data.duration_days, "payment_methods": data.payment_methods,
-        "updated_at": now_iso()}}, upsert=True)
-    return await get_cv_settings()
+    result = await db.membership_products.update_one({"id": product_id}, {"$set": {
+        "name": data.name.strip(), "price": data.price, "duration_days": data.duration_days,
+        "description": data.description, "active": data.active, "updated_at": now_iso()}})
+    if result.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Produk tidak ditemukan")
+    await mle_log(user["id"], "Admin changes package", "product", product_id,
+                  {"price": data.price, "duration_days": data.duration_days})
+    return await db.membership_products.find_one({"id": product_id}, {"_id": 0})
 
 
-async def seed_cv_demo():
-    if await db.cv_subscriptions.count_documents({}) > 0:
-        return
-    now = datetime.now(timezone.utc)
-    settings = await get_cv_settings()
+@api_router.get("/admin/monetization/payment-settings")
+async def admin_mon_payment_settings_get(user=Depends(require_role("admin"))):
+    return await get_payment_settings()
 
-    async def demo_user(name, email):
-        existing = await db.users.find_one({"email": email})
-        if existing:
-            return existing
-        user = {"id": str(uuid.uuid4()), "name": name, "email": email, "phone": "081200000000",
-                "password_hash": hash_password("password123"), "role": "candidate", "blocked": False,
-                "education": "", "experience": "", "about": "", "cv_path": "", "cv_filename": "",
-                "created_at": now_iso()}
-        await db.users.insert_one(user)
-        return user
 
-    async def make_sub(email, name, status):
-        user = await demo_user(name, email)
-        requested = (now - timedelta(days=5)).isoformat()
-        sub = {"id": str(uuid.uuid4()), "user_id": user["id"], "package_name": settings["package_name"],
-               "price": settings["price"], "duration_days": settings["duration_days"], "status": status,
-               "payment_method": "Transfer Bank", "payment_proof": "", "payment_proof_filename": "",
-               "requested_at": requested, "activated_at": "", "expires_at": "", "activated_by": "",
-               "rejected_at": "", "rejection_reason": "", "created_at": requested, "updated_at": requested}
-        if status == "active":
-            sub["activated_at"] = (now - timedelta(days=10)).isoformat()
-            sub["expires_at"] = (now + timedelta(days=20)).isoformat()
-            sub["activated_by"] = ADMIN_EMAIL
-        elif status == "expired":
-            sub["activated_at"] = (now - timedelta(days=40)).isoformat()
-            sub["expires_at"] = (now - timedelta(days=10)).isoformat()
-            sub["activated_by"] = ADMIN_EMAIL
-        elif status == "rejected":
-            sub["rejected_at"] = (now - timedelta(days=2)).isoformat()
-            sub["rejection_reason"] = "Bukti pembayaran tidak terbaca"
-        await db.cv_subscriptions.insert_one(sub)
-        await write_cv_log(sub["id"], user["id"], "Pengajuan dibuat", "", "pending", email)
-        if status in ("active", "expired"):
-            await write_cv_log(sub["id"], user["id"], "Pembayaran diaktifkan", "pending", "active", ADMIN_EMAIL)
-        if status == "expired":
-            await write_cv_log(sub["id"], user["id"], "Subscription expired", "active", "expired", "system")
-        if status == "rejected":
-            await write_cv_log(sub["id"], user["id"], "Pembayaran ditolak", "pending", "rejected", ADMIN_EMAIL, sub["rejection_reason"])
+@api_router.put("/admin/monetization/payment-settings")
+async def admin_mon_payment_settings_put(data: PaymentSettingsIn, user=Depends(require_role("admin"))):
+    await db.payment_settings.update_one({"id": "payment_settings"}, {"$set": {
+        "payment_methods": data.payment_methods, "updated_at": now_iso()}}, upsert=True)
+    await mle_log(user["id"], "Admin changes payment settings", "payment_settings", "payment_settings", {})
+    return await get_payment_settings()
 
-    await make_sub("budi@example.com", "Budi Santoso", "active")
-    await make_sub("andi.pratama@example.com", "Andi Pratama", "pending")
-    await make_sub("siti.rahma@example.com", "Siti Rahma", "expired")
-    await make_sub("dewi.lestari@example.com", "Dewi Lestari", "rejected")
-    logger.info("CV professional demo subscriptions seeded")
+
+@api_router.get("/admin/monetization/audit-logs")
+async def admin_mon_audit_logs(user=Depends(require_role("admin"))):
+    return await db.membership_audit_logs.find({}, {"_id": 0}).sort("created_at", -1).to_list(200)
 
 
 # ---------- Seed ----------
@@ -1495,6 +1754,11 @@ async def startup():
     await db.login_attempts.create_index("identifier")
     await db.cv_subscriptions.create_index("user_id")
     await db.cv_subscriptions.create_index("status")
+    await db.payments.create_index("user_id")
+    await db.payments.create_index("status")
+    await db.subscriptions.create_index([("product_type", 1), ("status", 1)])
+    await db.company_posting_quotas.create_index(
+        [("company_id", 1), ("period_year", 1), ("period_month", 1)], unique=True)
     try:
         await asyncio.to_thread(init_storage)
         logger.info("Object storage initialized")
@@ -1504,7 +1768,8 @@ async def startup():
     await seed_categories()
     await seed_demo_data()
     await seed_blog_posts()
-    await seed_cv_demo()
+    await seed_membership_products()
+    await migrate_cv_subscriptions()
     await expire_jobs()
 
 

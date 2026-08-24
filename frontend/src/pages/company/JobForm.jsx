@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { Link, useNavigate, useParams } from "react-router-dom";
 import { Loader2, AlertCircle } from "lucide-react";
 import { toast } from "sonner";
 import DashboardLayout from "../../components/DashboardLayout";
@@ -21,9 +21,14 @@ export default function JobForm({ admin = false }) {
   const [form, setForm] = useState(EMPTY);
   const [loading, setLoading] = useState(isEdit);
   const [saving, setSaving] = useState(false);
+  const [ent, setEnt] = useState(null);
 
   const menu = admin ? ADMIN_MENU : COMPANY_MENU;
   const backPath = admin ? "/admin/jobs" : "/company/jobs";
+
+  useEffect(() => {
+    if (!admin) api.get("/company/entitlement").then((r) => setEnt(r.data)).catch(() => {});
+  }, [admin]);
 
   useEffect(() => {
     if (!isEdit) return;
@@ -89,10 +94,23 @@ export default function JobForm({ admin = false }) {
   return (
     <DashboardLayout menu={menu} title={isEdit ? "Edit Lowongan" : "Tambah Lowongan"}>
       <div className="max-w-3xl" data-testid="job-form-page">
-        {!isEdit && !admin && (
-          <div className="mb-5 rounded-xl border border-sky-200 bg-sky-50 px-4 py-3 flex gap-3 text-sm text-sky-900" data-testid="moderation-info">
+        {!isEdit && !admin && ent && !ent.can_post ? (
+          <div className="bg-white rounded-xl border border-slate-200 p-8 text-center" data-testid="quota-exhausted">
+            <AlertCircle className="h-10 w-10 text-amber-500 mx-auto mb-3" />
+            <h3 className="font-display font-semibold text-slate-900 text-lg">Kuota Gratis Bulan Ini Telah Digunakan</h3>
+            <p className="text-sm text-slate-500 mt-2 max-w-md mx-auto">Anda sudah menggunakan 1 posting gratis bulan ini. Upgrade ke Member Perusahaan (Rp 50.000 / 3 bulan) untuk masa tayang lowongan 30 hari dan posting tanpa batas kuota.</p>
+            <Link to="/company/membership" className="mt-5 inline-flex items-center h-11 px-6 rounded-lg bg-sky-600 text-white text-sm font-semibold hover:bg-sky-700 transition-colors" data-testid="quota-upgrade-btn">Upgrade Member</Link>
+          </div>
+        ) : (
+        <>
+        {!isEdit && !admin && ent && (
+          <div className={`mb-5 rounded-xl border px-4 py-3 flex gap-3 text-sm ${ent.mode === "member" ? "border-emerald-200 bg-emerald-50 text-emerald-900" : "border-sky-200 bg-sky-50 text-sky-900"}`} data-testid="posting-mode-banner">
             <AlertCircle className="h-5 w-5 shrink-0" />
-            <p>Lowongan yang dikirim akan berstatus <b>Menunggu Persetujuan Admin</b> dan tampil setelah disetujui.</p>
+            {ent.mode === "member" ? (
+              <p>Posting sebagai <b>Member</b> — masa tayang <b>30 hari</b>. Lowongan tampil setelah disetujui admin.</p>
+            ) : (
+              <p><b>Posting Gratis</b> — masa tayang <b>7 hari</b>. Sisa posting gratis bulan ini: <b>{ent.quota.remaining}</b>. Lowongan tampil setelah disetujui admin.</p>
+            )}
           </div>
         )}
         <form onSubmit={handleSubmit} className="bg-white rounded-xl border border-slate-200 p-6 sm:p-8 space-y-5" data-testid="job-form">
@@ -182,6 +200,8 @@ export default function JobForm({ admin = false }) {
             {isEdit ? "Simpan Perubahan" : "Kirim Lowongan"}
           </button>
         </form>
+        </>
+        )}
       </div>
     </DashboardLayout>
   );

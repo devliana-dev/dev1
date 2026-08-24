@@ -90,6 +90,12 @@ Website lowongan kerja lokal CirebonKarir.com yang mempertemukan pencari kerja d
 - Rate limiting endpoint register/apply.
 - Refactor server.py ke modul (auth, jobs, admin, seed).
 
+## Iterasi 9 — Sistem Membership & Monetisasi Terpusat (24 Jun 2026)
+- **Koleksi baru**: `membership_products` (cv_professional 10rb/30h, company_membership 50rb/90h — admin editable), `payments` (manual provider, siap diganti gateway), `subscriptions` (terpusat), `company_posting_quotas` (bulan kalender, unik per company+bulan), `membership_audit_logs`, `payment_settings`.
+- **Migrasi**: `migrate_cv_subscriptions()` memindahkan 4 cv_subscriptions legacy → subscriptions+payments (marker di koleksi `migrations`, data legacy tidak dihapus). Endpoint user CV (`status/payment-info/subscribe`) dipertahankan URL-nya tapi membaca sistem terpusat; endpoint admin CV lama DIHAPUS → diganti `/api/admin/monetization/*`.
+- **Entitlement**: `has_entitlement()` + `get_company_entitlement()` + `consume_free_quota()` atomik (find_one_and_update + $expr guard + unique index → anti race condition). FREE = 1 posting/bulan kalender, masa tayang 7 hari; MEMBER = 30 hari. `job.listing_days` diset saat dibuat, `job.expires_at` dihitung server saat admin approve. Membership expired tidak memotong lowongan lama.
+- **Frontend**: CompanyDashboard (kartu Status Akun + promo upgrade), CompanyMembership (/company/membership: pricing/pending/member aktif + countdown + reminder ≤7 hari + riwayat pembayaran), JobForm (banner mode posting + blokir saat kuota habis), CvProfessional (+riwayat pembayaran), AdminMonetization (/admin/monetisasi: Overview, Pembayaran, Subscription, Member Perusahaan, Produk & Harga, Pengaturan Pembayaran, Audit Log). Menu admin "CV Profesional" → "Membership & Monetisasi"; menu company +Membership. AdminCvProfessional.jsx dihapus.
+
 ### P3 (dilarang di MVP oleh user)
 - Chat internal, payment/subscription, AI recruitment, video interview, psikotes, CV builder, mobile app.
 

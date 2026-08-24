@@ -13,10 +13,18 @@ import { CV_SUB_STATUS } from "../../lib/constants";
 import { formatDate, formatRupiah } from "../../lib/format";
 import { CV_TEMPLATES } from "../../components/cvTemplates";
 
+const PAY_STATUS = {
+  pending: { label: "Menunggu Verifikasi", cls: "bg-amber-100 text-amber-800" },
+  approved: { label: "Disetujui", cls: "bg-emerald-100 text-emerald-800" },
+  rejected: { label: "Ditolak", cls: "bg-red-100 text-red-700" },
+  cancelled: { label: "Dibatalkan", cls: "bg-slate-100 text-slate-600" },
+};
+
 const FEATURES = ["Akses semua template CV", "Buat CV baru", "Edit CV", "Import CV lama", "Download PDF", "Berlaku selama 30 hari"];
 
 export default function CvProfessional() {
   const [status, setStatus] = useState(null);
+  const [payments, setPayments] = useState([]);
   const [paymentInfo, setPaymentInfo] = useState(null);
   const [showForm, setShowForm] = useState(false);
   const [method, setMethod] = useState("");
@@ -26,6 +34,7 @@ export default function CvProfessional() {
   const fetchStatus = useCallback(() => {
     api.get("/cv-professional/status").then((r) => setStatus(r.data)).catch(() => toast.error("Gagal memuat status CV Profesional"));
     api.get("/cv-professional/payment-info").then((r) => setPaymentInfo(r.data)).catch(() => {});
+    api.get("/membership/payments").then((r) => setPayments(r.data.filter((p) => p.product_code === "cv_professional"))).catch(() => {});
   }, []);
 
   useEffect(() => {
@@ -242,7 +251,25 @@ export default function CvProfessional() {
 
   return (
     <DashboardLayout menu={CANDIDATE_MENU} title="CV Profesional">
-      <div className="max-w-3xl">{renderContent()}</div>
+      <div className="max-w-3xl">
+        {renderContent()}
+        {payments.length > 0 && (
+          <div className="mt-8 bg-white rounded-xl border border-slate-200 p-6" data-testid="cv-payment-history">
+            <h3 className="font-display font-semibold text-slate-900 mb-4">Riwayat Pembayaran</h3>
+            <ul className="divide-y divide-slate-100">
+              {payments.map((p) => (
+                <li key={p.id} className="py-3 flex flex-wrap items-center justify-between gap-2 text-sm" data-testid={`cv-payment-row-${p.id}`}>
+                  <div>
+                    <p className="font-medium text-slate-900">{p.product_name || "CV Profesional"}</p>
+                    <p className="text-xs text-slate-500">{formatRupiah(p.amount)} · {formatDate(p.submitted_at)} · {p.payment_method}</p>
+                  </div>
+                  <span className={`inline-flex px-2.5 py-0.5 rounded-full text-xs font-semibold ${PAY_STATUS[p.status]?.cls || ""}`}>{PAY_STATUS[p.status]?.label || p.status}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+      </div>
     </DashboardLayout>
   );
 }

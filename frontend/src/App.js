@@ -35,6 +35,7 @@ import CompanyProfile from "@/pages/company/CompanyProfile";
 import CompanyJobs from "@/pages/company/CompanyJobs";
 import JobForm from "@/pages/company/JobForm";
 import Applicants from "@/pages/company/Applicants";
+import CompanyMembership from "@/pages/company/CompanyMembership";
 
 import AdminDashboard from "@/pages/admin/AdminDashboard";
 import AdminJobs from "@/pages/admin/AdminJobs";
@@ -42,7 +43,7 @@ import AdminCompanies from "@/pages/admin/AdminCompanies";
 import AdminCandidates from "@/pages/admin/AdminCandidates";
 import AdminApplications from "@/pages/admin/AdminApplications";
 import AdminCategories from "@/pages/admin/AdminCategories";
-import AdminCvProfessional from "@/pages/admin/AdminCvProfessional";
+import AdminMonetization from "@/pages/admin/AdminMonetization";
 
 function ScrollToTop() {
   const { pathname } = useLocation();
@@ -109,6 +110,7 @@ function App() {
             <Route path="/company/jobs/new" element={protect("company", <JobForm />)} />
             <Route path="/company/jobs/:id/edit" element={protect("company", <JobForm />)} />
             <Route path="/company/applicants" element={protect("company", <Applicants />)} />
+            <Route path="/company/membership" element={protect("company", <CompanyMembership />)} />
 
             <Route path="/admin" element={protect("admin", <AdminDashboard />)} />
             <Route path="/admin/jobs" element={protect("admin", <AdminJobs />)} />
@@ -117,7 +119,7 @@ function App() {
             <Route path="/admin/candidates" element={protect("admin", <AdminCandidates />)} />
             <Route path="/admin/applications" element={protect("admin", <AdminApplications />)} />
             <Route path="/admin/categories" element={protect("admin", <AdminCategories />)} />
-            <Route path="/admin/cv-professional" element={protect("admin", <AdminCvProfessional />)} />
+            <Route path="/admin/monetisasi" element={protect("admin", <AdminMonetization />)} />
 
             <Route path="*" element={<PublicLayout404 />} />
           </Routes>

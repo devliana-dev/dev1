@@ -7,5 +7,5 @@ export const ADMIN_MENU = [
   { to: "/admin/candidates", label: "Pencari Kerja", icon: Users },
   { to: "/admin/applications", label: "Lamaran", icon: Send },
   { to: "/admin/categories", label: "Kategori", icon: Tag },
-  { to: "/admin/cv-professional", label: "CV Profesional", icon: Crown },
+  { to: "/admin/monetisasi", label: "Membership & Monetisasi", icon: Crown },
 ];

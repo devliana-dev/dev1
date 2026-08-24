@@ -1,0 +1,43 @@
+{
+  "summary": "Unified Membership & Monetisasi module tested end-to-end. 27/27 backend pytest cases passed and all critical frontend flows verified (admin monetization tabs+stats, product prices, audit log, company registration -> free quota display -> upgrade-member -> pending, JobForm posting-mode-banner, mobile 390px overflow). Covers: (a) free quota 1/month with atomic consume, 2nd job 403, extra-field bypass rejected; (b) admin approve job sets expires_at=+7d; (c) company membership payment submit -> admin approve -> subscription active +90d; (d) member mode gives listing_days=30 and multiple posts allowed; (e) renewal EXTENDS existing sub by 90d (no duplicate active); (f) entitlement separation candidate<->company; (g) CV Profesional regression via unified endpoints (budi active 2026-09-13, new candidate 403 -> subscribe+approve -> POST /cvs 200); (h) admin monetization overview/payments filters/subscriptions filter/product edit+revert/payment-settings/audit-logs/extend/cancel; (i) security anon 401, candidate 403.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "verified": {
+    "backend_pytest": "27/27 passed (test_monetization.py)",
+    "free_quota_consume_atomic": "find_one_and_update with $expr guard works; 2nd POST /api/company/jobs -> 403",
+    "admin_approve_job_expires_at": "approve_time + listing_days (7d free, 30d member) within ±2min",
+    "renewal_extends_sub": "single active sub after 2 approved payments; expires_at extended by +90d from old expires_at",
+    "extra_field_bypass": "sending is_member/listing_days/expires_at in JobIn body ignored -> still 403",
+    "entitlement_separation": "candidate token -> /company/jobs POST 403; company token -> /cv-professional/cvs POST 403",
+    "products_seeded": "cv_professional Rp10000/30d job_seeker, company_membership Rp50000/90d company",
+    "admin_ui_tabs": "8 stats cards, 7 tabs render, produk shows 10000/50000, audit log 28 rows visible",
+    "company_dashboard_free": "New company: Paket Gratis label, free-quota-remaining '1 / 1', upgrade-promo-card visible",
+    "membership_upload_flow": "upgrade-member-btn -> membership-payment-form -> submit -> pending card 'Menunggu Verifikasi' visible",
+    "posting_mode_banner": "'Posting Gratis — masa tayang 7 hari. Sisa posting gratis bulan ini: 1' shown in JobForm",
+    "mobile_390": "no horizontal overflow on /company/membership and /admin/monetisasi",
+    "audit_log_events": "Payment submitted / Payment approved / Subscription activated / Subscription extended / Subscription cancelled / Admin changes package / Admin changes payment settings all present"
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_monetization.py",
+    "/app/test_reports/pytest/monetization.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "CvDocIn schema uses `name`/`template`/`data` while CV Profesional page/tests historically referenced `title`/`template_id` — schema is consistent internally but doc/comment could be clearer for future maintenance.",
+    "expire_subscriptions() is called on nearly every read (has_entitlement, get_company_entitlement, admin lists, cv status). Fine for current volume; consider a periodic background task if collections grow (>10k active).",
+    "consume_free_quota does upsert-then-atomic-update pattern; the upsert of quota doc is not fully idempotent under high concurrency (two concurrent inserts could conflict) — mitigated by unique index on (company_id, period_year, period_month) which exists at line 1760; behavior is safe.",
+    "get_active_subscription/has_entitlement uses expires_at string comparison ($gt now_iso()); works because ISO-8601 timestamps sort lexicographically for same timezone offset (all values written with datetime.now(timezone.utc).isoformat()). Any future write with different tz format could break comparison.",
+    "membership_payment_info exposes payment_methods to any authenticated user (candidate + company) which is intended; note there's no product-specific filtering so both roles see the same list — acceptable per spec but may confuse UX.",
+    "admin_mon_reject uses CvRejectIn (legacy class name) — cosmetic; consider renaming to RejectIn or PaymentRejectIn."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_monetization.py (new)"
+  ],
+  "success_rate": {"backend": "100% (27/27)", "frontend": "100% (all critical flows)"},
+  "test_credentials": "Admin muhamadwahid.sih@gmail.com/admin123, Company demo@perusahaan.com/password123, Budi budi@example.com/password123",
+  "seed_data_creation": "Created ephemeral TEST_co_<ts>@example.com companies (approved to member during renewal test, then sub cancelled by test_extend_and_cancel), 1 TEST_cand_<ts>@example.com candidate (cv_professional approved), plus 1 uitest_co_<ts>@example.com from UI test (has pending company_membership payment). Test-created jobs may remain in pending/active state. Products reverted to 10000/30 and 50000/90. payment_settings restored to original (empty methods). NOTE: demo@perusahaan.com was NOT modified (upgrade UI test used a fresh company).",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Backend test file at /app/backend/tests/test_monetization.py — run with REACT_APP_BACKEND_URL exported (pytest.ini uses -n 2 --dist loadscope; tests are structured so admin tests do not depend on other class fixtures). new_company module-scoped fixture is used across TestFreeCompanyQuota + TestCompanyMembershipFlow + TestEntitlementSeparation (all end up on same worker via loadscope class grouping — verified). Ephemeral TEST_* accounts remain in DB (Mongo). To reset unified state, drop subscriptions/payments/company_posting_quotas/membership_audit_logs/migrations then restart backend (migration + seed will re-run). Iteration 5's CV subs state persists (andi=rejected, siti=active-extended).",
+  "rca of the issue": "No bugs found. The unified membership/monetization module is correctly wired: atomic quota consume, server-side listing_days, server-computed expires_at at approve time, renewal-extend-if-active logic, entitlement separation, and product/settings admin controls all behave per spec."
+}
