@@ -48,7 +48,7 @@ Website lowongan kerja lokal CirebonKarir.com yang mempertemukan pencari kerja d
 ## Iterasi 5 — Section Kategori Pekerjaan & Area Loker (24 Jun 2026)
 - Chips kategori di hero DIHAPUS, diganti section "Kategori Pekerjaan" (bg navy) di bawah stats strip: 14 card icon Lucide (Administrasi→category=Admin, Kasir→q=Kasir, Sales, Staff Gudang→Gudang, Marketing, Driver, Barista→q, Restoran/UMKM→F&B, Operator→q, Freelance→job_type, IT/Software→IT, Customer Service→q, Keuangan→Finance, Lainnya). Semua Link ke filter existing `/jobs`.
 - Section baru "Area Loker" (dalam blok navy yang sama, divider border-slate-800): 5 card lokasi (Cirebon→location=Kota Cirebon, Majalengka, Kuningan, Indramayu, Brebes) + panel "Belum menemukan lokasi?" dengan tombol Lihat Semua Lokasi.
-- Urutan homepage: Navbar → Hero/Search → Stats → Kategori → Area Loker → Lowongan Terbaru → Kenapa → Dual CTA → Footer.
+- Urutan homepage: Navbar → Hero/Search → Kategori → Area Loker → Stats strip (16 Lowongan Aktif / 7 Perusahaan Terverifikasi — dipindah ke bawah Area Loker atas permintaan user agar hero menyatu dengan section navy) → Lowongan Terbaru → Kenapa → Dual CTA → Footer.
 - Responsive: grid 2/3/4/7 kolom (mobile→desktop), tanpa horizontal scroll (terverifikasi 390px). Klik terverifikasi: kategori-administrasi → /jobs?category=Admin (2 hasil), area-majalengka → /jobs?location=Majalengka (1 hasil).
 
 ## Akun Demo

@@ -119,20 +119,6 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Stats strip */}
-      <section className="border-b border-slate-200 bg-white">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 flex flex-wrap gap-x-10 gap-y-3" data-testid="stats-strip">
-          <div className="flex items-center gap-2.5">
-            <Briefcase className="h-5 w-5 text-sky-600" />
-            <p className="text-sm text-slate-600"><span className="font-bold text-slate-900">{stats.active_jobs}</span> Lowongan Aktif</p>
-          </div>
-          <div className="flex items-center gap-2.5">
-            <ShieldCheck className="h-5 w-5 text-sky-600" />
-            <p className="text-sm text-slate-600"><span className="font-bold text-slate-900">{stats.companies}</span> Perusahaan Terverifikasi</p>
-          </div>
-        </div>
-      </section>
-
       {/* Kategori Pekerjaan + Area Loker */}
       <section className="bg-slate-900" data-testid="kategori-area-section">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-14 sm:py-16">
@@ -188,6 +174,20 @@ export default function Home() {
                 Lihat Semua Lokasi <ArrowRight className="h-4 w-4" />
               </Link>
             </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Stats strip */}
+      <section className="border-b border-slate-200 bg-white">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 flex flex-wrap gap-x-10 gap-y-3" data-testid="stats-strip">
+          <div className="flex items-center gap-2.5">
+            <Briefcase className="h-5 w-5 text-sky-600" />
+            <p className="text-sm text-slate-600"><span className="font-bold text-slate-900">{stats.active_jobs}</span> Lowongan Aktif</p>
+          </div>
+          <div className="flex items-center gap-2.5">
+            <ShieldCheck className="h-5 w-5 text-sky-600" />
+            <p className="text-sm text-slate-600"><span className="font-bold text-slate-900">{stats.companies}</span> Perusahaan Terverifikasi</p>
           </div>
         </div>
       </section>
