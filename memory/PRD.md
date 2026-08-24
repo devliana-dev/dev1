@@ -45,6 +45,12 @@ Website lowongan kerja lokal CirebonKarir.com yang mempertemukan pencari kerja d
 - Responsive: desktop [logo|info|kategori|lamar]; mobile stack (logo+info, lalu chip+button) tanpa horizontal scroll (terverifikasi 1920/768/390).
 - Diverifikasi screenshot: klik "Lamar Sekarang" → `/jobs/:slug` detail tetap berfungsi; kombinasi search+filter (q=kasir & Full Time → 2 hasil) bekerja.
 
+## Iterasi 5 — Section Kategori Pekerjaan & Area Loker (24 Jun 2026)
+- Chips kategori di hero DIHAPUS, diganti section "Kategori Pekerjaan" (bg navy) di bawah stats strip: 14 card icon Lucide (Administrasi→category=Admin, Kasir→q=Kasir, Sales, Staff Gudang→Gudang, Marketing, Driver, Barista→q, Restoran/UMKM→F&B, Operator→q, Freelance→job_type, IT/Software→IT, Customer Service→q, Keuangan→Finance, Lainnya). Semua Link ke filter existing `/jobs`.
+- Section baru "Area Loker" (dalam blok navy yang sama, divider border-slate-800): 5 card lokasi (Cirebon→location=Kota Cirebon, Majalengka, Kuningan, Indramayu, Brebes) + panel "Belum menemukan lokasi?" dengan tombol Lihat Semua Lokasi.
+- Urutan homepage: Navbar → Hero/Search → Stats → Kategori → Area Loker → Lowongan Terbaru → Kenapa → Dual CTA → Footer.
+- Responsive: grid 2/3/4/7 kolom (mobile→desktop), tanpa horizontal scroll (terverifikasi 390px). Klik terverifikasi: kategori-administrasi → /jobs?category=Admin (2 hasil), area-majalengka → /jobs?location=Majalengka (1 hasil).
+
 ## Akun Demo
 - Admin: muhamadwahid.sih@gmail.com / admin123
 - Perusahaan: demo@perusahaan.com / password123
