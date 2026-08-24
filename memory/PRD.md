@@ -35,7 +35,8 @@ Website lowongan kerja lokal CirebonKarir.com yang mempertemukan pencari kerja d
 - Testing iterasi 2: 11 pytest baru + 7 flow Playwright — 100% lulus (`/app/test_reports/iteration_2.json`, `/app/backend/tests/test_iteration2.py`). Termasuk: isolasi antar-perusahaan (cross-tenant PUT 404), admin PUT menjaga status, role tersimpan benar, mobile 390px tanpa horizontal scroll.
 
 ## Iterasi 3 — Polish Hero Homepage (24 Jun 2026)
-- Hero homepage dipercantik: ilustrasi flat kota Cirebon (Keraton/gapura, gunung Ciremai) sebagai latar dengan gradient fade, strip ornamen batik Mega Mendung (repeat-x, blend screen) di tepi atas, badge "Portal Lowongan Kerja #1 di Cirebon". Gambar di-generate via image generation tool (URL static.prod-images.emergentagent.com). Diverifikasi desktop 1920px & mobile 390px (tanpa horizontal scroll).
+- Hero homepage dipercantik: ilustrasi flat kota Cirebon (Keraton/gapura, gunung Ciremai) sebagai latar dengan gradient fade, badge "Portal Lowongan Kerja #1 di Cirebon".
+- Bug fix: ornamen Mega Mendung awalnya di tepi atas hero dengan blend screen → tampil sebagai pita abu-abu kusam. Diperbaiki: dipindah ke tepi bawah hero sebagai pita repeat-x dengan CSS filter invert(1) hue-rotate(180deg). Diverifikasi testing agent (iterasi 3, `/app/test_reports/iteration_3.json`) — 100% lulus, tanpa horizontal scroll di 390/360px.
 
 ## Akun Demo
 - Admin: muhamadwahid.sih@gmail.com / admin123

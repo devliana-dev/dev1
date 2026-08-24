@@ -1,0 +1,19 @@
+{
+  "summary": "Focused visual regression on Home.jsx hero ornament fix. Verified at desktop 1920px and mobile 390/360px: the top of the hero is clean navy (no gray/white textured band), the Mega Mendung batik strip now renders correctly as a thin dark-navy patterned band at the BOTTOM edge of the hero (h-12, filter invert(1) hue-rotate(180deg)) and transitions cleanly into the white stats strip. Only one ornament div exists in the hero and is positioned at bottom (top offset 661px within a 644px hero section, height 48px). Hero search flow works (input + Cari Lowongan -> /jobs?q=developer). Category chips, headline, Cirebon illustration all render correctly with good contrast. No horizontal scroll at 390px or 360px. /jobs list and a job detail page both load successfully.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [],
+  "action_items": [],
+  "critical_code_review_comments": [],
+  "updated_files": [],
+  "success_rate": {"backend": "skipped", "frontend": "100%"},
+  "seed_data_creation": "",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Iteration 3 verified the hero ornament fix in /app/frontend/src/pages/Home.jsx. The old top-of-hero gray band is gone; ornament is a single absolute-bottom div with backgroundImage repeat-x and CSS filter invert(1) hue-rotate(180deg). Iterations 1, 2, 3 all pass 100%. No open issues on homepage or jobs pages.",
+  "rca of the issue": "Original bug: jpeg ornament (white background) was placed at TOP of hero with mix-blend-mode: screen on navy — this produced a dull gray textured band. Fix moved it to bottom edge and swapped blend-mode for CSS filter invert(1) hue-rotate(180deg), which inverts the white bg to dark and shifts hue back so the cloud pattern reads as dark navy on navy. Verified visually: top of hero is now solid navy; bottom strip shows the desired batik pattern in dark navy."
+}

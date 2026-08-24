@@ -43,12 +43,12 @@ export default function Home() {
         <div className="absolute inset-0 bg-gradient-to-b from-slate-900/70 via-slate-900/30 to-transparent" />
         {/* Ornamen batik Mega Mendung */}
         <div
-          className="absolute top-0 inset-x-0 h-16 opacity-25"
+          className="absolute bottom-0 inset-x-0 h-10 sm:h-12"
           style={{
             backgroundImage: "url('https://static.prod-images.emergentagent.com/jobs/e16bb991-4078-4c7d-8bc9-0b3048e379f2/images/9b03ff12a9955343767b58b3b54524aaa920e101e1111c9c2d3cedd6856350a2.jpeg')",
             backgroundRepeat: "repeat-x",
             backgroundSize: "auto 100%",
-            mixBlendMode: "screen",
+            filter: "invert(1) hue-rotate(180deg)",
           }}
           aria-hidden="true"
         />
