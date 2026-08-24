@@ -1,0 +1,31 @@
+{
+  "summary": "Frontend-only visual regression verification for the mega mendung batik ornament fix at hero bottom edge. Confirmed the SVG replacement resolves the grainy dark band bug. Ornament now renders as three clean scalloped cloud arc rows in sky-blue (#38BDF8/#7DD3FC/#BAE6FD) at low opacity, seamlessly tiled across 1920px, transitioning cleanly into the white stats section. Hero search + Cari Lowongan navigation to /jobs?q= works. No horizontal scroll at 1920/390/360px.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "verified": {
+    "megamendung_svg_http": "200 image/svg+xml (674 bytes)",
+    "ornament_computed_style": "url(/megamendung.svg), repeat-x, height 64px, width 1920px, opacity 1, filter none, bottom-aligned",
+    "hero_search_navigation": "/jobs?q=developer OK",
+    "horizontal_scroll_1920": false,
+    "horizontal_scroll_390": false,
+    "horizontal_scroll_360": false,
+    "visual_check_desktop": "Clean layered arc lines, no grainy noise, no gray/white band",
+    "visual_check_mobile": "Clean arcs at h-14, transitions to white stats section cleanly"
+  },
+  "test_report_links": [],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "Old /app/frontend/public/megamendung.png may still exist unreferenced — safe to delete to reduce bundle/public size (non-blocking)."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "N/A (skipped)", "frontend": "100%"},
+  "seed_data_creation": "None",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Iteration 4 verified the batik mega mendung SVG ornament fix at hero bottom. All prior iterations 1-3 also passed. Base URL: https://cbn-lowongan.preview.emergentagent.com. No login needed for public pages.",
+  "rca of the issue": "Previous PNG ornament (AI-generated jpeg->transparent PNG) rendered as grainy dark noise at 56-64px band height. Fix replaces bitmap with hand-crafted vector SVG (220x64 viewBox, 3 scalloped arc rows, 220px tile period = arc period => seamless repeat-x). Verified visually + via HTTP 200/image+svg content-type + computed style checks."
+}
