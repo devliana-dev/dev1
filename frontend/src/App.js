@@ -32,6 +32,8 @@ import CvBuilder from "@/pages/candidate/CvBuilder";
 import CvImport from "@/pages/candidate/CvImport";
 import SavedJobs from "@/pages/candidate/SavedJobs";
 import JobAlerts from "@/pages/candidate/JobAlerts";
+import AccountSettings from "@/pages/candidate/AccountSettings";
+import HelpContact from "@/pages/candidate/HelpContact";
 import { CANDIDATE_MENU } from "@/pages/candidate/menu";
 import { COMPANY_MENU } from "@/pages/company/menu";
 import { ADMIN_MENU } from "@/pages/admin/menu";
@@ -130,6 +132,8 @@ function App() {
             <Route path="/candidate/saved" element={protect("candidate", <SavedJobs />)} />
             <Route path="/candidate/job-alerts" element={protect("candidate", <JobAlerts />)} />
             <Route path="/candidate/notifications" element={protect("candidate", <NotificationsPage menu={CANDIDATE_MENU} />)} />
+            <Route path="/candidate/settings" element={protect("candidate", <AccountSettings />)} />
+            <Route path="/candidate/help" element={protect("candidate", <HelpContact />)} />
             <Route path="/candidate/referral" element={protect("candidate", <ReferralDashboard menu={CANDIDATE_MENU} />)} />
 
             <Route path="/company/dashboard" element={protect("company", <CompanyDashboard />)} />

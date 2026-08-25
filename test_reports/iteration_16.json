@@ -1,0 +1,38 @@
+{
+  "summary": "Iteration 16 (Candidate Dashboard premium redesign) fully tested. Backend: 7/7 pytest passed — GET /candidate/applications returns company_logo + job_location on every item; PUT /auth/change-password rejects wrong old password (400), succeeds (200), invalidates old JWT (pwd_reset_at → 401 on /auth/me), old password login fails, new password login succeeds; regression endpoints /candidate/stats, /candidate/recommendations, /cv-professional/my-cvs, /candidate/saved-jobs/ids, /candidate/career-profile all 200; budi password RESTORED to password123 (verified via login 200). Frontend (Playwright, real preview URL): budi login → /candidate/dashboard renders hero ('Halo, Kenan'), 5 stat cards with real numbers (Total 4, Diproses 0, Interview 1, Diterima 0, Ditolak 0), 4 recent applications with logo/lokasi/status badges, 8 recommendations, donut chart + legend, completion ring 95% consistent with sidebar CTA (bar width 95%), CV Aktif 'CV Budi'. All 11 sidebar links navigate to correct route without broken pages. Topnav search 'kasir' → /jobs?q=kasir, find-jobs → /jobs, avatar dropdown opens (Profil/Pengaturan/Logout). /candidate/settings change-password UI flow: password123 → kenan456 → redirect to /login with success toast; restored kenan456 → password123 successfully (final backend login 200). /candidate/help: 3 links have correct href (/hubungi-kami, /tentang-kami, /). Bookmark toggle on recommendation works (no error). Recent-application click → /candidate/applications. Responsive: mobile 390px hamburger opens drawer (21 menu items + CTA), drawer-close-btn closes, NO horizontal overflow (scrollWidth==clientWidth==390); tablet 768px no overflow. Role regression: demo@perusahaan.com → /company/dashboard uses OLD layout (no sidebar-profile-mini); admin → /admin/jobs loads OLD admin sidebar. Empty state (registered TEST_new{ts}@example.com): stats show 0, no-applications-yet + CTA rendered, cv-empty rendered, stats-empty rendered, completion 0%.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "CandidateLayout sidebar CTA", "issues": ["Minor visual flicker: when navigating from dashboard to /candidate/profile, sidebar-completion-bar briefly shows 0% during route transition/re-fetch before settling to 95%. Consider caching career-profile completion in a global store/context to avoid re-fetching on every layout mount."]}
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iteration16.py",
+    "/app/test_reports/pytest/iter16.xml"
+  ],
+  "action_items": [
+    "(Optional/minor) Persist candidate career-profile completion in a shared context so sidebar CTA doesn't flash 0% on route change.",
+    "(Carry-over from iter15) HSTS header not emitted on external HTTPS due to X-Forwarded-Proto not being consulted."
+  ],
+  "critical_code_review_comments": [
+    "server.py still ~4275 lines — should be split into routers (auth, candidate, company, admin, cv).",
+    "Change-password endpoint correctly bumps pwd_reset_at and invalidates old JWT — good.",
+    "CandidateLayout duplicates menu iteration for desktop sidebar and mobile drawer; consider extracting a shared <SidebarMenu/> to avoid drift.",
+    "Two harmless 401s appear in console on /candidate/dashboard (likely a probe request before auth cookie/token attached). Consider gating these fetches on presence of token."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_iteration16.py"
+  ],
+  "success_rate": {"backend": "100%", "frontend": "100%"},
+  "test_credentials": "budi@example.com/password123 (RESTORED at end of test), demo@perusahaan.com/password123, muhamadwahid.sih@gmail.com/admin123",
+  "seed_data_creation": "Registered one TEST_new{timestamp}@example.com candidate to verify empty-state dashboard (safe to leave; prefixed TEST_).",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Change-password requires cookie/Bearer token; new pwd_reset_at (unix ts) invalidates all previous JWTs whose iat < pwd_reset_at. Rate limit login 10/min per IP — the change-password test itself performs 3-4 login cycles; run other login-heavy tests separately. Candidate dashboard has data-testids for every meaningful element (see CandidateLayout.jsx & CandidateDashboard.jsx). Role gating: /candidate/settings uses CandidateLayout, but /candidate/profile currently re-fetches career-profile on layout mount causing sidebar-completion-bar to flash 0% briefly.",
+  "rca of the issue": "No blocking issue found. Minor sidebar CTA flicker on route change caused by CandidateLayout re-fetching /candidate/career-profile on each mount instead of using a shared context/store."
+}

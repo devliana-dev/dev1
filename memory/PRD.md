@@ -99,6 +99,14 @@ Lihat CHANGELOG.md (register role, admin edit job, hero, job list horizontal, ka
 - **Foto profil di CV**: field personal.photo; tombol "Ambil dari Profil Karier" (dari career profile photo_path) + Hapus Foto; foto tampil di ketiga template (preview & PDF).
 - Testing iterasi 15: 13/13 backend pytest + seluruh flow UI lulus (`/app/test_reports/iteration_15.json`); issue minor HSTS-behind-proxy diperbaiki (X-Forwarded-Proto). Catatan: rate limiter in-memory per proses — tidak shared antar replica (batasan MVP).
 
+## Iterasi 16 — Redesign Premium Dashboard Pencari Kerja (25 Agu 2026)
+- **Scope**: role candidate saja (keputusan user 1c) — company/admin tetap layout lama. Mockup user + /app/design_guidelines.json sebagai referensi.
+- **Layout**: komponen baru `components/CandidateLayout.jsx` — sidebar premium w-72 (logo, profile mini avatar+nama+badge "Pencari Kerja"+status Aktif, menu bergrup UTAMA/KARIER/LAINNYA dengan badge "Baru" di Career Pro, CTA card "Tingkatkan Peluangmu!" dengan progress completion asli dari career-profile, di-cache module-level anti-flicker); topnav sticky glassmorphism (search pill → /jobs?q=, tombol Cari Lowongan, NotificationBell, avatar dropdown Profil Saya/Pengaturan/Logout); mobile hamburger → drawer. DashboardLayout mendelegasikan ke CandidateLayout saat role candidate.
+- **Dashboard**: rewrite CandidateDashboard.jsx — skeleton loading, hero banner dengan ilustrasi Cirebon AI-generated (siluet + Mega Mendung navy), 5 stat cards (total/diproses/interview/diterima/ditolak dari /candidate/stats), 4 quick actions, Lamaran Terakhir (logo+lokasi+waktu+status), Rekomendasi Lowongan (match score existing, 8 cards + bookmark toggle), donut chart recharts Statistik Lamaran + legend %, progress ring Lengkapi Profilmu, CV Aktif (cv_documents/user.cv_filename + empty state Upload CV), Tips Untukmu, empty states profesional.
+- **Halaman baru**: /candidate/settings (ganti password → PUT /api/auth/change-password, bcrypt + pwd_reset_at invalidate token lama, redirect login), /candidate/help (Bantuan & Kontak). Menu baru di candidate/menu.js.
+- **Backend**: /candidate/applications diperkaya company_logo + job_location (additive); endpoint PUT /auth/change-password.
+- Testing iterasi 16: 7/7 backend pytest + seluruh flow UI lulus (11 menu, topnav, dropdown, ganti password UI cycle, bookmark, empty state akun baru, responsive 1920/768/390 tanpa overflow, regresi role company/admin tetap layout lama) — `/app/test_reports/iteration_16.json`.
+
 ## Akun Demo
 - Owner: owner@cirebonkarir.com / owner123 (env OWNER_EMAIL/OWNER_PASSWORD)
 - Admin: muhamadwahid.sih@gmail.com / admin123

@@ -3,6 +3,7 @@ import { Link, NavLink, useNavigate } from "react-router-dom";
 import { Briefcase, Menu, X, LogOut, Home } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import NotificationBell from "./NotificationBell";
+import CandidateLayout from "./CandidateLayout";
 
 export default function DashboardLayout({ menu, title, children }) {
   const [open, setOpen] = useState(false);
@@ -17,6 +18,10 @@ export default function DashboardLayout({ menu, title, children }) {
   };
 
   const visibleMenu = menu.filter((item) => !item.ownerOnly || user?.role === "owner");
+
+  if (user?.role === "candidate") {
+    return <CandidateLayout menu={visibleMenu} title={title}>{children}</CandidateLayout>;
+  }
 
   const navItems = (
     <>

@@ -266,6 +266,11 @@ class ResetPasswordIn(BaseModel):
     new_password: str
 
 
+class ChangePasswordIn(BaseModel):
+    old_password: str
+    new_password: str
+
+
 class LoginIn(BaseModel):
     email: EmailStr
     password: str
@@ -351,6 +356,19 @@ async def forgot_password(data: ForgotPasswordIn):
                 await notify(admin["id"], "password_reset", "Permintaan reset password",
                              f"{user.get('name', email)} ({email}) meminta reset password.", "/admin/password-resets")
     return {"message": "Jika email terdaftar, permintaan reset password telah diteruskan ke admin."}
+
+
+@api_router.put("/auth/change-password")
+async def change_password(data: ChangePasswordIn, user=Depends(get_current_user)):
+    full = await db.users.find_one({"id": user["id"]})
+    if not verify_password(data.old_password, full.get("password_hash", "")):
+        raise HTTPException(status_code=400, detail="Password lama salah")
+    if len(data.new_password) < 6:
+        raise HTTPException(status_code=400, detail="Password baru minimal 6 karakter")
+    await db.users.update_one({"id": user["id"]},
+                              {"$set": {"password_hash": hash_password(data.new_password),
+                                        "pwd_reset_at": int(datetime.now(timezone.utc).timestamp())}})
+    return {"message": "Password berhasil diubah"}
 
 
 @api_router.post("/auth/register")
@@ -671,6 +689,13 @@ async def apply_job(job_id: str, name: str = Form(...), email: str = Form(...), 
 @api_router.get("/candidate/applications")
 async def candidate_applications(user=Depends(require_role("candidate"))):
     apps = await db.applications.find({"candidate_id": user["id"]}, {"_id": 0}).sort("created_at", -1).to_list(500)
+    cmap = await get_company_map()
+    job_ids = [a["job_id"] for a in apps]
+    jmap = {j["id"]: j for j in await db.jobs.find({"id": {"$in": job_ids}}, {"_id": 0, "id": 1, "location": 1}).to_list(1000)}
+    for a in apps:
+        c = cmap.get(a.get("company_id"), {})
+        a["company_logo"] = c.get("logo", "")
+        a["job_location"] = (jmap.get(a.get("job_id")) or {}).get("location", "")
     return apps
 
 
