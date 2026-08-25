@@ -9,6 +9,7 @@ import api from "../lib/api";
 import { LOCATIONS } from "../lib/constants";
 import JobListItem from "../components/JobListItem";
 import BlogCard from "../components/BlogCard";
+import FaqSection from "../components/FaqSection";
 
 const KATEGORI_CARDS = [
   { label: "Admin", icon: User, to: "/jobs?category=Admin" },
@@ -325,6 +326,8 @@ export default function Home() {
       </section>
       {/* Blog */}
       <BlogSection />
+      {/* FAQ */}
+      <FaqSection />
     </div>
   );
 }

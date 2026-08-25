@@ -57,6 +57,9 @@ Lihat CHANGELOG.md (register role, admin edit job, hero, job list horizontal, ka
 - **Rewrite**: CandidateProfile → Profil Karier lengkap (8 list editor + completion + visibility + foto); MyApplications → kartu + timeline + interview; Applicants → filter lengkap + match + shortlist + notes + interview + riwayat; AdminCompanies → plan tabs + aktivasi member.
 - **Edit**: App.js (10 route baru), DashboardLayout (bell desktop+mobile), constants (shortlist/INTERVIEW_STATUS/COMPANY_PLAN/level options), format (imageUrl), JobDetail (Lamar Cepat + modal kuota + simpan), CompanyDashboard (banner launch + plan card + 7 stat), CvProfessional → Career Pro + kartu kuota, CompanyMembership (kartu launch_free), AdminDashboard (+member/career pro/revenue), menu ×3 (tanpa duplikat: "Pengaturan" company dihapus, "CV Profesional"→"Career Pro").
 
+## Iterasi 10b — Section FAQ Homepage (25 Agu 2026)
+- Komponen baru `/app/frontend/src/components/FaqSection.jsx`: accordion 8 Q&A seputar CirebonKarir (cara cari loker, gratis, wilayah Ciayumajakuning, pasang lowongan, Program Launching, update harian, tracking lamaran, privasi data). Tema sky-600 (bar pertanyaan) + navy saat terbuka, ikon plus/minus, jawaban kartu putih, link "Hubungi kami". Dipasang di homepage setelah Blog, sebelum footer. Terverifikasi screenshot (buka/tutup accordion OK).
+
 ## Akun Demo
 - Admin: muhamadwahid.sih@gmail.com / admin123
 - Perusahaan: demo@perusahaan.com / password123
