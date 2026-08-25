@@ -42,7 +42,7 @@ LOCATIONS = ["Kota Cirebon", "Kabupaten Cirebon", "Majalengka", "Kuningan", "Ind
 JOB_TYPES = ["Full Time", "Part Time", "Freelance", "Kontrak", "Magang"]
 EDUCATION_LEVELS = ["Tidak ada minimal", "SMP", "SMA/SMK", "D3", "S1"]
 DEFAULT_CATEGORIES = ["Admin", "Finance", "Marketing", "Sales", "F&B", "Retail", "Gudang", "Driver", "Teknisi", "IT", "Lainnya"]
-APPLICATION_STATUSES = ["terkirim", "dilihat", "diproses", "interview", "diterima", "ditolak"]
+APPLICATION_STATUSES = ["terkirim", "dilihat", "diproses", "shortlist", "interview", "diterima", "ditolak"]
 COMPANY_STATUSES = ["pending", "verified", "rejected", "blocked"]
 
 app = FastAPI()
@@ -170,6 +170,7 @@ def attach_company(job: dict, cmap: dict) -> dict:
 async def save_upload(user_id: str, file: UploadFile, kind: str) -> dict:
     ext = file.filename.rsplit(".", 1)[-1].lower() if "." in file.filename else "bin"
     allowed = {"cv": {"pdf", "doc", "docx"}, "logo": {"jpg", "jpeg", "png", "webp"},
+               "photo": {"jpg", "jpeg", "png", "webp"}, "cert": {"pdf", "jpg", "jpeg", "png", "webp"},
                "payment": {"jpg", "jpeg", "png", "webp", "pdf"}}[kind]
     if ext not in allowed:
         raise HTTPException(status_code=400, detail=f"Format file tidak didukung. Gunakan: {', '.join(sorted(allowed))}")
@@ -425,6 +426,8 @@ async def job_detail(slug: str):
         raise HTTPException(status_code=404, detail="Lowongan tidak ditemukan")
     if job["status"] not in ("active", "expired", "nonaktif"):
         raise HTTPException(status_code=404, detail="Lowongan tidak ditemukan")
+    await db.jobs.update_one({"id": job["id"]}, {"$inc": {"views": 1}})
+    job["views"] = job.get("views", 0) + 1
     attach_company(job, cmap)
     company_full = await db.companies.find_one({"id": job["company_id"]}, {"_id": 0, "user_id": 0})
     job["company"] = company_full
@@ -511,16 +514,18 @@ async def download_file(path: str, request: Request, auth: str = Query(None)):
     record = await db.files.find_one({"storage_path": path, "is_deleted": False}, {"_id": 0})
     if not record:
         raise HTTPException(status_code=404, detail="File tidak ditemukan")
-    if record.get("kind") in ("cv", "payment"):
+    if record.get("kind") in ("cv", "payment", "cert"):
         token = extract_token(request, auth)
         user = await get_user_by_token(token) if token else None
         if not user:
             raise HTTPException(status_code=401, detail="Tidak memiliki akses")
         allowed = user["role"] == "admin" or user["id"] == record.get("owner_user_id")
-        if not allowed and user["role"] == "company" and record.get("kind") == "cv":
+        if not allowed and user["role"] == "company" and record.get("kind") in ("cv", "cert"):
             company = await db.companies.find_one({"user_id": user["id"]})
             if company:
-                allowed = bool(await db.applications.find_one({"cv_path": path, "company_id": company["id"]}))
+                allowed = bool(await db.applications.find_one(
+                    {"company_id": company["id"],
+                     "$or": [{"cv_path": path}, {"candidate_id": record.get("owner_user_id")}]}))
         if not allowed:
             raise HTTPException(status_code=403, detail="Tidak memiliki akses")
     try:
@@ -555,9 +560,18 @@ async def apply_job(job_id: str, name: str = Form(...), email: str = Form(...), 
                    "candidate_id": user["id"], "name": name.strip(), "email": email.strip().lower(),
                    "phone": phone.strip(), "education": education, "experience": experience,
                    "cv_path": cv_path, "cv_filename": cv_filename, "message": message,
-                   "status": "terkirim", "created_at": now_iso()}
+                   "status": "terkirim", "apply_method": "form", "is_shortlisted": False,
+                   "created_at": now_iso()}
     await db.applications.insert_one(application)
     application.pop("_id", None)
+    await db.application_status_history.insert_one({
+        "id": str(uuid.uuid4()), "application_id": application["id"], "from_status": "",
+        "to_status": "terkirim", "actor_name": user["name"], "actor_role": "candidate",
+        "note": "Lamaran dikirim", "created_at": now_iso()})
+    if company:
+        await notify(company["user_id"], "new_applicant", "Pelamar baru",
+                     f"{user['name']} melamar posisi {job['title']}.",
+                     f"/company/applicants?job_id={job['id']}")
     return application
 
 
@@ -628,11 +642,18 @@ async def upload_company_logo(file: UploadFile = File(...), user=Depends(require
 @api_router.get("/company/stats")
 async def company_stats(user=Depends(require_role("company"))):
     company = await get_my_company(user)
+    await expire_jobs()
     jobs = await db.jobs.find({"company_id": company["id"]}, {"status": 1}).to_list(1000)
-    applicants = await db.applications.count_documents({"company_id": company["id"]})
+    apps = await db.applications.find({"company_id": company["id"]}, {"_id": 0, "status": 1, "is_shortlisted": 1}).to_list(5000)
+    interviews_count = await db.interviews.count_documents(
+        {"company_id": company["id"], "status": {"$in": ["scheduled", "confirmed"]}})
     return {"total_jobs": len(jobs), "active_jobs": sum(1 for j in jobs if j["status"] == "active"),
             "pending_jobs": sum(1 for j in jobs if j["status"] == "pending"),
-            "total_applicants": applicants, "company_status": company["status"], "company_name": company["name"]}
+            "total_applicants": len(apps),
+            "shortlisted": sum(1 for a in apps if a.get("is_shortlisted") or a["status"] == "shortlist"),
+            "interview": interviews_count,
+            "hired": sum(1 for a in apps if a["status"] == "diterima"),
+            "company_status": company["status"], "company_name": company["name"]}
 
 
 @api_router.get("/company/entitlement")
@@ -669,7 +690,7 @@ async def create_job(data: JobIn, user=Depends(require_role("company"))):
            "slug": f"{slugify(data.title)}-{slugify(data.location)}-{uuid.uuid4().hex[:6]}",
            **data.model_dump(), "status": "pending", "rejection_reason": "",
            "listing_days": ent["listing_days"], "posting_mode": ent["mode"], "expires_at": "",
-           "created_at": now_iso()}
+           "published_at": "", "views": 0, "created_at": now_iso()}
     await db.jobs.insert_one(job)
     job.pop("_id", None)
     return job
@@ -710,7 +731,19 @@ async def company_applications(job_id: str = "", user=Depends(require_role("comp
     query = {"company_id": company["id"]}
     if job_id:
         query["job_id"] = job_id
-    return await db.applications.find(query, {"_id": 0}).sort("created_at", -1).to_list(1000)
+    apps = await db.applications.find(query, {"_id": 0}).sort("created_at", -1).to_list(1000)
+    jobs_map = {j["id"]: j for j in await db.jobs.find({"company_id": company["id"]}, {"_id": 0}).to_list(500)}
+    for a in apps:
+        profile = await get_career_profile(a["candidate_id"])
+        a["career_profile"] = {
+            "photo_path": profile.get("photo_path", ""), "city": profile.get("city", ""),
+            "target_position": profile.get("target_position", ""),
+            "skills": profile.get("skills", [])[:8],
+            "education_list": profile.get("education", [])[:3],
+        }
+        job = jobs_map.get(a["job_id"])
+        a["match"] = compute_match_score(profile, job, a) if job else None
+    return apps
 
 
 @api_router.get("/company/applications/{app_id}")
@@ -720,8 +753,13 @@ async def company_application_detail(app_id: str, user=Depends(require_role("com
     if not application:
         raise HTTPException(status_code=404, detail="Lamaran tidak ditemukan")
     if application["status"] == "terkirim":
-        await db.applications.update_one({"id": app_id}, {"$set": {"status": "dilihat"}})
+        await set_application_status(application, "dilihat", company["name"], "company")
         application["status"] = "dilihat"
+    profile = await get_career_profile(application["candidate_id"])
+    application["career_profile"] = normalize_career_profile(profile)
+    job = await db.jobs.find_one({"id": application["job_id"]}, {"_id": 0})
+    application["match"] = compute_match_score(profile, job, application) if job else None
+    application["interviews"] = await db.interviews.find({"application_id": app_id}, {"_id": 0}).sort("scheduled_at", -1).to_list(20)
     return application
 
 
@@ -730,9 +768,13 @@ async def update_application_status(app_id: str, data: ApplicationStatusIn, user
     if data.status not in APPLICATION_STATUSES:
         raise HTTPException(status_code=400, detail="Status tidak valid")
     company = await get_my_company(user)
-    result = await db.applications.update_one({"id": app_id, "company_id": company["id"]}, {"$set": {"status": data.status}})
-    if result.matched_count == 0:
+    app_doc = await db.applications.find_one({"id": app_id, "company_id": company["id"]}, {"_id": 0})
+    if not app_doc:
         raise HTTPException(status_code=404, detail="Lamaran tidak ditemukan")
+    if data.status == "shortlist":
+        await db.applications.update_one({"id": app_id}, {"$set": {"is_shortlisted": True}})
+        app_doc["is_shortlisted"] = True
+    await set_application_status(app_doc, data.status, company["name"], "company")
     return {"status": data.status}
 
 
@@ -740,7 +782,13 @@ async def update_application_status(app_id: str, data: ApplicationStatusIn, user
 @api_router.get("/admin/stats")
 async def admin_stats(user=Depends(require_role("admin"))):
     await expire_jobs()
+    await expire_subscriptions()
+    approved_payments = await db.payments.find({"status": "approved"}, {"_id": 0, "amount": 1}).to_list(10000)
+    launch_active, launch = await launch_is_active()
     return {
+        "revenue": sum(p.get("amount", 0) for p in approved_payments),
+        "launch_active": launch_active,
+        "launch_end_date": launch.get("end_date", ""),
         "candidates": await db.users.count_documents({"role": "candidate"}),
         "companies": await db.companies.count_documents({}),
         "companies_pending": await db.companies.count_documents({"status": "pending"}),
@@ -749,6 +797,8 @@ async def admin_stats(user=Depends(require_role("admin"))):
         "jobs_pending": await db.jobs.count_documents({"status": "pending"}),
         "jobs_active": await db.jobs.count_documents({"status": "active"}),
         "applications": await db.applications.count_documents({}),
+        "members_active": await db.subscriptions.count_documents({"product_type": "company_membership", "status": "active"}),
+        "career_pro_active": await db.subscriptions.count_documents({"product_type": "cv_professional", "status": "active"}),
     }
 
 
@@ -766,10 +816,19 @@ async def admin_approve_job(job_id: str, user=Depends(require_role("admin"))):
     job = await db.jobs.find_one({"id": job_id})
     if not job:
         raise HTTPException(status_code=404, detail="Lowongan tidak ditemukan")
-    update = {"status": "active", "rejection_reason": ""}
+    update = {"status": "active", "rejection_reason": "", "published_at": now_iso()}
     if job.get("listing_days"):
         update["expires_at"] = (datetime.now(timezone.utc) + timedelta(days=job["listing_days"])).isoformat()
     await db.jobs.update_one({"id": job_id}, {"$set": update})
+    updated = await db.jobs.find_one({"id": job_id}, {"_id": 0})
+    try:
+        await trigger_job_alerts(updated)
+    except Exception as e:
+        logger.warning(f"Job alert trigger failed: {e}")
+    company = await db.companies.find_one({"id": job["company_id"]}, {"_id": 0})
+    if company:
+        await notify(company["user_id"], "job_approved", "Lowongan disetujui",
+                     f"Lowongan \"{job['title']}\" telah aktif dan tampil di halaman publik.", "/company/jobs")
     return {"status": "active"}
 
 
@@ -797,9 +856,27 @@ async def admin_delete_job(job_id: str, user=Depends(require_role("admin"))):
 
 
 @api_router.get("/admin/companies")
-async def admin_companies(status: str = "", user=Depends(require_role("admin"))):
+async def admin_companies(status: str = "", plan: str = "", user=Depends(require_role("admin"))):
     query = {"status": status} if status else {}
-    return await db.companies.find(query, {"_id": 0}).sort("created_at", -1).to_list(1000)
+    companies = await db.companies.find(query, {"_id": 0}).sort("created_at", -1).to_list(1000)
+    job_counts = {}
+    async for row in db.jobs.aggregate([{"$group": {"_id": "$company_id", "n": {"$sum": 1}}}]):
+        job_counts[row["_id"]] = row["n"]
+    app_counts = {}
+    async for row in db.applications.aggregate([{"$group": {"_id": "$company_id", "n": {"$sum": 1}}}]):
+        app_counts[row["_id"]] = row["n"]
+    results = []
+    for c in companies:
+        p = await sync_company_plan(c)
+        if plan and p["plan_type"] != plan:
+            continue
+        c.update({"plan_type": p["plan_type"], "subscription_status": p["subscription_status"],
+                  "subscription_start_date": p["subscription_start_date"],
+                  "subscription_end_date": p["subscription_end_date"],
+                  "jobs_count": job_counts.get(c["id"], 0),
+                  "applicants_count": app_counts.get(c["id"], 0)})
+        results.append(c)
+    return results
 
 
 @api_router.post("/admin/companies/{company_id}/status")
@@ -975,21 +1052,24 @@ async def consume_free_quota(company_id):
 
 
 async def get_company_entitlement(company):
-    member_sub = await get_active_subscription("company_membership", company_id=company["id"])
+    plan = await compute_company_plan(company)
     quota = await get_or_create_quota(company["id"])
     now = datetime.now(timezone.utc)
     remaining = max(0, quota["free_post_limit"] - quota["free_post_used"])
     quota_info = {"limit": quota["free_post_limit"], "used": quota["free_post_used"],
                   "remaining": remaining, "period": f"{now.year}-{now.month:02d}"}
-    if member_sub:
-        return {"mode": "member", "can_post": True, "listing_days": 30, "is_member": True,
-                "member_expires_at": member_sub["expires_at"], "member_started_at": member_sub.get("started_at", ""),
-                "quota": quota_info}
+    plan_public = {k: plan[k] for k in ("plan_type", "subscription_status", "subscription_start_date",
+                                        "subscription_end_date", "launch_access", "launch_active",
+                                        "launch_start_date", "launch_end_date")}
+    if plan["plan_type"] in ("member", "launch_free"):
+        return {"mode": plan["plan_type"], "can_post": True, "listing_days": 30, "is_member": True,
+                "member_expires_at": plan["subscription_end_date"], "member_started_at": plan["subscription_start_date"],
+                "quota": quota_info, "plan": plan_public}
     if remaining > 0:
         return {"mode": "free", "can_post": True, "listing_days": 7, "is_member": False,
-                "member_expires_at": "", "member_started_at": "", "quota": quota_info}
+                "member_expires_at": "", "member_started_at": "", "quota": quota_info, "plan": plan_public}
     return {"mode": "none", "can_post": False, "listing_days": 0, "is_member": False,
-            "member_expires_at": "", "member_started_at": "", "quota": quota_info}
+            "member_expires_at": "", "member_started_at": "", "quota": quota_info, "plan": plan_public}
 
 
 @api_router.get("/membership/products")
@@ -1566,6 +1646,986 @@ async def admin_mon_audit_logs(user=Depends(require_role("admin"))):
     return await db.membership_audit_logs.find({}, {"_id": 0}).sort("created_at", -1).to_list(200)
 
 
+# ======================================================================
+# Launch Program, Recruitment Management, Career Profile & Notifikasi
+# ======================================================================
+INTERVIEW_STATUSES = ["scheduled", "confirmed", "completed", "cancelled"]
+FREE_APPLY_LIMIT = 3
+PRO_APPLY_LIMIT = 30
+
+
+def parse_dt(value):
+    if not value:
+        return None
+    try:
+        dt = datetime.fromisoformat(str(value).replace("Z", "+00:00"))
+        if dt.tzinfo is None:
+            dt = dt.replace(tzinfo=timezone.utc)
+        return dt
+    except (ValueError, TypeError):
+        return None
+
+
+# ---------- Launch Program & Paket Perusahaan ----------
+async def get_launch_program():
+    lp = await db.launch_program.find_one({"id": "launch_program"}, {"_id": 0})
+    if not lp:
+        lp = {"id": "launch_program", "start_date": "2026-06-25T00:00:00+00:00",
+              "end_date": "2026-10-25T23:59:59+00:00", "is_active": True,
+              "updated_by": "system", "updated_at": now_iso()}
+        await db.launch_program.insert_one(lp)
+        lp.pop("_id", None)
+    return lp
+
+
+async def launch_is_active():
+    lp = await get_launch_program()
+    now = datetime.now(timezone.utc)
+    start, end = parse_dt(lp.get("start_date")), parse_dt(lp.get("end_date"))
+    active = bool(lp.get("is_active")) and start is not None and end is not None and start <= now <= end
+    return active, lp
+
+
+async def compute_company_plan(company):
+    launch_active, lp = await launch_is_active()
+    base = {"launch_active": launch_active, "launch_start_date": lp.get("start_date", ""),
+            "launch_end_date": lp.get("end_date", "")}
+    sub = await get_active_subscription("company_membership", company_id=company["id"])
+    if sub:
+        return {**base, "plan_type": "member", "subscription_status": "active",
+                "subscription_start_date": sub.get("started_at", ""),
+                "subscription_end_date": sub.get("expires_at", ""), "launch_access": launch_active}
+    if launch_active:
+        return {**base, "plan_type": "launch_free", "subscription_status": "active",
+                "subscription_start_date": "", "subscription_end_date": "", "launch_access": True}
+    past = await db.subscriptions.find_one(
+        {"company_id": company["id"], "product_type": "company_membership",
+         "status": {"$in": ["expired", "cancelled"]}}, {"_id": 0})
+    if past:
+        return {**base, "plan_type": "expired", "subscription_status": "expired",
+                "subscription_start_date": past.get("started_at", ""),
+                "subscription_end_date": past.get("expires_at", ""), "launch_access": False}
+    return {**base, "plan_type": "free", "subscription_status": "inactive",
+            "subscription_start_date": "", "subscription_end_date": "", "launch_access": False}
+
+
+async def sync_company_plan(company, plan=None):
+    plan = plan or await compute_company_plan(company)
+    await db.companies.update_one({"id": company["id"]}, {"$set": {
+        "plan_type": plan["plan_type"], "subscription_status": plan["subscription_status"],
+        "subscription_start_date": plan["subscription_start_date"],
+        "subscription_end_date": plan["subscription_end_date"],
+        "launch_access": plan["launch_access"]}})
+    return plan
+
+
+async def require_company_full_access(user=Depends(require_role("company"))):
+    company = await get_my_company(user)
+    plan = await compute_company_plan(company)
+    if plan["plan_type"] not in ("member", "launch_free"):
+        raise HTTPException(
+            status_code=403,
+            detail="Fitur ini khusus Member Perusahaan. Upgrade untuk membuka fitur recruitment lengkap.")
+    return {"user": user, "company": company, "plan": plan}
+
+
+# ---------- Notifikasi & Reminder ----------
+async def notify(user_id, ntype, title, message, link="", dedupe_key=""):
+    if not user_id:
+        return
+    if dedupe_key and await db.notifications.find_one({"user_id": user_id, "dedupe_key": dedupe_key}):
+        return
+    await db.notifications.insert_one({
+        "id": str(uuid.uuid4()), "user_id": user_id, "type": ntype, "title": title,
+        "message": message, "link": link, "is_read": False, "dedupe_key": dedupe_key,
+        "created_at": now_iso()})
+
+
+async def generate_reminders():
+    now = datetime.now(timezone.utc)
+    lp = await get_launch_program()
+    end = parse_dt(lp.get("end_date"))
+    companies = await db.companies.find({}, {"_id": 0, "user_id": 1}).to_list(2000)
+    if lp.get("is_active") and end and now < end:
+        days_left = (end - now).days
+        if days_left in (1, 3, 7, 14):
+            msg = ("Program gratis berakhir besok. Upgrade ke Member Perusahaan untuk mempertahankan fitur lengkap."
+                   if days_left <= 1 else
+                   f"Program gratis berakhir {days_left} hari lagi. Manfaatkan seluruh fitur Member selama masih gratis.")
+            for comp in companies:
+                await notify(comp["user_id"], "launch_reminder", "Program Launching CirebonKarir",
+                             msg, "/company/membership", dedupe_key=f"launch-{days_left}d-{end.date()}")
+    if lp.get("is_active") and end and now > end and (now - end).days <= 30:
+        for comp in companies:
+            await notify(comp["user_id"], "launch_ended", "Program Launching telah berakhir",
+                         "Akun Anda sekarang menggunakan Paket Free. Upgrade ke Member Perusahaan untuk fitur recruitment lengkap.",
+                         "/company/membership", dedupe_key=f"launch-ended-{end.date()}")
+    await expire_subscriptions()
+    async for sub in db.subscriptions.find({"status": "active", "expires_at": {"$ne": ""}}, {"_id": 0}):
+        exp = parse_dt(sub.get("expires_at"))
+        if not exp or exp <= now:
+            continue
+        days_left = (exp - now).days
+        if sub["product_type"] == "company_membership" and days_left in (1, 3, 7, 14):
+            comp = await db.companies.find_one({"id": sub.get("company_id", "")}, {"_id": 0, "user_id": 1})
+            uid = comp["user_id"] if comp else sub.get("user_id", "")
+            msg = "Membership Anda berakhir besok." if days_left <= 1 else f"Membership Anda akan berakhir dalam {days_left} hari."
+            await notify(uid, "subscription_reminder", "Membership Perusahaan",
+                         msg + " Perpanjang sekarang agar fitur tidak terbatas.",
+                         "/company/membership", dedupe_key=f"sub-{sub['id']}-{days_left}d")
+        if sub["product_type"] == "cv_professional" and days_left in (1, 3, 7):
+            msg = "Career Pro Anda berakhir besok." if days_left <= 1 else f"Career Pro Anda akan berakhir dalam {days_left} hari."
+            await notify(sub.get("user_id", ""), "subscription_reminder", "Career Pro",
+                         msg + " Perpanjang untuk mempertahankan kuota One-Click Apply dan CV premium.",
+                         "/candidate/cv-professional", dedupe_key=f"sub-{sub['id']}-{days_left}d")
+
+
+@api_router.get("/notifications")
+async def list_notifications(user=Depends(get_current_user)):
+    try:
+        await generate_reminders()
+    except Exception as e:
+        logger.warning(f"Reminder generation failed: {e}")
+    items = await db.notifications.find({"user_id": user["id"]}, {"_id": 0}).sort("created_at", -1).to_list(100)
+    unread = sum(1 for n in items if not n["is_read"])
+    return {"items": items, "unread": unread}
+
+
+@api_router.get("/notifications/unread-count")
+async def unread_count(user=Depends(get_current_user)):
+    return {"unread": await db.notifications.count_documents({"user_id": user["id"], "is_read": False})}
+
+
+@api_router.post("/notifications/read-all")
+async def mark_all_notifications_read(user=Depends(get_current_user)):
+    await db.notifications.update_many({"user_id": user["id"], "is_read": False}, {"$set": {"is_read": True}})
+    return {"read": True}
+
+
+@api_router.post("/notifications/{notif_id}/read")
+async def mark_notification_read(notif_id: str, user=Depends(get_current_user)):
+    await db.notifications.update_one({"id": notif_id, "user_id": user["id"]}, {"$set": {"is_read": True}})
+    return {"read": True}
+
+
+@api_router.get("/launch-program")
+async def public_launch_program():
+    active, lp = await launch_is_active()
+    now = datetime.now(timezone.utc)
+    start = parse_dt(lp.get("start_date"))
+    return {"active": active, "is_enabled": bool(lp.get("is_active")),
+            "not_started": bool(lp.get("is_active")) and start is not None and now < start,
+            "start_date": lp.get("start_date", ""), "end_date": lp.get("end_date", "")}
+
+
+# ---------- Kuota One-Click Apply (server-side) ----------
+async def get_or_create_apply_quota(user_id):
+    sub = await get_active_subscription("cv_professional", user_id=user_id)
+    now = datetime.now(timezone.utc)
+    if sub:
+        key = f"pro:{user_id}:{sub['id']}"
+        doc = await db.apply_quotas.find_one({"key": key}, {"_id": 0})
+        if not doc:
+            doc = {"id": str(uuid.uuid4()), "key": key, "user_id": user_id, "plan": "career_pro",
+                   "subscription_id": sub["id"], "limit": PRO_APPLY_LIMIT, "used": 0,
+                   "period": sub.get("expires_at", ""), "created_at": now_iso(), "updated_at": now_iso()}
+            try:
+                await db.apply_quotas.insert_one(doc)
+            except Exception:
+                doc = await db.apply_quotas.find_one({"key": key}, {"_id": 0})
+            doc.pop("_id", None)
+        return {"key": key, "plan": "career_pro", "limit": doc["limit"], "used": doc["used"],
+                "remaining": max(0, doc["limit"] - doc["used"]), "period": "periode Career Pro aktif",
+                "expires_at": sub.get("expires_at", "")}
+    key = f"free:{user_id}:{now.year}-{now.month:02d}"
+    doc = await db.apply_quotas.find_one({"key": key}, {"_id": 0})
+    if not doc:
+        doc = {"id": str(uuid.uuid4()), "key": key, "user_id": user_id, "plan": "free",
+               "subscription_id": "", "limit": FREE_APPLY_LIMIT, "used": 0,
+               "period": f"{now.year}-{now.month:02d}", "created_at": now_iso(), "updated_at": now_iso()}
+        try:
+            await db.apply_quotas.insert_one(doc)
+        except Exception:
+            doc = await db.apply_quotas.find_one({"key": key}, {"_id": 0})
+        doc.pop("_id", None)
+    return {"key": key, "plan": "free", "limit": doc["limit"], "used": doc["used"],
+            "remaining": max(0, doc["limit"] - doc["used"]), "period": f"bulan {now.year}-{now.month:02d}",
+            "expires_at": ""}
+
+
+async def consume_apply_quota(user_id):
+    quota = await get_or_create_apply_quota(user_id)
+    return await db.apply_quotas.find_one_and_update(
+        {"key": quota["key"], "$expr": {"$lt": ["$used", "$limit"]}},
+        {"$inc": {"used": 1}, "$set": {"updated_at": now_iso()}},
+        return_document=ReturnDocument.AFTER)
+
+
+@api_router.get("/candidate/apply-quota")
+async def candidate_apply_quota(user=Depends(require_role("candidate"))):
+    return await get_or_create_apply_quota(user["id"])
+
+
+# ---------- Profil Karier ----------
+CAREER_PROFILE_LIST_FIELDS = ["education", "experience", "skills", "certifications",
+                              "languages", "organizations", "achievements", "portfolios"]
+CAREER_PROFILE_STR_FIELDS = ["photo_path", "address", "city", "summary", "target_position",
+                             "target_category", "target_location", "target_job_type"]
+
+
+async def get_career_profile(user_id):
+    profile = await db.career_profiles.find_one({"user_id": user_id}, {"_id": 0})
+    return profile or {}
+
+
+def normalize_career_profile(profile):
+    data = {f: profile.get(f, []) for f in CAREER_PROFILE_LIST_FIELDS}
+    for f in CAREER_PROFILE_STR_FIELDS:
+        data[f] = profile.get(f, "")
+    data["expected_salary"] = profile.get("expected_salary", 0)
+    data["visibility"] = profile.get("visibility", "private")
+    return data
+
+
+def profile_completion(user, profile, cv_count=0):
+    checks = [
+        {"key": "personal", "label": "Data pribadi (nama, HP, kota)", "weight": 20,
+         "done": bool(user.get("name") and user.get("phone") and profile.get("city"))},
+        {"key": "target", "label": "Target karier", "weight": 15,
+         "done": bool(profile.get("target_position") or profile.get("target_category"))},
+        {"key": "education", "label": "Riwayat pendidikan", "weight": 15,
+         "done": bool(profile.get("education")) or bool(user.get("education"))},
+        {"key": "experience", "label": "Pengalaman kerja", "weight": 15,
+         "done": bool(profile.get("experience")) or bool(user.get("experience"))},
+        {"key": "skills", "label": "Skill", "weight": 15, "done": bool(profile.get("skills"))},
+        {"key": "cv", "label": "CV terunggah", "weight": 10,
+         "done": bool(user.get("cv_path")) or cv_count > 0},
+        {"key": "certifications", "label": "Sertifikasi", "weight": 5, "done": bool(profile.get("certifications"))},
+        {"key": "portfolios", "label": "Portfolio", "weight": 5, "done": bool(profile.get("portfolios"))},
+    ]
+    return {"percent": min(100, sum(c["weight"] for c in checks if c["done"])), "checks": checks,
+            "missing": [c["label"] for c in checks if not c["done"]]}
+
+
+class CareerProfileIn(BaseModel):
+    photo_path: str = ""
+    address: str = ""
+    city: str = ""
+    summary: str = ""
+    target_position: str = ""
+    target_category: str = ""
+    target_location: str = ""
+    target_job_type: str = ""
+    expected_salary: int = 0
+    visibility: str = "private"
+    education: list = []
+    experience: list = []
+    skills: list = []
+    certifications: list = []
+    languages: list = []
+    organizations: list = []
+    achievements: list = []
+    portfolios: list = []
+
+
+class JobAlertIn(BaseModel):
+    q: str = ""
+    location: str = ""
+    category: str = ""
+    job_type: str = ""
+
+
+class NoteIn(BaseModel):
+    note: str
+
+
+class InterviewIn(BaseModel):
+    scheduled_at: str
+    method: str = "offline"
+    location: str = ""
+    link: str = ""
+    notes: str = ""
+
+
+class InterviewStatusIn(BaseModel):
+    status: str
+
+
+class ShortlistIn(BaseModel):
+    shortlisted: bool
+
+
+class InviteIn(BaseModel):
+    job_id: str
+
+
+class LaunchProgramIn(BaseModel):
+    start_date: str
+    end_date: str
+    is_active: bool = True
+
+
+class MembershipActionIn(BaseModel):
+    action: str
+
+
+@api_router.get("/candidate/career-profile")
+async def get_my_career_profile(user=Depends(require_role("candidate"))):
+    profile = normalize_career_profile(await get_career_profile(user["id"]))
+    cv_count = await db.cv_documents.count_documents({"user_id": user["id"]})
+    full_user = await db.users.find_one({"id": user["id"]}, {"_id": 0, "password_hash": 0})
+    return {"user": {"name": full_user["name"], "email": full_user["email"], "phone": full_user.get("phone", ""),
+                     "education": full_user.get("education", ""), "experience": full_user.get("experience", ""),
+                     "about": full_user.get("about", ""), "cv_path": full_user.get("cv_path", ""),
+                     "cv_filename": full_user.get("cv_filename", "")},
+            "profile": profile, "completion": profile_completion(full_user, profile, cv_count)}
+
+
+@api_router.put("/candidate/career-profile")
+async def update_career_profile(data: CareerProfileIn, user=Depends(require_role("candidate"))):
+    if data.visibility not in ("private", "public"):
+        raise HTTPException(status_code=400, detail="Visibility tidak valid")
+    update = data.model_dump()
+    update["updated_at"] = now_iso()
+    await db.career_profiles.update_one(
+        {"user_id": user["id"]},
+        {"$set": update, "$setOnInsert": {"id": str(uuid.uuid4()), "user_id": user["id"], "created_at": now_iso()}},
+        upsert=True)
+    return await get_my_career_profile(user)
+
+
+@api_router.post("/candidate/career-profile/photo")
+async def upload_profile_photo(file: UploadFile = File(...), user=Depends(require_role("candidate"))):
+    saved = await save_upload(user["id"], file, "photo")
+    await db.career_profiles.update_one(
+        {"user_id": user["id"]},
+        {"$set": {"photo_path": saved["path"], "updated_at": now_iso()},
+         "$setOnInsert": {"id": str(uuid.uuid4()), "user_id": user["id"], "created_at": now_iso()}},
+        upsert=True)
+    return {"photo_path": saved["path"]}
+
+
+@api_router.post("/candidate/career-profile/cert-file")
+async def upload_cert_file(file: UploadFile = File(...), user=Depends(require_role("candidate"))):
+    saved = await save_upload(user["id"], file, "cert")
+    return saved
+
+
+# ---------- Job Matching (scoring sederhana, siap dikembangkan ke AI) ----------
+EDU_RANK = {"tidak ada minimal": 0, "smp": 1, "kursus/pelatihan": 1, "kursus": 1,
+            "sma": 2, "smk": 2, "sma/smk": 2, "d1": 2, "d3": 3, "diploma": 3, "s1": 4, "s2": 5}
+
+
+def _years_of_experience(profile, app=None):
+    total = 0.0
+    for exp in (profile or {}).get("experience", []):
+        start = parse_dt(exp.get("start_date", ""))
+        end = parse_dt(exp.get("end_date", "")) or (datetime.now(timezone.utc) if exp.get("current") else None)
+        if start and end:
+            total += max(0, (end - start).days / 365.0)
+    if total == 0:
+        text = ((app or {}).get("experience", "") or "").lower()
+        m = re.search(r"(\d+(?:[.,]\d+)?)\s*tahun", text)
+        if m:
+            total = float(m.group(1).replace(",", "."))
+    return total
+
+
+def compute_match_score(profile, job, app=None):
+    profile = profile or {}
+    if not job:
+        return {"score": 0, "checks": {}, "reasons": []}
+    checks, reasons = {}, []
+    score = 0
+    job_text = " ".join([job.get("title", ""), job.get("requirements", ""), job.get("description", "")]).lower()
+    skills = [s.get("name", "") for s in profile.get("skills", []) if s.get("name")]
+    matched = [s for s in skills if s.lower() in job_text]
+    if matched:
+        score += 30
+        checks["skill"] = True
+        reasons.append("Skill sesuai (" + ", ".join(matched[:3]) + ")")
+    elif skills:
+        checks["skill"] = False
+    cand_edu = ""
+    if profile.get("education"):
+        cand_edu = profile["education"][0].get("level", "")
+    cand_edu = cand_edu or (app or {}).get("education", "")
+    req_rank = EDU_RANK.get((job.get("education") or "").lower(), 0)
+    cand_rank = EDU_RANK.get((cand_edu or "").lower())
+    if cand_rank is not None:
+        if cand_rank >= req_rank:
+            score += 20
+            checks["education"] = True
+            reasons.append("Pendidikan sesuai")
+        else:
+            checks["education"] = False
+    years = _years_of_experience(profile, app)
+    req_years = 0.0
+    m = re.search(r"(\d+(?:[.,]\d+)?)\s*tahun", (job.get("experience") or "").lower())
+    if m:
+        req_years = float(m.group(1).replace(",", "."))
+    if req_years > 0 or years > 0:
+        if years >= req_years:
+            score += 20
+            checks["experience"] = True
+            reasons.append("Pengalaman sesuai")
+        else:
+            checks["experience"] = False
+    cand_loc = profile.get("target_location") or profile.get("city") or ""
+    if cand_loc:
+        if cand_loc.lower() == (job.get("location") or "").lower():
+            score += 20
+            checks["location"] = True
+            reasons.append("Lokasi sesuai")
+        else:
+            checks["location"] = False
+    target = (profile.get("target_position") or "").lower()
+    tcat = (profile.get("target_category") or "").lower()
+    if target or tcat:
+        if (target and target in job_text) or (tcat and tcat == (job.get("category") or "").lower()):
+            score += 10
+            checks["position"] = True
+            reasons.append("Posisi/kategori sesuai")
+        else:
+            checks["position"] = False
+    return {"score": min(100, score), "checks": checks, "reasons": reasons}
+
+
+@api_router.get("/candidate/recommendations")
+async def candidate_recommendations(user=Depends(require_role("candidate"))):
+    await expire_jobs()
+    profile = await get_career_profile(user["id"])
+    jobs = await db.jobs.find({"status": "active"}, {"_id": 0}).sort("created_at", -1).to_list(200)
+    cmap = await get_company_map()
+    applied = {a["job_id"] async for a in db.applications.find({"candidate_id": user["id"]}, {"job_id": 1})}
+    scored = []
+    for job in jobs:
+        if job["id"] in applied:
+            continue
+        scored.append({**attach_company(dict(job), cmap), "match": compute_match_score(profile, job)})
+    scored.sort(key=lambda j: (-j["match"]["score"], j["created_at"]))
+    return scored[:8]
+
+
+# ---------- Simpan Lowongan ----------
+@api_router.get("/candidate/saved-jobs")
+async def list_saved_jobs(user=Depends(require_role("candidate"))):
+    saved = await db.saved_jobs.find({"user_id": user["id"]}, {"_id": 0}).sort("created_at", -1).to_list(200)
+    job_ids = [s["job_id"] for s in saved]
+    jobs = {j["id"]: j for j in await db.jobs.find({"id": {"$in": job_ids}}, {"_id": 0}).to_list(500)}
+    cmap = await get_company_map()
+    items = []
+    for s in saved:
+        job = jobs.get(s["job_id"])
+        if job:
+            items.append({"saved_id": s["id"], "saved_at": s["created_at"], **attach_company(dict(job), cmap)})
+    return items
+
+
+@api_router.get("/candidate/saved-jobs/ids")
+async def saved_job_ids(user=Depends(require_role("candidate"))):
+    return [s["job_id"] for s in await db.saved_jobs.find({"user_id": user["id"]}, {"_id": 0, "job_id": 1}).to_list(500)]
+
+
+@api_router.post("/candidate/saved-jobs/{job_id}")
+async def save_job(job_id: str, user=Depends(require_role("candidate"))):
+    if not await db.jobs.find_one({"id": job_id}, {"_id": 0, "id": 1}):
+        raise HTTPException(status_code=404, detail="Lowongan tidak ditemukan")
+    await db.saved_jobs.update_one(
+        {"user_id": user["id"], "job_id": job_id},
+        {"$setOnInsert": {"id": str(uuid.uuid4()), "user_id": user["id"], "job_id": job_id, "created_at": now_iso()}},
+        upsert=True)
+    return {"saved": True}
+
+
+@api_router.delete("/candidate/saved-jobs/{job_id}")
+async def unsave_job(job_id: str, user=Depends(require_role("candidate"))):
+    await db.saved_jobs.delete_one({"user_id": user["id"], "job_id": job_id})
+    return {"saved": False}
+
+
+# ---------- Job Alert ----------
+@api_router.get("/candidate/job-alerts")
+async def list_job_alerts(user=Depends(require_role("candidate"))):
+    return await db.job_alerts.find({"user_id": user["id"]}, {"_id": 0}).sort("created_at", -1).to_list(50)
+
+
+@api_router.post("/candidate/job-alerts")
+async def create_job_alert(data: JobAlertIn, user=Depends(require_role("candidate"))):
+    if not (data.q.strip() or data.location or data.category or data.job_type):
+        raise HTTPException(status_code=400, detail="Isi minimal satu kriteria alert")
+    alert = {"id": str(uuid.uuid4()), "user_id": user["id"], "q": data.q.strip(),
+             "location": data.location, "category": data.category, "job_type": data.job_type,
+             "active": True, "created_at": now_iso()}
+    await db.job_alerts.insert_one(alert)
+    alert.pop("_id", None)
+    return alert
+
+
+@api_router.delete("/candidate/job-alerts/{alert_id}")
+async def delete_job_alert(alert_id: str, user=Depends(require_role("candidate"))):
+    await db.job_alerts.delete_one({"id": alert_id, "user_id": user["id"]})
+    return {"message": "Job alert dihapus"}
+
+
+async def trigger_job_alerts(job):
+    company = await db.companies.find_one({"id": job["company_id"]}, {"_id": 0, "name": 1})
+    cname = (company or {}).get("name", "")
+    async for alert in db.job_alerts.find({"active": True}, {"_id": 0}):
+        if alert.get("location") and alert["location"] != job.get("location"):
+            continue
+        if alert.get("job_type") and alert["job_type"] != job.get("job_type"):
+            continue
+        if alert.get("category") and alert["category"].lower() != (job.get("category") or "").lower():
+            continue
+        if alert.get("q") and alert["q"].lower() not in (job.get("title", "") + " " + job.get("description", "")).lower():
+            continue
+        await notify(alert["user_id"], "job_alert", "Lowongan baru cocok dengan Job Alert Anda",
+                     f"{job['title']} di {cname} ({job.get('location', '')})", f"/jobs/{job['slug']}",
+                     dedupe_key=f"alert-{alert['id']}-{job['id']}")
+
+
+# ---------- Pipeline Lamaran ----------
+STATUS_NOTIF = {
+    "dilihat": ("Lamaran dilihat", "Lamaran Anda untuk posisi {job} di {company} telah dilihat perusahaan."),
+    "diproses": ("Lamaran diproses", "Lamaran Anda untuk posisi {job} di {company} sedang diproses."),
+    "shortlist": ("Anda masuk shortlist", "Kabar baik! Anda masuk shortlist untuk posisi {job} di {company}."),
+    "interview": ("Tahap interview", "Anda dipanggil interview untuk posisi {job} di {company}. Cek jadwal di dashboard."),
+    "diterima": ("Selamat, Anda diterima!", "Anda diterima untuk posisi {job} di {company}."),
+    "ditolak": ("Lamaran belum berhasil", "Lamaran Anda untuk posisi {job} di {company} belum berhasil. Tetap semangat!"),
+}
+
+
+async def set_application_status(app_doc, new_status, actor_name, actor_role, note=""):
+    old = app_doc["status"]
+    if old == new_status:
+        return
+    await db.applications.update_one({"id": app_doc["id"]}, {"$set": {"status": new_status}})
+    await db.application_status_history.insert_one({
+        "id": str(uuid.uuid4()), "application_id": app_doc["id"], "from_status": old,
+        "to_status": new_status, "actor_name": actor_name, "actor_role": actor_role,
+        "note": note, "created_at": now_iso()})
+    if new_status in STATUS_NOTIF:
+        title, tpl = STATUS_NOTIF[new_status]
+        await notify(app_doc["candidate_id"], "application_status", title,
+                     tpl.format(job=app_doc["job_title"], company=app_doc.get("company_name", "")),
+                     "/candidate/applications", dedupe_key=f"status-{app_doc['id']}-{new_status}")
+
+
+@api_router.get("/candidate/applications/{app_id}/timeline")
+async def candidate_application_timeline(app_id: str, user=Depends(require_role("candidate"))):
+    app_doc = await db.applications.find_one({"id": app_id, "candidate_id": user["id"]}, {"_id": 0})
+    if not app_doc:
+        raise HTTPException(status_code=404, detail="Lamaran tidak ditemukan")
+    history = await db.application_status_history.find({"application_id": app_id}, {"_id": 0}).sort("created_at", 1).to_list(100)
+    interviews = await db.interviews.find({"application_id": app_id}, {"_id": 0, "notes": 0}).sort("scheduled_at", 1).to_list(20)
+    return {"application": app_doc, "history": history, "interviews": interviews}
+
+
+@api_router.get("/candidate/interviews")
+async def candidate_interviews(user=Depends(require_role("candidate"))):
+    items = await db.interviews.find({"candidate_id": user["id"]}, {"_id": 0}).sort("scheduled_at", 1).to_list(100)
+    cmap = await get_company_map()
+    for it in items:
+        it["company_name"] = cmap.get(it["company_id"], {}).get("name", "")
+    return items
+
+
+@api_router.get("/candidate/invitations")
+async def candidate_invitations(user=Depends(require_role("candidate"))):
+    items = await db.invitations.find({"candidate_id": user["id"]}, {"_id": 0}).sort("created_at", -1).to_list(100)
+    cmap = await get_company_map()
+    for it in items:
+        c = cmap.get(it["company_id"], {})
+        it["company_name"] = c.get("name", "")
+        it["company_logo"] = c.get("logo", "")
+    return items
+
+
+# ---------- One-Click Apply ----------
+@api_router.post("/jobs/{job_id}/quick-apply")
+async def quick_apply(job_id: str, message: str = Form(""), user=Depends(require_role("candidate"))):
+    await expire_jobs()
+    job = await db.jobs.find_one({"id": job_id}, {"_id": 0})
+    if not job or job["status"] != "active":
+        raise HTTPException(status_code=400, detail="Lowongan tidak tersedia")
+    if await db.applications.find_one({"job_id": job_id, "candidate_id": user["id"]}):
+        raise HTTPException(status_code=400, detail="Anda sudah melamar lowongan ini")
+    if not user.get("cv_path"):
+        raise HTTPException(status_code=400,
+                            detail="Unggah CV terlebih dahulu di halaman CV Saya untuk menggunakan Lamar Cepat.")
+    consumed = await consume_apply_quota(user["id"])
+    if not consumed:
+        raise HTTPException(status_code=403,
+                            detail="Kuota One-Click Apply Anda sudah habis. Anda tetap dapat melamar dengan formulir biasa, atau upgrade ke Career Pro untuk kuota lebih besar.")
+    company = await db.companies.find_one({"id": job["company_id"]}, {"_id": 0})
+    application = {"id": str(uuid.uuid4()), "job_id": job["id"], "job_title": job["title"], "job_slug": job["slug"],
+                   "company_id": job["company_id"], "company_name": company["name"] if company else "",
+                   "candidate_id": user["id"], "name": user["name"], "email": user["email"],
+                   "phone": user.get("phone", ""), "education": user.get("education", ""),
+                   "experience": user.get("experience", ""), "cv_path": user["cv_path"],
+                   "cv_filename": user.get("cv_filename", ""), "message": message,
+                   "apply_method": "one_click", "status": "terkirim", "is_shortlisted": False,
+                   "created_at": now_iso()}
+    await db.applications.insert_one(application)
+    application.pop("_id", None)
+    await db.application_status_history.insert_one({
+        "id": str(uuid.uuid4()), "application_id": application["id"], "from_status": "",
+        "to_status": "terkirim", "actor_name": user["name"], "actor_role": "candidate",
+        "note": "Lamaran dikirim (One-Click Apply)", "created_at": now_iso()})
+    if company:
+        await notify(company["user_id"], "new_applicant", "Pelamar baru",
+                     f"{user['name']} melamar posisi {job['title']} via One-Click Apply.",
+                     f"/company/applicants?job_id={job['id']}")
+    application["quota"] = await get_or_create_apply_quota(user["id"])
+    return application
+
+
+# ---------- Company: Shortlist, Catatan, Interview, Kandidat ----------
+@api_router.post("/company/applications/{app_id}/shortlist")
+async def toggle_shortlist(app_id: str, data: ShortlistIn, ctx=Depends(require_company_full_access)):
+    company = ctx["company"]
+    app_doc = await db.applications.find_one({"id": app_id, "company_id": company["id"]}, {"_id": 0})
+    if not app_doc:
+        raise HTTPException(status_code=404, detail="Lamaran tidak ditemukan")
+    await db.applications.update_one({"id": app_id}, {"$set": {"is_shortlisted": data.shortlisted}})
+    await db.application_status_history.insert_one({
+        "id": str(uuid.uuid4()), "application_id": app_id, "from_status": app_doc["status"],
+        "to_status": app_doc["status"], "actor_name": company["name"], "actor_role": "company",
+        "note": "Ditandai sebagai Kandidat Pilihan" if data.shortlisted else "Dihapus dari Kandidat Pilihan",
+        "created_at": now_iso()})
+    if data.shortlisted and not app_doc.get("is_shortlisted"):
+        await notify(app_doc["candidate_id"], "shortlist", "Anda masuk Kandidat Pilihan",
+                     f"{company['name']} menandai Anda sebagai kandidat pilihan untuk posisi {app_doc['job_title']}.",
+                     "/candidate/applications", dedupe_key=f"star-{app_id}")
+    return {"shortlisted": data.shortlisted}
+
+
+@api_router.get("/company/shortlists")
+async def company_shortlists(ctx=Depends(require_company_full_access)):
+    company = ctx["company"]
+    apps = await db.applications.find({"company_id": company["id"], "is_shortlisted": True}, {"_id": 0}).sort("created_at", -1).to_list(500)
+    jobs_map = {j["id"]: j for j in await db.jobs.find({"company_id": company["id"]}, {"_id": 0}).to_list(500)}
+    for a in apps:
+        profile = await get_career_profile(a["candidate_id"])
+        a["career_profile"] = {"photo_path": profile.get("photo_path", ""), "city": profile.get("city", ""),
+                               "target_position": profile.get("target_position", ""),
+                               "skills": profile.get("skills", [])[:8]}
+        a["match"] = compute_match_score(profile, jobs_map.get(a["job_id"]), a)
+    return apps
+
+
+@api_router.get("/company/applications/{app_id}/notes")
+async def list_application_notes(app_id: str, ctx=Depends(require_company_full_access)):
+    company = ctx["company"]
+    if not await db.applications.find_one({"id": app_id, "company_id": company["id"]}, {"_id": 0, "id": 1}):
+        raise HTTPException(status_code=404, detail="Lamaran tidak ditemukan")
+    return await db.application_notes.find({"application_id": app_id}, {"_id": 0}).sort("created_at", -1).to_list(100)
+
+
+@api_router.post("/company/applications/{app_id}/notes")
+async def add_application_note(app_id: str, data: NoteIn, ctx=Depends(require_company_full_access)):
+    company = ctx["company"]
+    if not await db.applications.find_one({"id": app_id, "company_id": company["id"]}, {"_id": 0, "id": 1}):
+        raise HTTPException(status_code=404, detail="Lamaran tidak ditemukan")
+    if not data.note.strip():
+        raise HTTPException(status_code=400, detail="Catatan tidak boleh kosong")
+    note = {"id": str(uuid.uuid4()), "application_id": app_id, "company_id": company["id"],
+            "author_id": ctx["user"]["id"], "author_name": ctx["user"]["name"],
+            "note": data.note.strip(), "created_at": now_iso()}
+    await db.application_notes.insert_one(note)
+    note.pop("_id", None)
+    return note
+
+
+@api_router.delete("/company/applications/{app_id}/notes/{note_id}")
+async def delete_application_note(app_id: str, note_id: str, ctx=Depends(require_company_full_access)):
+    await db.application_notes.delete_one({"id": note_id, "application_id": app_id, "company_id": ctx["company"]["id"]})
+    return {"message": "Catatan dihapus"}
+
+
+@api_router.get("/company/applications/{app_id}/history")
+async def application_history(app_id: str, user=Depends(require_role("company"))):
+    company = await get_my_company(user)
+    if not await db.applications.find_one({"id": app_id, "company_id": company["id"]}, {"_id": 0, "id": 1}):
+        raise HTTPException(status_code=404, detail="Lamaran tidak ditemukan")
+    return await db.application_status_history.find({"application_id": app_id}, {"_id": 0}).sort("created_at", 1).to_list(100)
+
+
+@api_router.post("/company/applications/{app_id}/interviews")
+async def create_interview(app_id: str, data: InterviewIn, ctx=Depends(require_company_full_access)):
+    company = ctx["company"]
+    app_doc = await db.applications.find_one({"id": app_id, "company_id": company["id"]}, {"_id": 0})
+    if not app_doc:
+        raise HTTPException(status_code=404, detail="Lamaran tidak ditemukan")
+    if data.method not in ("online", "offline"):
+        raise HTTPException(status_code=400, detail="Metode interview tidak valid")
+    if not parse_dt(data.scheduled_at):
+        raise HTTPException(status_code=400, detail="Tanggal interview tidak valid")
+    interview = {"id": str(uuid.uuid4()), "application_id": app_id, "job_id": app_doc["job_id"],
+                 "job_title": app_doc["job_title"], "company_id": company["id"],
+                 "candidate_id": app_doc["candidate_id"], "candidate_name": app_doc["name"],
+                 "scheduled_at": data.scheduled_at, "method": data.method, "location": data.location,
+                 "link": data.link, "notes": data.notes, "status": "scheduled",
+                 "created_by": ctx["user"]["id"], "created_at": now_iso(), "updated_at": now_iso()}
+    await db.interviews.insert_one(interview)
+    interview.pop("_id", None)
+    if app_doc["status"] not in ("interview", "diterima", "ditolak"):
+        await set_application_status(app_doc, "interview", company["name"], "company", note="Interview dijadwalkan")
+    when = parse_dt(data.scheduled_at).strftime("%d %b %Y %H:%M")
+    await notify(app_doc["candidate_id"], "interview", "Jadwal Interview",
+                 f"{company['name']} menjadwalkan interview untuk posisi {app_doc['job_title']} pada {when}.",
+                 "/candidate/applications")
+    return interview
+
+
+@api_router.get("/company/interviews")
+async def company_interviews(status: str = "", ctx=Depends(require_company_full_access)):
+    query = {"company_id": ctx["company"]["id"]}
+    if status:
+        query["status"] = status
+    return await db.interviews.find(query, {"_id": 0}).sort("scheduled_at", -1).to_list(300)
+
+
+@api_router.put("/company/interviews/{interview_id}")
+async def update_interview(interview_id: str, data: InterviewIn, ctx=Depends(require_company_full_access)):
+    interview = await db.interviews.find_one({"id": interview_id, "company_id": ctx["company"]["id"]}, {"_id": 0})
+    if not interview:
+        raise HTTPException(status_code=404, detail="Interview tidak ditemukan")
+    if data.method not in ("online", "offline"):
+        raise HTTPException(status_code=400, detail="Metode interview tidak valid")
+    if not parse_dt(data.scheduled_at):
+        raise HTTPException(status_code=400, detail="Tanggal interview tidak valid")
+    await db.interviews.update_one({"id": interview_id}, {"$set": {
+        "scheduled_at": data.scheduled_at, "method": data.method, "location": data.location,
+        "link": data.link, "notes": data.notes, "updated_at": now_iso()}})
+    if interview["scheduled_at"] != data.scheduled_at:
+        await notify(interview["candidate_id"], "interview", "Jadwal Interview Diubah",
+                     f"Jadwal interview posisi {interview['job_title']} diubah. Cek detail di dashboard.",
+                     "/candidate/applications")
+    return await db.interviews.find_one({"id": interview_id}, {"_id": 0})
+
+
+@api_router.post("/company/interviews/{interview_id}/status")
+async def set_interview_status(interview_id: str, data: InterviewStatusIn, ctx=Depends(require_company_full_access)):
+    if data.status not in INTERVIEW_STATUSES:
+        raise HTTPException(status_code=400, detail="Status interview tidak valid")
+    interview = await db.interviews.find_one({"id": interview_id, "company_id": ctx["company"]["id"]}, {"_id": 0})
+    if not interview:
+        raise HTTPException(status_code=404, detail="Interview tidak ditemukan")
+    await db.interviews.update_one({"id": interview_id}, {"$set": {"status": data.status, "updated_at": now_iso()}})
+    if data.status in ("confirmed", "cancelled", "completed") and data.status != interview["status"]:
+        labels = {"confirmed": "dikonfirmasi", "cancelled": "dibatalkan", "completed": "selesai"}
+        await notify(interview["candidate_id"], "interview", "Status Interview",
+                     f"Interview posisi {interview['job_title']} {labels[data.status]}.", "/candidate/applications")
+    return {"status": data.status}
+
+
+@api_router.delete("/company/interviews/{interview_id}")
+async def delete_interview(interview_id: str, ctx=Depends(require_company_full_access)):
+    await db.interviews.delete_one({"id": interview_id, "company_id": ctx["company"]["id"]})
+    return {"message": "Interview dihapus"}
+
+
+@api_router.get("/company/candidates")
+async def search_candidates(q: str = "", location: str = "", education: str = "", skill: str = "",
+                            ctx=Depends(require_company_full_access)):
+    profiles = await db.career_profiles.find({"visibility": "public"}, {"_id": 0}).to_list(500)
+    user_ids = [p["user_id"] for p in profiles]
+    users = {u["id"]: u for u in await db.users.find(
+        {"id": {"$in": user_ids}, "blocked": {"$ne": True}},
+        {"_id": 0, "id": 1, "name": 1, "education": 1, "experience": 1}).to_list(1000)}
+    results = []
+    for p in profiles:
+        u = users.get(p["user_id"])
+        if not u:
+            continue
+        if location and p.get("city") != location and p.get("target_location") != location:
+            continue
+        if education:
+            edu_levels = [e.get("level", "") for e in p.get("education", [])]
+            if education not in edu_levels and u.get("education") != education:
+                continue
+        if skill:
+            names = " ".join(s.get("name", "") for s in p.get("skills", [])).lower()
+            if skill.lower() not in names:
+                continue
+        if q:
+            hay = " ".join([u.get("name", ""), p.get("target_position", ""), p.get("target_category", ""),
+                            " ".join(s.get("name", "") for s in p.get("skills", []))]).lower()
+            if q.lower() not in hay:
+                continue
+        results.append({"user_id": p["user_id"], "name": u["name"], "photo_path": p.get("photo_path", ""),
+                        "city": p.get("city", ""), "target_position": p.get("target_position", ""),
+                        "target_location": p.get("target_location", ""), "summary": p.get("summary", ""),
+                        "skills": p.get("skills", [])[:8], "education": p.get("education", [])[:3],
+                        "education_level": u.get("education", ""), "experience": u.get("experience", "")})
+    return results
+
+
+@api_router.get("/company/candidates/{candidate_id}/profile")
+async def view_candidate_career_profile(candidate_id: str, user=Depends(require_role("company"))):
+    company = await get_my_company(user)
+    target = await db.users.find_one({"id": candidate_id, "role": "candidate"}, {"_id": 0, "password_hash": 0})
+    if not target:
+        raise HTTPException(status_code=404, detail="Kandidat tidak ditemukan")
+    profile = normalize_career_profile(await get_career_profile(candidate_id))
+    applied = bool(await db.applications.find_one({"candidate_id": candidate_id, "company_id": company["id"]}))
+    invited = bool(await db.invitations.find_one({"candidate_id": candidate_id, "company_id": company["id"]}))
+    if not applied and not invited:
+        plan = await compute_company_plan(company)
+        if plan["plan_type"] not in ("member", "launch_free") or profile.get("visibility") != "public":
+            raise HTTPException(status_code=403, detail="Profil kandidat ini tidak dapat diakses")
+    user_info = {"name": target["name"], "education": target.get("education", ""),
+                 "experience": target.get("experience", ""), "about": target.get("about", ""),
+                 "email": target["email"] if applied else "", "phone": target.get("phone", "") if applied else "",
+                 "cv_path": target.get("cv_path", "") if applied else "",
+                 "cv_filename": target.get("cv_filename", "") if applied else ""}
+    return {"user": user_info, "profile": profile, "applied": applied}
+
+
+@api_router.post("/company/candidates/{candidate_id}/invite")
+async def invite_candidate(candidate_id: str, data: InviteIn, ctx=Depends(require_company_full_access)):
+    company = ctx["company"]
+    job = await db.jobs.find_one({"id": data.job_id, "company_id": company["id"]}, {"_id": 0})
+    if not job or job["status"] != "active":
+        raise HTTPException(status_code=400, detail="Lowongan tidak tersedia atau belum aktif")
+    target = await db.users.find_one({"id": candidate_id, "role": "candidate"}, {"_id": 0, "id": 1, "name": 1})
+    if not target:
+        raise HTTPException(status_code=404, detail="Kandidat tidak ditemukan")
+    if await db.applications.find_one({"job_id": job["id"], "candidate_id": candidate_id}):
+        raise HTTPException(status_code=400, detail="Kandidat sudah melamar lowongan ini")
+    if await db.invitations.find_one({"company_id": company["id"], "job_id": job["id"], "candidate_id": candidate_id}):
+        raise HTTPException(status_code=400, detail="Kandidat sudah diundang untuk lowongan ini")
+    inv = {"id": str(uuid.uuid4()), "company_id": company["id"], "job_id": job["id"],
+           "job_title": job["title"], "job_slug": job["slug"], "candidate_id": candidate_id,
+           "status": "sent", "created_at": now_iso()}
+    await db.invitations.insert_one(inv)
+    inv.pop("_id", None)
+    await notify(candidate_id, "invite", f"{company['name']} tertarik dengan Profil Karier Anda",
+                 f"Anda diundang untuk melihat lowongan {job['title']}. Lihat lowongan dan putuskan sendiri apakah ingin melamar.",
+                 f"/jobs/{job['slug']}")
+    return inv
+
+
+@api_router.get("/company/job-stats")
+async def company_job_stats(user=Depends(require_role("company"))):
+    company = await get_my_company(user)
+    await expire_jobs()
+    jobs = await db.jobs.find({"company_id": company["id"]}, {"_id": 0}).sort("created_at", -1).to_list(500)
+    apps = await db.applications.find({"company_id": company["id"]}, {"_id": 0, "job_id": 1, "status": 1, "is_shortlisted": 1}).to_list(5000)
+    interview_counts = {}
+    async for row in db.interviews.aggregate([{"$match": {"company_id": company["id"]}}, {"$group": {"_id": "$job_id", "n": {"$sum": 1}}}]):
+        interview_counts[row["_id"]] = row["n"]
+    per_job = []
+    for j in jobs:
+        ja = [a for a in apps if a["job_id"] == j["id"]]
+        per_job.append({"id": j["id"], "title": j["title"], "status": j["status"],
+                        "views": j.get("views", 0), "applications": len(ja),
+                        "shortlist": sum(1 for a in ja if a.get("is_shortlisted") or a["status"] == "shortlist"),
+                        "interview": interview_counts.get(j["id"], 0),
+                        "hired": sum(1 for a in ja if a["status"] == "diterima"),
+                        "expires_at": j.get("expires_at", ""), "created_at": j["created_at"]})
+    return per_job
+
+
+# ---------- Admin: Launch Program, Membership & Career Pro ----------
+@api_router.get("/admin/launch-program")
+async def admin_get_launch(user=Depends(require_role("admin"))):
+    active, lp = await launch_is_active()
+    companies = await db.companies.find({}, {"_id": 0, "id": 1, "name": 1}).to_list(2000)
+    counts = {"launch_free": 0, "free": 0, "member": 0, "expired": 0}
+    for c in companies:
+        plan = await compute_company_plan(c)
+        counts[plan["plan_type"]] = counts.get(plan["plan_type"], 0) + 1
+    end = parse_dt(lp.get("end_date"))
+    days_remaining = max(0, (end - datetime.now(timezone.utc)).days) if end else 0
+    return {"program": lp, "active": active, "days_remaining": days_remaining,
+            "plan_counts": counts, "total_companies": len(companies)}
+
+
+@api_router.put("/admin/launch-program")
+async def admin_update_launch(data: LaunchProgramIn, user=Depends(require_role("admin"))):
+    start, end = parse_dt(data.start_date), parse_dt(data.end_date)
+    if not start or not end:
+        raise HTTPException(status_code=400, detail="Format tanggal tidak valid")
+    if end <= start:
+        raise HTTPException(status_code=400, detail="Tanggal berakhir harus setelah tanggal mulai")
+    await get_launch_program()
+    await db.launch_program.update_one({"id": "launch_program"}, {"$set": {
+        "start_date": start.isoformat(), "end_date": end.isoformat(),
+        "is_active": data.is_active, "updated_by": user["email"], "updated_at": now_iso()}})
+    await mle_log(user["id"], "Launch program updated", "launch_program", "launch_program",
+                  {"start_date": start.isoformat(), "end_date": end.isoformat(), "is_active": data.is_active})
+    return await admin_get_launch(user)
+
+
+@api_router.post("/admin/companies/{company_id}/membership")
+async def admin_company_membership(company_id: str, data: MembershipActionIn, user=Depends(require_role("admin"))):
+    company = await db.companies.find_one({"id": company_id})
+    if not company:
+        raise HTTPException(status_code=404, detail="Perusahaan tidak ditemukan")
+    product = await get_product("company_membership")
+    now = datetime.now(timezone.utc)
+    if data.action in ("activate", "extend"):
+        await expire_subscriptions()
+        existing = await db.subscriptions.find_one(
+            {"company_id": company_id, "product_type": "company_membership", "status": "active"})
+        base = now
+        if existing and existing.get("expires_at"):
+            exp = parse_dt(existing["expires_at"])
+            if exp and exp > now:
+                base = exp
+        new_exp = base + timedelta(days=product["duration_days"])
+        if existing:
+            sub_id = existing["id"]
+            await db.subscriptions.update_one({"id": sub_id}, {"$set": {
+                "expires_at": new_exp.isoformat(), "activated_by": user["email"], "updated_at": now_iso()}})
+        else:
+            sub_id = str(uuid.uuid4())
+            await db.subscriptions.insert_one({
+                "id": sub_id, "user_id": company["user_id"], "company_id": company_id,
+                "product_type": "company_membership", "package_id": product["id"], "status": "active",
+                "price": product["price"], "duration_days": product["duration_days"],
+                "started_at": now.isoformat(), "expires_at": new_exp.isoformat(),
+                "payment_id": "", "activated_by": user["email"],
+                "created_at": now_iso(), "updated_at": now_iso()})
+        await mle_log(user["id"], f"Membership {data.action} (manual)", "subscription", sub_id,
+                      {"company_id": company_id, "expires_at": new_exp.isoformat()})
+        await notify(company["user_id"], "membership_active", "Member Perusahaan aktif",
+                     f"Membership Anda aktif sampai {new_exp.strftime('%d %b %Y')}. Nikmati seluruh fitur recruitment.",
+                     "/company/membership")
+        await sync_company_plan(company)
+        return {"status": "active", "expires_at": new_exp.isoformat()}
+    if data.action == "deactivate":
+        result = await db.subscriptions.update_many(
+            {"company_id": company_id, "product_type": "company_membership", "status": "active"},
+            {"$set": {"status": "cancelled", "updated_at": now_iso()}})
+        await mle_log(user["id"], "Membership deactivated (manual)", "company", company_id,
+                      {"cancelled": result.modified_count})
+        await sync_company_plan(company)
+        return {"status": "cancelled"}
+    raise HTTPException(status_code=400, detail="Aksi tidak valid. Gunakan: activate, extend, deactivate")
+
+
+@api_router.get("/admin/career-pro")
+async def admin_career_pro(user=Depends(require_role("admin"))):
+    await expire_subscriptions()
+    subs = await db.subscriptions.find({"product_type": "cv_professional"}, {"_id": 0}).sort("created_at", -1).to_list(500)
+    user_map = {u["id"]: u for u in await db.users.find({}, {"_id": 0, "id": 1, "name": 1, "email": 1}).to_list(3000)}
+    quotas = {}
+    async for q in db.apply_quotas.find({"plan": "career_pro"}, {"_id": 0}):
+        quotas[q.get("subscription_id", "")] = q
+    for s in subs:
+        u = user_map.get(s["user_id"], {})
+        s["user_name"] = u.get("name", "-")
+        s["user_email"] = u.get("email", "-")
+        q = quotas.get(s["id"])
+        s["apply_used"] = q["used"] if q else 0
+        s["apply_limit"] = q["limit"] if q else PRO_APPLY_LIMIT
+    return subs
+
+
 # ---------- Seed ----------
 async def seed_admin():
     existing = await db.users.find_one({"email": ADMIN_EMAIL})
@@ -1770,6 +2830,27 @@ async def startup():
     await seed_blog_posts()
     await seed_membership_products()
     await migrate_cv_subscriptions()
+    await db.notifications.create_index([("user_id", 1), ("created_at", -1)])
+    await db.notifications.create_index("dedupe_key")
+    await db.saved_jobs.create_index([("user_id", 1), ("job_id", 1)], unique=True)
+    await db.job_alerts.create_index("user_id")
+    await db.apply_quotas.create_index("key", unique=True)
+    await db.career_profiles.create_index("user_id", unique=True)
+    await db.application_notes.create_index("application_id")
+    await db.application_status_history.create_index("application_id")
+    await db.interviews.create_index("company_id")
+    await db.interviews.create_index("candidate_id")
+    await db.invitations.create_index([("company_id", 1), ("job_id", 1), ("candidate_id", 1)], unique=True)
+    await get_launch_program()
+    await db.membership_products.update_one(
+        {"product_code": "cv_professional", "name": "CV Profesional"},
+        {"$set": {"name": "Career Pro",
+                  "description": "CV Profesional, semua template premium, import & konversi CV, download PDF, dan 30 One-Click Apply per periode aktif.",
+                  "updated_at": now_iso()}})
+    try:
+        await generate_reminders()
+    except Exception as e:
+        logger.warning(f"Reminder generation failed: {e}")
     await expire_jobs()
 
 

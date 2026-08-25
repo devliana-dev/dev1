@@ -2,11 +2,14 @@ import { useState } from "react";
 import { Link, NavLink, useNavigate } from "react-router-dom";
 import { Briefcase, Menu, X, LogOut, Home } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
+import NotificationBell from "./NotificationBell";
 
 export default function DashboardLayout({ menu, title, children }) {
   const [open, setOpen] = useState(false);
   const { user, logout } = useAuth();
   const navigate = useNavigate();
+
+  const notifPath = user?.role === "company" ? "/company/notifications" : user?.role === "admin" ? "/admin/notifications" : "/candidate/notifications";
 
   const handleLogout = async () => {
     await logout();
@@ -64,14 +67,17 @@ export default function DashboardLayout({ menu, title, children }) {
 
       <div className="lg:hidden sticky top-0 z-40 bg-white border-b border-slate-200 px-4 h-14 flex items-center justify-between">
         <span className="font-display font-bold text-slate-900">{title}</span>
-        <button
-          onClick={() => setOpen(!open)}
-          className="inline-flex h-10 w-10 items-center justify-center rounded-lg border border-slate-300"
-          aria-label="Menu dashboard"
-          data-testid="dashboard-hamburger-btn"
-        >
-          {open ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
-        </button>
+        <div className="flex items-center gap-2">
+          <NotificationBell to={notifPath} />
+          <button
+            onClick={() => setOpen(!open)}
+            className="inline-flex h-10 w-10 items-center justify-center rounded-lg border border-slate-300"
+            aria-label="Menu dashboard"
+            data-testid="dashboard-hamburger-btn"
+          >
+            {open ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+          </button>
+        </div>
       </div>
       {open && (
         <div className="lg:hidden bg-white border-b border-slate-200 p-3 space-y-1 sticky top-14 z-30" data-testid="dashboard-mobile-menu">
@@ -81,8 +87,13 @@ export default function DashboardLayout({ menu, title, children }) {
 
       <main className="lg:ml-64 p-4 sm:p-6 lg:p-8 page-fade">
         <div className="max-w-6xl mx-auto">
-          {title && <h1 className="hidden lg:block font-display text-2xl font-bold text-slate-900 mb-6">{title}</h1>}
-          <p className="hidden lg:block text-sm text-slate-500 -mt-4 mb-6">Masuk sebagai {user?.name} ({user?.email})</p>
+          <div className="hidden lg:flex items-start justify-between gap-4 mb-6">
+            <div>
+              {title && <h1 className="font-display text-2xl font-bold text-slate-900">{title}</h1>}
+              <p className="text-sm text-slate-500 mt-1">Masuk sebagai {user?.name} ({user?.email})</p>
+            </div>
+            <NotificationBell to={notifPath} />
+          </div>
           {children}
         </div>
       </main>

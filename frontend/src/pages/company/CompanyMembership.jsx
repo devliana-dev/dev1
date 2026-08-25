@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import {
   Crown, Loader2, BadgeCheck, Clock, XCircle, UploadCloud, FilePlus2,
-  Briefcase, RefreshCw, CheckCircle2,
+  Briefcase, RefreshCw, CheckCircle2, Rocket,
 } from "lucide-react";
 import { toast } from "sonner";
 import DashboardLayout from "../../components/DashboardLayout";
@@ -130,7 +130,31 @@ export default function CompanyMembership() {
   return (
     <DashboardLayout menu={COMPANY_MENU} title="Member Perusahaan">
       <div className="max-w-3xl" data-testid="membership-page">
-        {ent.is_member ? (
+        {ent.plan?.plan_type === "launch_free" ? (
+          <div className="bg-white rounded-xl border border-sky-200 p-6 sm:p-8" data-testid="launch-free-card">
+            <div className="flex flex-wrap items-center gap-3">
+              <span className="inline-flex h-12 w-12 items-center justify-center rounded-xl bg-sky-100 text-sky-700"><Rocket className="h-6 w-6" /></span>
+              <div>
+                <h2 className="font-display text-xl font-bold text-slate-900">Akses Launch Free Aktif</h2>
+                <p className="text-sm text-slate-500">Semua fitur Member gratis sampai {formatDate(ent.plan.launch_end_date)}</p>
+              </div>
+            </div>
+            <div className="mt-5 rounded-lg bg-sky-50 border border-sky-100 px-4 py-3 text-sm text-sky-900">
+              Setelah Program Launching berakhir, akun Anda otomatis menjadi Paket Free (1 posting/bulan, masa tayang 7 hari).
+              Upgrade ke Member Perusahaan untuk mempertahankan fitur recruitment lengkap.
+            </div>
+            <div className="mt-6 flex flex-wrap gap-2.5">
+              <Link to="/company/jobs/new" className="inline-flex items-center gap-2 h-11 px-5 rounded-lg bg-sky-600 text-white text-sm font-semibold hover:bg-sky-700" data-testid="launch-post-job-btn">
+                <FilePlus2 className="h-4 w-4" /> Pasang Lowongan
+              </Link>
+              {!pendingPayment && (
+                <button onClick={() => setShowForm(!showForm)} className="inline-flex items-center gap-2 h-11 px-5 rounded-lg border border-sky-300 text-sm font-semibold text-sky-700 hover:bg-sky-50" data-testid="launch-upgrade-btn">
+                  <Crown className="h-4 w-4" /> Upgrade Member (Rp50.000/3 bulan)
+                </button>
+              )}
+            </div>
+          </div>
+        ) : ent.is_member ? (
           <div className="bg-white rounded-xl border border-slate-200 p-6 sm:p-8" data-testid="member-active-card">
             <div className="flex flex-wrap items-center gap-3">
               <span className="inline-flex h-12 w-12 items-center justify-center rounded-xl bg-emerald-100 text-emerald-600"><BadgeCheck className="h-6 w-6" /></span>

@@ -3,103 +3,81 @@
 ## Problem Statement (asli)
 Website lowongan kerja lokal CirebonKarir.com yang mempertemukan pencari kerja dengan perusahaan/UMKM di wilayah Cirebon dan sekitarnya (Majalengka, Kuningan, Indramayu, Brebes). Simpel, cepat, mobile-first, Bahasa Indonesia, profesional. 3 role: candidate, company, admin. Alur lengkap: publik melihat/mencari lowongan tanpa login → login → melamar → tracking status; perusahaan daftar → profil → buat lowongan → moderasi admin → lowongan aktif → kelola pelamar via WhatsApp; admin moderasi semuanya.
 
+## Visi Diperluas (Iterasi 10)
+JOB BOARD + CAREER PROFILE + RECRUITMENT MANAGEMENT PLATFORM.
+- Pelamar: Profil Karier → cari lowongan → job matching → One-Click Apply → tracking → interview → diterima.
+- Perusahaan: posting → pelamar → profil karier kandidat → filter → shortlist → pipeline → interview → diterima.
+- Admin: kelola platform, user, perusahaan, subscription, Launch Program.
+
 ## Arsitektur
-- **Backend**: FastAPI (`/app/backend/server.py`), MongoDB (Motor) via MONGO_URL/DB_NAME dari .env, semua route berprefix `/api`.
-- **Frontend**: React (CRA+craco), Tailwind + Shadcn, React Router, axios (withCredentials + Bearer fallback via localStorage `ck_token`), sonner toast.
-- **Auth**: JWT 7 hari, bcrypt hashing, httpOnly cookie + Bearer, brute-force lockout (5x gagal = 15 menit), role-based access control (candidate/company/admin).
-- **File storage**: Emergent Object Storage (CV PDF/DOC & logo) via `/api/upload-*` dan `/api/files/{path}` (CV dilindungi auth + ownership).
-- **Koleksi MongoDB**: users, companies, jobs, applications, categories, files, login_attempts.
+- **Backend**: FastAPI (`/app/backend/server.py`), MongoDB (Motor) via MONGO_URL/DB_NAME, semua route prefix `/api`.
+- **Frontend**: React (CRA+craco), Tailwind + Shadcn, React Router, axios (withCredentials + Bearer via localStorage `ck_token`), sonner toast.
+- **Auth**: JWT 7 hari, bcrypt, httpOnly cookie + Bearer, brute-force lockout, RBAC (candidate/company/admin).
+- **Storage**: Emergent Object Storage (CV, logo, foto profil, sertifikat, bukti bayar) via `/api/upload-*` & `/api/files/{path}` (cv/payment/cert dilindungi auth + ownership/relasi lamaran).
+- **Koleksi MongoDB**: users, companies, jobs, applications, categories, files, login_attempts, blog_posts, membership_products, payments, subscriptions, company_posting_quotas, membership_audit_logs, payment_settings, cv_documents, cv_subscriptions (legacy), migrations, **launch_program** (singleton), **notifications** (dedupe_key), **apply_quotas** (key unik), **career_profiles** (user_id unik), **saved_jobs** (user_id+job_id unik), **job_alerts**, **application_status_history**, **application_notes**, **interviews**, **invitations** (company+job+candidate unik).
+
+## Business Rules Utama (semua divalidasi backend, server time)
+- **Launch Program global** (bukan per perusahaan): `launch_program` singleton {start_date, end_date, is_active}, editable admin tanpa coding. Selama aktif → semua perusahaan `launch_free` (benefit MEMBER penuh). Lewat end_date → otomatis kembali `free`. Data tidak pernah dihapus saat transisi.
+- **Company plan**: `free` / `launch_free` / `member` (subscription company_membership aktif, Rp50rb/90 hari) / `expired`. `compute_company_plan()` + `sync_company_plan()` menulis plan_type ke doc company untuk filter admin.
+- **Free company**: 1 posting/bulan kalender (`company_posting_quotas`, atomic consume), masa tayang 7 hari, applicant management dasar (lihat pelamar, profil kandidat yang melamar, status dasar).
+- **Member/Launch_free**: posting tanpa kuota, masa tayang 30 hari, shortlist, notes, interview, candidate search/invite (`require_company_full_access`, FREE → 403).
+- **Career Pro** (rename dari CV Profesional, product_code tetap `cv_professional`): Rp10rb/30 hari — CV premium + import + PDF + **30 One-Click Apply per periode**. FREE candidate: 3 One-Click Apply/bulan kalender (`apply_quotas`, atomic, anti manipulasi tanggal).
+- **Pipeline lamaran**: terkirim → dilihat → diproses → shortlist → interview → diterima / ditolak. Semua perubahan tercatat di `application_status_history` + notifikasi ke kandidat (dedupe per status).
+- **Job matching**: scoring sederhana (skill 30, pendidikan 20, pengalaman 20, lokasi 20, posisi 10) — `compute_match_score`, arsitektur siap AI.
+- **Invite to apply**: notifikasi saja; kandidat memutuskan sendiri, TIDAK auto-apply. Hanya profil `visibility=public` yang bisa ditemukan; kontak/CV hanya terlihat jika kandidat melamar.
+- **Reminder otomatis**: launch (14/7/3/1 hari + setelah berakhir), membership (14/7/3/1), Career Pro (7/3/1) — dedupe via dedupe_key, digenerate on-read + startup.
+- **Job alert**: notifikasi saat admin approve lowongan yang cocok kriteria.
+- **Privasi**: catatan internal hanya perusahaan terkait; perusahaan A tidak bisa akses data B (kepemilikan dicek di setiap query).
 
 ## User Personas
-1. **Pencari Kerja** — browsing tanpa login, search/filter, detail, apply dengan CV, dashboard status lamaran.
-2. **Perusahaan/UMKM** — registrasi, profil + logo, CRUD lowongan (pending → approved), kelola pelamar + WhatsApp, toggle aktif/nonaktif.
-3. **Admin** — statistik, moderasi lowongan (approve/reject+alasan), verifikasi/blokir/hapus perusahaan, blokir pencari kerja, lihat semua lamaran, kelola kategori.
+1. **Pencari Kerja** — browsing tanpa login, Profil Karier + completion %, simpan lowongan, job alert, quick apply, tracking timeline, CV premium (Career Pro).
+2. **Perusahaan/UMKM** — dashboard recruitment (lowongan aktif/pelamar/shortlist/interview/diterima), pipeline, statistik, cari kandidat, membership.
+3. **Admin** — moderasi, Launch Program, aktivasi member manual, monetisasi, Career Pro list, statistik revenue.
 
 ## Core Requirements (static)
-- Lowongan wajib moderasi admin sebelum tampil publik.
-- Lowongan expired otomatis saat deadline lewat (badge "Lowongan Ditutup").
+- Lowongan wajib moderasi admin sebelum tampil publik (`published_at` + `expires_at` diset saat approve).
+- Lowongan expired otomatis saat deadline/expires_at lewat.
 - Data pribadi pelamar hanya untuk perusahaan terkait + admin.
 - UI 100% Bahasa Indonesia, mobile-first.
+- Payment gateway belum ada — struktur `payments`/`subscriptions` siap dihubungkan.
 
 ## Yang Sudah Diimplementasikan (24 Jun 2026)
-- Backend lengkap: auth (register/login/logout/me), register-company, public jobs/companies/meta, apply multipart + CV upload, candidate/company/admin endpoints, auto-expire jobs, seed data (6 perusahaan, 14 lowongan, 2 lamaran, 11 kategori).
-- Frontend: Home (hero search, kategori populer, lowongan terbaru, kenapa, CTA), Jobs (filter lengkap + search + pagination + drawer filter mobile), JobDetail (JSON-LD JobPosting, WhatsApp, share), ApplyJob, Companies + CompanyDetail, ForCompanies, Login/Register/RegisterCompany, 3 dashboard lengkap, halaman statis footer, 404.
-- SEO: meta/OG, robots.txt, sitemap.xml, slug URL (`/jobs/:slug`, `/companies/:slug`).
-- Testing iterasi 1: 28 pytest backend + Playwright e2e — 100% lulus (`/app/test_reports/iteration_1.json`).
+- Backend lengkap: auth, register-company, public jobs/companies/meta, apply multipart + CV upload, candidate/company/admin endpoints, auto-expire jobs, seed data.
+- Frontend: Home, Jobs (filter+search+pagination), JobDetail (JSON-LD, WhatsApp, share), ApplyJob, Companies, ForCompanies, auth pages, 3 dashboard, halaman statis, 404.
+- SEO: meta/OG, robots.txt, sitemap.xml, slug URL.
+- Testing iterasi 1: 28 pytest + Playwright — 100% lulus.
 
-## Iterasi 2 — Verifikasi & Pelengkapan (24 Jun 2026)
-- Register kini punya pilihan role (tab Pencari Kerja / Perusahaan di /register & /register-company).
-- Admin bisa EDIT lowongan via UI (`/admin/jobs/:id/edit`, JobForm mode admin, status tidak berubah).
-- Homepage dual CTA: "Sedang Mencari Kerja?" → /jobs dan "Sedang Mencari Karyawan?" → /register-company.
-- Sample data ditambah: Operator Produksi (Majalengka), Marketing Cafe (Kuningan) → total 14 lowongan aktif.
-- Testing iterasi 2: 11 pytest baru + 7 flow Playwright — 100% lulus (`/app/test_reports/iteration_2.json`, `/app/backend/tests/test_iteration2.py`). Termasuk: isolasi antar-perusahaan (cross-tenant PUT 404), admin PUT menjaga status, role tersimpan benar, mobile 390px tanpa horizontal scroll.
+## Iterasi 2–9 (24 Jun 2026)
+Lihat CHANGELOG.md (register role, admin edit job, hero, job list horizontal, kategori/area cards, blog, CV Profesional premium, membership & monetisasi terpusat).
 
-## Iterasi 3 — Polish Hero Homepage (24 Jun 2026)
-- Hero homepage dipercantik: ilustrasi flat kota Cirebon (Keraton/gapura, gunung Ciremai) sebagai latar dengan gradient fade, badge "Portal Lowongan Kerja #1 di Cirebon".
-- Bug fix 2: pita batik di tepi bawah hero tampil sebagai noise gelap (bitmap jpeg hasil konversi). Sempat diganti SVG vektor, lalu atas permintaan user ornamen Mega Mendung **dihapus sepenuhnya** dari hero (div ornamen di Home.jsx dihapus, file `/app/frontend/public/megamendung.svg` dihapus). Hero kini: ilustrasi kota Cirebon + badge + search, tepi bawah bersih navy → strip statistik. Diverifikasi screenshot desktop & mobile.
-
-## Iterasi 4 — Redesain Job Listing Horizontal (24 Jun 2026)
-- Komponen baru `/app/frontend/src/components/JobListItem.jsx`: horizontal row card (logo kiri object-contain, label "INFO LOWONGAN", judul bold, perusahaan+lokasi+waktu, badge kategori soft sky, tombol "Lamar Sekarang" → job detail). `JobCard.jsx` (grid card) dihapus.
-- Dipakai di: Home (Lowongan Terbaru, limit 8, tombol "Lihat Semua Lowongan"), /jobs (hasil search+filter), halaman detail perusahaan.
-- Empty state disesuaikan: "Belum ada lowongan." / "Lowongan tidak ditemukan." Skeleton loading berbentuk baris horizontal.
-- Responsive: desktop [logo|info|kategori|lamar]; mobile stack (logo+info, lalu chip+button) tanpa horizontal scroll (terverifikasi 1920/768/390).
-- Diverifikasi screenshot: klik "Lamar Sekarang" → `/jobs/:slug` detail tetap berfungsi; kombinasi search+filter (q=kasir & Full Time → 2 hasil) bekerja.
-
-## Iterasi 5 — Section Kategori Pekerjaan & Area Loker (24 Jun 2026)
-- Chips kategori di hero DIHAPUS, diganti section "Kategori Pekerjaan" (bg navy) di bawah stats strip: 14 card icon Lucide (Administrasi→category=Admin, Kasir→q=Kasir, Sales, Staff Gudang→Gudang, Marketing, Driver, Barista→q, Restoran/UMKM→F&B, Operator→q, Freelance→job_type, IT/Software→IT, Customer Service→q, Keuangan→Finance, Lainnya). Semua Link ke filter existing `/jobs`.
-- Section baru "Area Loker" (dalam blok navy yang sama, divider border-slate-800): 5 card lokasi (Cirebon→location=Kota Cirebon, Majalengka, Kuningan, Indramayu, Brebes) + panel "Belum menemukan lokasi?" dengan tombol Lihat Semua Lokasi.
-- Urutan homepage: Navbar → Hero/Search → Kategori → Area Loker → Stats strip (16 Lowongan Aktif / 7 Perusahaan Terverifikasi — dipindah ke bawah Area Loker atas permintaan user agar hero menyatu dengan section navy) → Lowongan Terbaru → Kenapa → Dual CTA → Footer.
-- Responsive: grid 2/3/4/7 kolom (mobile→desktop), tanpa horizontal scroll (terverifikasi 390px). Klik terverifikasi: kategori-administrasi → /jobs?category=Admin (2 hasil), area-majalengka → /jobs?location=Majalengka (1 hasil).
+## Iterasi 10 — Recruitment Management Platform (25 Agu 2026)
+- **Backend baru** (`server.py` blok "Launch Program, Recruitment Management, Career Profile & Notifikasi"): launch program singleton + compute/sync company plan; notifikasi + reminder; kuota One-Click Apply (3 free/bulan, 30 pro/periode, atomic); Profil Karier (GET/PUT + foto + file sertifikat + completion berbobot + visibility); match scoring + rekomendasi; saved jobs; job alerts + trigger saat approve; pipeline history + notifikasi status; quick-apply; shortlist star; catatan internal; interviews CRUD + notifikasi; candidate search + profile view + invite; job stats + view counter; admin launch program CRUD + plan counts; admin membership activate/extend/deactivate (+90 hari); admin career-pro list; admin stats + member/career pro/revenue.
+- **Edit existing**: APPLICATION_STATUSES +shortlist; save_upload +photo/cert; files protection +cert & relasi kandidat; apply_job + history/notifikasi perusahaan; application detail auto-dilihat via set_application_status + enrich career_profile/match/interviews; company_applications enrich career profile + match; company_stats + shortlist/interview/hired; get_company_entitlement plan-aware (launch_free=member benefits); create_job + published_at/views; admin_approve_job + published_at + job alerts + notifikasi; admin_companies + plan filter/jobs/applicants counts; job_detail + views increment; startup + index baru + rename produk Career Pro + reminders.
+- **Frontend baru**: NotificationBell (badge unread, semua role), LaunchBanner (countdown real-time), CareerProfileView (tampilan profil profesional), NotificationsPage (shared 3 role), SavedJobs, JobAlerts, CandidateSearch (cari kandidat + undang), Shortlists, Interviews, CompanyStats, AdminLaunchProgram.
+- **Rewrite**: CandidateProfile → Profil Karier lengkap (8 list editor + completion + visibility + foto); MyApplications → kartu + timeline + interview; Applicants → filter lengkap + match + shortlist + notes + interview + riwayat; AdminCompanies → plan tabs + aktivasi member.
+- **Edit**: App.js (10 route baru), DashboardLayout (bell desktop+mobile), constants (shortlist/INTERVIEW_STATUS/COMPANY_PLAN/level options), format (imageUrl), JobDetail (Lamar Cepat + modal kuota + simpan), CompanyDashboard (banner launch + plan card + 7 stat), CvProfessional → Career Pro + kartu kuota, CompanyMembership (kartu launch_free), AdminDashboard (+member/career pro/revenue), menu ×3 (tanpa duplikat: "Pengaturan" company dihapus, "CV Profesional"→"Career Pro").
 
 ## Akun Demo
 - Admin: muhamadwahid.sih@gmail.com / admin123
 - Perusahaan: demo@perusahaan.com / password123
-- Pencari kerja: budi@example.com / password123
+- Pencari kerja: budi@example.com / password123 (Career Pro aktif)
+- Lainnya: /app/memory/test_credentials.md
 
 ## Backlog
-## Iterasi 6 — Redesain Homepage ala Referensi Terang (24 Jun 2026)
-- Hero diganti tema terang: ilustrasi baru Cirebon siang hari (waterfront, perahu layar, ornamen Mega Mendung sudut, gradient overlay ke kiri; overlay ekstra `bg-sky-50/70` khusus mobile), search pill rounded-full, chips "Populer:" kembali di hero (9 chips), badge "#1" dihapus.
-- Feature bar baru (4 item: Lowongan Terbaru, Perusahaan Terpercaya, Mudah & Cepat, Lokal Cirebon) — card putih overlap bawah hero (-mt-16/20).
-- Kategori diubah jadi "Kategori Populer" tema terang: 10 card putih (Admin, Kasir, Sales, Marketing, Staff Gudang, Driver, Barista, Operator, IT/Komputer, Lainnya) + link "Lihat Semua Kategori →".
-- Area Loker direstyle ke tema terang (card putih, icon MapPin bulat sky, "Lihat Lowongan →"), panel bantuan lokasi tetap.
-- Terverifikasi: desktop sesuai referensi, kategori-driver → /jobs?category=Driver (2 hasil), mobile 390px tanpa horizontal scroll.
-
 ### P1
 - Lupa/reset password (endpoint dasar bisa ditambah).
-## Iterasi 7 — Fitur Blog (24 Jun 2026)
-- Backend: koleksi `blog_posts` + endpoint publik GET /api/blog (list) & GET /api/blog/{slug} (detail, 404 bila tidak ada); `seed_blog_posts()` di startup (4 artikel contoh tips dunia kerja: wawancara, CV, UMK/hak pekerja, strategi cari kerja 2026).
-- Frontend: komponen `BlogCard.jsx` (gambar, tanggal, chip kategori, judul, tombol Selengkapnya); section Blog di bawah homepage (setelah CTA, sebelum footer) + tombol "Lihat Semua Artikel"; halaman `/blog` (grid semua artikel, empty state) dan `/blog/:slug` (artikel penuh + document.title SEO); menu "Blog" ditambahkan di navbar & footer.
-- Terverifikasi: API list/detail/404 OK; homepage, /blog, /blog/:slug, mobile 390px tanpa horizontal scroll.
-- Catatan: belum ada CMS admin untuk kelola artikel (konten via DB). Kandidat backlog P2.
-
-- Notifikasi email (Resend) saat status lamaran berubah / lowongan disetujui.
-- Halaman edit lowongan untuk admin di UI (API sudah ada: PUT /api/admin/jobs/{id}).
-
+- Foto profil masuk ke CV Builder (data sudah ada di career_profiles).
+- Server-side PDF generation untuk CV (sekarang window.print browser).
 ### P2
-## Iterasi 8 — Modul CV Profesional (premium Rp10.000/30 hari) (24 Jun 2026)
-- **Koleksi baru**: `cv_subscriptions`, `cv_activation_logs`, `cv_settings` (singleton: harga/durasi/metode pembayaran, editable admin), `cv_documents`.
-- **Backend** (`server.py`, section "CV Profesional"): user endpoints `/api/cv-professional/status|payment-info|subscribe (multipart bukti bayar)|templates|my-cvs|cvs CRUD|duplicate|import-cv (pypdf/python-docx parse konservatif, tanpa data palsu)`; admin endpoints `/api/admin/cv-professional/stats|subscriptions (search/status/pagination)|detail+logs|approve (expires_at auto +30 hari)|reject (+alasan)|extend (+30 hari dari max(expires_at, now))|cancel|logs|settings GET/PUT`.
-- **Proteksi**: dependency `require_cv_premium` (login + role candidate + subscription active + expires_at > now); auto-expire via `expire_cv_subscriptions()` (status → expired + log) dipanggil pada setiap akses status/list/admin; bukti pembayaran (kind=payment) dilindungi seperti CV (owner/admin only).
-- **Frontend**: menu "CV Profesional" (Crown) di sidebar candidate & admin; halaman `CvProfessional` (pricing/upgrade/pending/rejected+alasan+ajukan lagi/expired/premium dashboard + countdown sisa hari + warning ≤7 hari + galeri 3 template), `CvList` (edit/preview/download/duplikat/hapus), `CvBuilder` (form kiri + live preview kanan, 6 section dinamis, toggle preview mobile, Simpan/Download PDF), `CvImport` (upload → hasil parse → Periksa & Edit), `AdminCvProfessional` (statistik 6 kartu, tab Pengajuan/Pengaturan, detail expand + log + aksi).
-- **Template**: `components/cvTemplates.jsx` — modern/ats/minimalis, satu struktur data untuk semua template. PDF via print browser (@page A4, area print khusus).
-- **Seed demo**: budi=active(+20 hari), andi=pending, siti=expired, dewi=rejected; akun demo baru andi.pratama@ / siti.rahma@ / dewi.lestari@example.com (password123).
-- Deps baru: pypdf, python-docx. Belum ada: foto di CV (by design MVP), CMS admin untuk blog.
-
-- Simpan lowongan favorit (bookmark) untuk kandidat.
-- Pagination server-side di tabel admin.
-- Rate limiting endpoint register/apply.
-- Refactor server.py ke modul (auth, jobs, admin, seed).
-
-## Iterasi 9 — Sistem Membership & Monetisasi Terpusat (24 Jun 2026)
-- **Koleksi baru**: `membership_products` (cv_professional 10rb/30h, company_membership 50rb/90h — admin editable), `payments` (manual provider, siap diganti gateway), `subscriptions` (terpusat), `company_posting_quotas` (bulan kalender, unik per company+bulan), `membership_audit_logs`, `payment_settings`.
-- **Migrasi**: `migrate_cv_subscriptions()` memindahkan 4 cv_subscriptions legacy → subscriptions+payments (marker di koleksi `migrations`, data legacy tidak dihapus). Endpoint user CV (`status/payment-info/subscribe`) dipertahankan URL-nya tapi membaca sistem terpusat; endpoint admin CV lama DIHAPUS → diganti `/api/admin/monetization/*`.
-- **Entitlement**: `has_entitlement()` + `get_company_entitlement()` + `consume_free_quota()` atomik (find_one_and_update + $expr guard + unique index → anti race condition). FREE = 1 posting/bulan kalender, masa tayang 7 hari; MEMBER = 30 hari. `job.listing_days` diset saat dibuat, `job.expires_at` dihitung server saat admin approve. Membership expired tidak memotong lowongan lama.
-- **Frontend**: CompanyDashboard (kartu Status Akun + promo upgrade), CompanyMembership (/company/membership: pricing/pending/member aktif + countdown + reminder ≤7 hari + riwayat pembayaran), JobForm (banner mode posting + blokir saat kuota habis), CvProfessional (+riwayat pembayaran), AdminMonetization (/admin/monetisasi: Overview, Pembayaran, Subscription, Member Perusahaan, Produk & Harga, Pengaturan Pembayaran, Audit Log). Menu admin "CV Profesional" → "Membership & Monetisasi"; menu company +Membership. AdminCvProfessional.jsx dihapus.
-
-### P3 (dilarang di MVP oleh user)
-- Chat internal, payment/subscription, AI recruitment, video interview, psikotes, CV builder, mobile app.
+- Payment gateway (Midtrans/Xendit) menggantikan verifikasi manual (struktur payments/subscriptions siap).
+- Notifikasi email/WhatsApp (sekarang in-app only).
+- AI job matching lanjutan (scoring sudah modular).
+- Dynamic sitemap/canonical SEO.
+- CMS admin untuk blog.
+### P3 (dilarang user di MVP)
+- Chat internal, video interview, psikotes, mobile app.
 
 ## Next Tasks
-1. Kumpulkan feedback user dari MVP.
-2. Tambahkan reset password + notifikasi email jika diminta.
-3. Pertimbangkan scheduler untuk expire jobs jika data besar (saat ini on-read, efektif untuk volume kecil).
+1. ~~Testing iterasi 7~~ DONE (25 Agu 2026): 27/27 backend pytest lulus + seluruh flow frontend baru lulus (`/app/test_reports/iteration_7.json`). Dua nit code review diperbaiki (cap completion 100%, strftime).
+2. Kumpulkan feedback user.
+3. Hardening security (audit message 124: hapus demo credentials di Login.jsx, security headers, rate limiting).

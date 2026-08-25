@@ -1,9 +1,10 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { Users, Building2, Briefcase, Send, Clock, ArrowRight } from "lucide-react";
+import { Users, Building2, Briefcase, Send, Clock, ArrowRight, Crown, Star, Wallet } from "lucide-react";
 import DashboardLayout from "../../components/DashboardLayout";
 import api from "../../lib/api";
 import { ADMIN_MENU } from "./menu";
+import { formatRupiah } from "../../lib/format";
 
 export default function AdminDashboard() {
   const [stats, setStats] = useState(null);
@@ -21,6 +22,9 @@ export default function AdminDashboard() {
     { label: "Menunggu Moderasi", value: stats?.jobs_pending, icon: Clock, cls: "bg-amber-100 text-amber-700", testId: "admin-stat-pending" },
     { label: "Total Lamaran", value: stats?.applications, icon: Send, cls: "bg-blue-100 text-blue-700", testId: "admin-stat-applications" },
     { label: "Perusahaan Pending", value: stats?.companies_pending, icon: Clock, cls: "bg-orange-100 text-orange-700", testId: "admin-stat-companies-pending" },
+    { label: "Member Aktif", value: stats?.members_active, icon: Crown, cls: "bg-emerald-100 text-emerald-700", testId: "admin-stat-members" },
+    { label: "Career Pro Aktif", value: stats?.career_pro_active, icon: Star, cls: "bg-amber-100 text-amber-700", testId: "admin-stat-career-pro" },
+    { label: "Revenue", value: stats ? formatRupiah(stats.revenue) || "Rp 0" : "-", icon: Wallet, cls: "bg-teal-100 text-teal-700", testId: "admin-stat-revenue" },
   ];
 
   return (

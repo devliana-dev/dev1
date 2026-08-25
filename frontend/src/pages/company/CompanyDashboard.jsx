@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { Briefcase, CheckCircle2, Users, Clock, AlertTriangle, BadgeCheck, Crown, Rocket } from "lucide-react";
+import { Briefcase, CheckCircle2, Users, Clock, AlertTriangle, BadgeCheck, Crown, Rocket, Star, PhoneCall, UserCheck } from "lucide-react";
 import DashboardLayout from "../../components/DashboardLayout";
+import LaunchBanner from "../../components/LaunchBanner";
 import api from "../../lib/api";
 import { COMPANY_MENU } from "./menu";
 
@@ -18,6 +19,9 @@ export default function CompanyDashboard() {
     { label: "Total Lowongan", value: stats?.total_jobs, icon: Briefcase, cls: "bg-sky-100 text-sky-700", testId: "stat-total-jobs" },
     { label: "Lowongan Aktif", value: stats?.active_jobs, icon: CheckCircle2, cls: "bg-emerald-100 text-emerald-700", testId: "stat-active-jobs" },
     { label: "Total Pelamar", value: stats?.total_applicants, icon: Users, cls: "bg-violet-100 text-violet-700", testId: "stat-applicants" },
+    { label: "Kandidat Shortlist", value: stats?.shortlisted, icon: Star, cls: "bg-amber-100 text-amber-700", testId: "stat-shortlisted" },
+    { label: "Interview", value: stats?.interview, icon: PhoneCall, cls: "bg-blue-100 text-blue-700", testId: "stat-interviews" },
+    { label: "Kandidat Diterima", value: stats?.hired, icon: UserCheck, cls: "bg-emerald-100 text-emerald-700", testId: "stat-hired" },
     { label: "Menunggu Persetujuan", value: stats?.pending_jobs, icon: Clock, cls: "bg-amber-100 text-amber-700", testId: "stat-pending-jobs" },
   ];
 
@@ -41,7 +45,9 @@ export default function CompanyDashboard() {
           </div>
         )}
 
-        {ent && (
+        <div className="mt-4"><LaunchBanner /></div>
+
+        {ent?.plan && (
           <div className="mt-6 bg-white rounded-xl border border-slate-200 p-5" data-testid="account-status-card">
             <div className="flex flex-col sm:flex-row sm:items-center gap-4 justify-between">
               <div className="flex items-start gap-3">
@@ -49,7 +55,12 @@ export default function CompanyDashboard() {
                   <Crown className="h-5 w-5" />
                 </span>
                 <div>
-                  {ent.is_member ? (
+                  {ent.plan.plan_type === "launch_free" ? (
+                    <>
+                      <p className="font-display font-bold text-slate-900">Launch Free <span className="text-xs font-medium text-sky-600">Program Launching</span></p>
+                      <p className="text-sm text-slate-500 mt-0.5">Semua fitur Member aktif gratis sampai <span className="font-semibold text-slate-800">{new Date(ent.plan.launch_end_date).toLocaleDateString("id-ID", { day: "numeric", month: "long", year: "numeric" })}</span> · Masa tayang lowongan: 30 hari</p>
+                    </>
+                  ) : ent.plan.plan_type === "member" ? (
                     <>
                       <p className="font-display font-bold text-slate-900">Member Aktif <span className="text-xs font-medium text-slate-500">Rp 50.000 / 3 Bulan</span></p>
                       <p className="text-sm text-slate-500 mt-0.5">Berlaku sampai: <span className="font-semibold text-slate-800">{new Date(ent.member_expires_at).toLocaleDateString("id-ID", { day: "numeric", month: "long", year: "numeric" })}</span> · Masa tayang lowongan: 30 hari</p>
@@ -71,7 +82,9 @@ export default function CompanyDashboard() {
                 {ent.is_member ? (
                   <>
                     <Link to="/company/jobs/new" className="inline-flex items-center h-10 px-4 rounded-lg bg-sky-600 text-white text-sm font-semibold hover:bg-sky-700" data-testid="status-post-job-btn">Pasang Lowongan</Link>
-                    <Link to="/company/membership" className="inline-flex items-center h-10 px-4 rounded-lg border border-slate-300 text-sm font-semibold text-slate-700 hover:bg-slate-50" data-testid="status-renew-btn">Perpanjang Member</Link>
+                    {ent.plan.plan_type === "member" && (
+                      <Link to="/company/membership" className="inline-flex items-center h-10 px-4 rounded-lg border border-slate-300 text-sm font-semibold text-slate-700 hover:bg-slate-50" data-testid="status-renew-btn">Perpanjang Member</Link>
+                    )}
                   </>
                 ) : (
                   <Link to="/company/membership" className="inline-flex items-center h-10 px-4 rounded-lg bg-sky-600 text-white text-sm font-semibold hover:bg-sky-700" data-testid="status-upgrade-btn">Upgrade Member</Link>

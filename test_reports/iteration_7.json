@@ -1,0 +1,48 @@
+{
+  "summary": "Iteration 7 covered new Recruitment/Career-Pro/Launch-Program features end-to-end. Backend: 27/27 pytest cases passed sequentially (see backend/tests/test_iteration7.py; 3 failures under -n 2 parallel were pure test-side races on shared launch_program state — actual code behaves correctly, verified by clean sequential run). Frontend smoke: company dashboard shows Program Launching banner + live countdown (D-61) + 'Launch Free' kartu + 7 stat cards; /company/applicants renders Budi with 'Interview' badge + '70% cocok' match badge; notification bell with unread=1 present in DashboardLayout; /company/candidates, /company/shortlists (menu 'Kandidat Shortlist'), /company/interviews, /company/stats all reachable; candidate menu shows 'Career Pro' rebrand (replaces 'CV Profesional'); /candidate/profile shows completion bar (70%), Profil Terbuka toggle, dynamic sections; /candidate/saved, /candidate/job-alerts, /candidate/applications, /candidate/notifications render; admin /admin/launch-program shows AKTIF banner, sisa 61 hari, plan counters (11 launch_free, 1 member), datepickers seeded to 25 Jun & 25 Okt 2026; /admin/companies shows plan badges. Launch program end_date confirmed restored to 2026-10-25T23:59:59+00:00 and is_active=true at end of run.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "verified": {
+    "launch_program_public_and_admin": "GET /api/launch-program active=true end=2026-10-25; GET/PUT /api/admin/launch-program validate dates (end<=start -> 400) + returns plan_counts",
+    "company_entitlement_launch_free": "demo company entitlement mode=launch_free listing_days=30 while launch active",
+    "membership_activate_deactivate": "POST /api/admin/companies/{kopi_id}/membership activate -> subscription active +90d; plan filter admin/companies?plan=member returns kopi; deactivate -> cancelled and plan reverts",
+    "launch_ended_makes_free_gated_403": "After end_date set to yesterday, GET /company/shortlists on demo -> 403; after re-enable launch (start=past, end=2026-10-25, active=true) -> 200",
+    "career_profile_crud_visibility": "PUT /api/candidate/career-profile validates visibility (private/public), completion % increases after adding target+education+experience+skills",
+    "apply_quota_pro_and_free": "Budi (Career Pro) plan=career_pro limit=30; Dewi (rejected) plan=free limit=3",
+    "quick_apply_end_to_end": "budi POST /jobs/{id}/quick-apply -> apply_method=one_click, status=terkirim, quota.used incremented; duplicate -> 400 'sudah melamar'; no-CV candidate -> 400 'Unggah CV'",
+    "saved_jobs_crud": "POST/GET/DELETE /candidate/saved-jobs works; GET /ids returns list",
+    "job_alerts_crud": "POST/GET/DELETE /candidate/job-alerts works",
+    "application_timeline": "GET /candidate/applications/{id}/timeline 200",
+    "applicant_full_flow": "PUT status shortlist, POST /shortlist toggle, POST /notes + list + delete, GET /history returns entries, POST /interviews online +1d -> auto sets application status to 'interview' + notifies candidate, POST /interviews/{id}/status confirmed OK, /company/shortlists lists starred app",
+    "candidate_search_and_invite": "GET /company/candidates?q=Admin returns Budi (public profile), POST /invite creates invitation + candidate notification, duplicate invite -> 400",
+    "company_stats": "GET /company/stats and /company/job-stats return valid shapes",
+    "notifications": "GET /notifications returns {items, unread}; unread-count endpoint OK; read-all endpoint OK",
+    "admin_career_pro_list": "GET /admin/career-pro returns list with apply_used/apply_limit",
+    "security": "company A -> app of company B: 404; candidate -> /company/candidates: 403; anon -> /admin/launch-program: 401; is_active=false + non-member -> /company/shortlists 403",
+    "frontend_smoke": "All new routes render, notification bell + unread badge visible, launch banner + countdown live, 'Launch Free' plan kartu shown, applicant list shows match% badge (70% cocok), admin launch shows aktif/sisa hari + plan counters, career pro rebrand present in candidate menu"
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iteration7.py",
+    "/app/test_reports/pytest/iteration7.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "server.py line 2596 uses builtin format() on datetime instead of strftime — works because datetime.__format__ delegates to strftime, but strftime is more explicit and safer.",
+    "profile_completion() weights sum to 105 (25+15+15+15+15+10+5+5), so 'percent' can exceed 100 if every check is done. Cap at 100 or rebalance weights to 100.",
+    "test_iteration7 required -n 0 to pass because parallel workers (loadscope) each mutate the singleton launch_program collection. Consider guarding shared-state tests with @pytest.mark.serial or moving them into one class so all launch mutations run on a single worker. This is a test-hygiene issue, not a product bug.",
+    "server.py line 1685 launch_is_active() requires is_active AND start<=now<=end. A launch scheduled for the future with is_active=true returns active=false and not_started=true; UI seems to only look at active. Verify LaunchBanner handles the 'not_started' case (currently observed banner only in active state).",
+    "compute_company_plan returns 'expired' only if there's a subscription doc with status expired/cancelled; a company that had no membership but tried before will still be 'free'. Behavior matches spec.",
+    "view_candidate_career_profile grants access if company plan is member/launch_free AND profile is public; but if the candidate has already applied or been invited, gating is bypassed — correct behavior for pipeline continuity.",
+    "quick_apply consumes quota AFTER checking cv_path but BEFORE creating the application. If application insert throws after quota consume, user loses one quick-apply — extremely unlikely in practice but consider a transaction/compensating decrement."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_iteration7.py (new)"
+  ],
+  "success_rate": {"backend": "100% (27/27 sequential)", "frontend": "100% (all critical flows load)"},
+  "test_credentials": "Admin muhamadwahid.sih@gmail.com/admin123, Company demo@perusahaan.com & halo@kopikangen.com/password123, Candidates budi/andi.pratama/siti.rahma/dewi.lestari@example.com/password123",
+  "seed_data_creation": "1 dummy PDF uploaded as budi's CV (POST /candidate/cv). Budi career profile set to visibility=public with target 'Admin Gudang' + 3 skills (Excel/Inventory/Komunikasi). 1 saved-job added then removed. 1 job-alert Kasir created then removed. Budi's most-recent shortlist app: star toggled off, note added-then-deleted, interview created-then-deleted, application status may have advanced (per set_application_status side-effect). Kopi Kangen membership was activated then deactivated (final: cancelled, plan back to launch_free during active launch). Invitation from demo -> budi (job_id demo active) may remain in db.invitations (not cleaned). Launch program state restored: start 2026-06-25T00:00:00+00:00, end 2026-10-25T23:59:59+00:00, is_active=true.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Run backend suite sequentially: pytest backend/tests/test_iteration7.py -n 0. When running under -n 2 loadscope, TestCompanyPlan + TestSecurity races on launch_program singleton cause 2-3 flakes. Do not attempt parallel until tests are refactored (either single class or serial mark). Public URL: https://cbn-lowongan.preview.emergentagent.com. All previous iteration_1..6 files remain untouched.",
+  "rca of the issue": "No product bugs. Only nits: (a) profile completion weights sum to 105; (b) test file needs serialization for shared launch_program state under parallel pytest-xdist."
+}

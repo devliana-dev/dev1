@@ -69,3 +69,9 @@ export function fileUrl(path) {
 export function splitLines(text) {
   return (text || "").split("\n").map((s) => s.trim()).filter(Boolean);
 }
+
+export function imageUrl(path) {
+  if (!path) return "";
+  if (path.startsWith("http")) return path;
+  return `${API}/files/${path}`;
+}

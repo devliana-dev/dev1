@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import {
   MapPin, Wallet, Clock, BadgeCheck, ArrowLeft, Share2, MessageCircle,
-  GraduationCap, Briefcase, CalendarDays, Users, CheckCircle2, Loader2,
+  GraduationCap, Briefcase, CalendarDays, Users, CheckCircle2, Loader2, Heart, Zap, X,
 } from "lucide-react";
 import { toast } from "sonner";
 import api from "../lib/api";
@@ -38,6 +38,10 @@ export default function JobDetail() {
   const [job, setJob] = useState(null);
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
+  const [saved, setSaved] = useState(false);
+  const [quota, setQuota] = useState(null);
+  const [quickOpen, setQuickOpen] = useState(false);
+  const [quickSending, setQuickSending] = useState(false);
 
   useEffect(() => {
     setLoading(true);
@@ -46,6 +50,12 @@ export default function JobDetail() {
       .catch(() => setNotFound(true))
       .finally(() => setLoading(false));
   }, [slug]);
+
+  useEffect(() => {
+    if (user?.role !== "candidate" || !job) return;
+    api.get("/candidate/saved-jobs/ids").then((r) => setSaved(r.data.includes(job.id))).catch(() => {});
+    api.get("/candidate/apply-quota").then((r) => setQuota(r.data)).catch(() => {});
+  }, [user, job]);
 
   useEffect(() => {
     if (!job) return;
@@ -101,6 +111,45 @@ export default function JobDetail() {
       return;
     }
     navigate(`/jobs/${job.slug}/apply`);
+  };
+
+  const handleSave = async () => {
+    if (!user) {
+      navigate("/login", { state: { from: `/jobs/${job.slug}` } });
+      return;
+    }
+    if (user.role !== "candidate") {
+      toast.error("Hanya akun pencari kerja yang dapat menyimpan lowongan.");
+      return;
+    }
+    try {
+      if (saved) {
+        await api.delete(`/candidate/saved-jobs/${job.id}`);
+        setSaved(false);
+        toast.success("Dihapus dari lowongan tersimpan");
+      } else {
+        await api.post(`/candidate/saved-jobs/${job.id}`);
+        setSaved(true);
+        toast.success("Lowongan disimpan");
+      }
+    } catch (err) {
+      toast.error(err?.response?.data?.detail || "Gagal menyimpan lowongan");
+    }
+  };
+
+  const handleQuickApply = async () => {
+    setQuickSending(true);
+    try {
+      await api.post(`/jobs/${job.id}/quick-apply`, new FormData());
+      toast.success("Lamaran terkirim! Pantau statusnya di Lamaran Saya.");
+      setQuickOpen(false);
+      navigate("/candidate/applications");
+    } catch (err) {
+      toast.error(err?.response?.data?.detail || "Gagal mengirim lamaran");
+      setQuickOpen(false);
+    } finally {
+      setQuickSending(false);
+    }
   };
 
   const handleShare = async () => {
@@ -187,6 +236,22 @@ export default function JobDetail() {
             >
               {closed ? "Lowongan Ditutup" : "Lamar Sekarang"}
             </button>
+            {(!user || user.role === "candidate") && !closed && (
+              <button
+                onClick={() => {
+                  if (!user) {
+                    navigate("/login", { state: { from: `/jobs/${job.slug}` } });
+                    return;
+                  }
+                  setQuickOpen(true);
+                }}
+                className="w-full h-12 rounded-lg border-2 border-sky-600 text-sky-700 font-semibold hover:bg-sky-50 transition-colors inline-flex items-center justify-center gap-2"
+                data-testid="quick-apply-button"
+              >
+                <Zap className="h-5 w-5" /> Lamar Cepat
+                {quota && <span className="text-xs font-medium">(sisa {quota.remaining})</span>}
+              </button>
+            )}
             {job.whatsapp && (
               <a
                 href={waLink(job.whatsapp, job.title)}
@@ -198,16 +263,56 @@ export default function JobDetail() {
                 <MessageCircle className="h-5 w-5" /> Hubungi via WhatsApp
               </a>
             )}
-            <button
-              onClick={handleShare}
-              className="w-full h-12 rounded-lg border border-slate-300 text-slate-700 font-semibold hover:bg-slate-50 transition-colors inline-flex items-center justify-center gap-2"
-              data-testid="share-job-button"
-            >
-              <Share2 className="h-4 w-4" /> Bagikan Lowongan
-            </button>
+            <div className="flex gap-2.5">
+              <button
+                onClick={handleShare}
+                className="flex-1 h-12 rounded-lg border border-slate-300 text-slate-700 font-semibold hover:bg-slate-50 transition-colors inline-flex items-center justify-center gap-2"
+                data-testid="share-job-button"
+              >
+                <Share2 className="h-4 w-4" /> Bagikan
+              </button>
+              <button
+                onClick={handleSave}
+                aria-label="Simpan lowongan"
+                className={`h-12 w-12 rounded-lg border transition-colors inline-flex items-center justify-center ${saved ? "border-red-200 bg-red-50 text-red-500" : "border-slate-300 text-slate-500 hover:bg-slate-50"}`}
+                data-testid="save-job-button"
+              >
+                <Heart className={`h-5 w-5 ${saved ? "fill-current" : ""}`} />
+              </button>
+            </div>
           </div>
         </div>
       </div>
+
+      {quickOpen && (
+        <div className="fixed inset-0 z-50 bg-slate-900/50 flex items-center justify-center p-4" onClick={() => setQuickOpen(false)} data-testid="quick-apply-modal">
+          <div className="bg-white rounded-xl max-w-md w-full p-6" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-start justify-between gap-3">
+              <h3 className="font-display text-lg font-bold text-slate-900">Lamar Cepat — {job.title}</h3>
+              <button onClick={() => setQuickOpen(false)} aria-label="Tutup" className="inline-flex h-9 w-9 items-center justify-center rounded-lg hover:bg-slate-100 shrink-0">
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            <p className="text-sm text-slate-500 mt-2">
+              Lamaran akan dikirim menggunakan Profil Karier dan CV Anda.
+            </p>
+            {quota && (
+              <p className="mt-3 text-xs text-slate-500 bg-slate-50 rounded-lg px-3 py-2" data-testid="quick-apply-quota-info">
+                Kuota One-Click Apply: <b>{quota.remaining}</b> dari {quota.limit} tersisa ({quota.period}).
+                {quota.plan === "free" && " Upgrade ke Career Pro untuk mendapatkan hingga 30 One-Click Apply."}
+              </p>
+            )}
+            <div className="mt-5 flex gap-2">
+              <button onClick={() => setQuickOpen(false)} className="flex-1 h-11 rounded-lg border border-slate-300 text-sm font-semibold text-slate-700" data-testid="quick-apply-cancel">
+                Batal
+              </button>
+              <button onClick={handleQuickApply} disabled={quickSending} className="flex-1 h-11 rounded-lg bg-sky-600 text-white text-sm font-semibold hover:bg-sky-700 disabled:opacity-50 inline-flex items-center justify-center gap-2" data-testid="quick-apply-submit">
+                {quickSending && <Loader2 className="h-4 w-4 animate-spin" />} Kirim Lamaran
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

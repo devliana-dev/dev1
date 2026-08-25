@@ -20,7 +20,7 @@ const PAY_STATUS = {
   cancelled: { label: "Dibatalkan", cls: "bg-slate-100 text-slate-600" },
 };
 
-const FEATURES = ["Akses semua template CV", "Buat CV baru", "Edit CV", "Import CV lama", "Download PDF", "Berlaku selama 30 hari"];
+const FEATURES = ["Akses semua template CV premium", "Buat & edit CV baru", "Import & konversi CV lama", "Download CV PDF", "30 One-Click Apply per periode aktif", "Berlaku selama 30 hari"];
 
 export default function CvProfessional() {
   const [status, setStatus] = useState(null);
@@ -30,15 +30,17 @@ export default function CvProfessional() {
   const [method, setMethod] = useState("");
   const [proof, setProof] = useState(null);
   const [submitting, setSubmitting] = useState(false);
+  const [quota, setQuota] = useState(null);
 
   const fetchStatus = useCallback(() => {
-    api.get("/cv-professional/status").then((r) => setStatus(r.data)).catch(() => toast.error("Gagal memuat status CV Profesional"));
+    api.get("/cv-professional/status").then((r) => setStatus(r.data)).catch(() => toast.error("Gagal memuat status Career Pro"));
     api.get("/cv-professional/payment-info").then((r) => setPaymentInfo(r.data)).catch(() => {});
     api.get("/membership/payments").then((r) => setPayments(r.data.filter((p) => p.product_code === "cv_professional"))).catch(() => {});
   }, []);
 
   useEffect(() => {
     fetchStatus();
+    api.get("/candidate/apply-quota").then((r) => setQuota(r.data)).catch(() => {});
   }, [fetchStatus]);
 
   const submit = async (e) => {
@@ -67,7 +69,7 @@ export default function CvProfessional() {
 
   const renderPaymentForm = () => (
     <form onSubmit={submit} className="mt-6 bg-white rounded-xl border border-slate-200 p-6 sm:p-8" data-testid="payment-form">
-      <h3 className="font-display font-semibold text-slate-900 text-lg">Pembayaran CV Profesional</h3>
+      <h3 className="font-display font-semibold text-slate-900 text-lg">Pembayaran Career Pro</h3>
       <div className="mt-4 rounded-lg bg-slate-50 border border-slate-200 p-4 text-sm space-y-1">
         <p className="text-slate-600">Paket: <span className="font-semibold text-slate-900">{status?.settings?.package_name}</span></p>
         <p className="text-slate-600">Harga: <span className="font-semibold text-slate-900">{formatRupiah(status?.settings?.price)}</span></p>
@@ -134,7 +136,7 @@ export default function CvProfessional() {
             <div className="flex flex-wrap items-center gap-3">
               <span className="inline-flex h-12 w-12 items-center justify-center rounded-xl bg-emerald-100 text-emerald-600"><BadgeCheck className="h-6 w-6" /></span>
               <div>
-                <h2 className="font-display text-xl font-bold text-slate-900 flex items-center gap-2">CV Profesional <span className="text-emerald-600 text-base">✓ Premium Aktif</span></h2>
+                <h2 className="font-display text-xl font-bold text-slate-900 flex items-center gap-2">Career Pro <span className="text-emerald-600 text-base">✓ Premium Aktif</span></h2>
                 <p className="text-sm text-slate-500">{sub.package_name} · {formatRupiah(sub.price)} / {sub.duration_days} Hari</p>
               </div>
             </div>
@@ -152,9 +154,14 @@ export default function CvProfessional() {
                 <p className="font-semibold text-slate-900 mt-0.5" data-testid="premium-days-left">{daysLeft} hari</p>
               </div>
             </div>
+            {quota && (
+              <div className="mt-4 rounded-lg bg-sky-50 border border-sky-200 px-4 py-3 text-sm text-sky-900" data-testid="apply-quota-card">
+                One-Click Apply: <b>{quota.remaining}</b> dari {quota.limit} tersisa ({quota.period}).
+              </div>
+            )}
             {daysLeft <= 7 && (
               <div className="mt-4 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800" data-testid="expiry-warning">
-                CV Profesional Anda akan berakhir dalam {daysLeft} hari.
+                Career Pro Anda akan berakhir dalam {daysLeft} hari.
               </div>
             )}
             <div className="mt-6 grid grid-cols-2 lg:grid-cols-4 gap-3">
@@ -197,7 +204,7 @@ export default function CvProfessional() {
         <div className="bg-white rounded-xl border border-slate-200 p-8 text-center" data-testid="cv-pending-state">
           <span className="inline-flex h-14 w-14 items-center justify-center rounded-full bg-amber-100 text-amber-600"><Clock className="h-7 w-7" /></span>
           <h2 className="mt-4 font-display text-xl font-bold text-slate-900">Pembayaran Sedang Diverifikasi</h2>
-          <p className="mt-2 text-sm text-slate-500 max-w-md mx-auto">Pengajuan CV Profesional Anda sedang diperiksa oleh admin.</p>
+          <p className="mt-2 text-sm text-slate-500 max-w-md mx-auto">Pengajuan Career Pro Anda sedang diperiksa oleh admin.</p>
           <div className="mt-4 flex items-center justify-center gap-3">
             <StatusBadge status="pending" map={CV_SUB_STATUS} />
             <span className="text-sm text-slate-500">Diajukan {formatDate(sub.requested_at)}</span>
@@ -221,12 +228,12 @@ export default function CvProfessional() {
         )}
         {sub?.status === "expired" && (
           <div className="mb-5 rounded-xl border border-slate-200 bg-slate-100 px-4 py-3 text-sm text-slate-600" data-testid="cv-expired-state">
-            Akses CV Profesional Anda telah berakhir pada {formatDate(sub.expires_at)}. Lakukan upgrade untuk mengaktifkan kembali.
+            Akses Career Pro Anda telah berakhir pada {formatDate(sub.expires_at)}. Lakukan upgrade untuk mengaktifkan kembali.
           </div>
         )}
         <div className="bg-white rounded-xl border border-slate-200 p-6 sm:p-10 text-center">
           <span className="inline-flex h-14 w-14 items-center justify-center rounded-full bg-sky-100 text-sky-700"><Crown className="h-7 w-7" /></span>
-          <h2 className="mt-4 font-display text-2xl font-bold text-slate-900">CV Profesional</h2>
+          <h2 className="mt-4 font-display text-2xl font-bold text-slate-900">Career Pro</h2>
           <p className="mt-2 text-slate-500 max-w-md mx-auto text-sm">Buat CV lebih profesional dan siap digunakan untuk melamar pekerjaan.</p>
           <p className="mt-5 font-display text-3xl font-extrabold text-slate-900" data-testid="package-price">
             {formatRupiah(status.settings.price)} <span className="text-base font-medium text-slate-500">/ {status.settings.duration_days} Hari</span>
@@ -240,7 +247,7 @@ export default function CvProfessional() {
           </ul>
           {!showForm && (
             <button onClick={() => setShowForm(true)} className="mt-7 inline-flex items-center h-12 px-8 rounded-lg bg-sky-600 text-white font-semibold hover:bg-sky-700 transition-colors" data-testid="upgrade-btn">
-              {sub?.status === "rejected" || sub?.status === "expired" ? "Ajukan Pembayaran Lagi" : "Upgrade CV Profesional"}
+              {sub?.status === "rejected" || sub?.status === "expired" ? "Ajukan Pembayaran Lagi" : "Upgrade Career Pro"}
             </button>
           )}
         </div>
@@ -250,7 +257,7 @@ export default function CvProfessional() {
   };
 
   return (
-    <DashboardLayout menu={CANDIDATE_MENU} title="CV Profesional">
+    <DashboardLayout menu={CANDIDATE_MENU} title="Career Pro">
       <div className="max-w-3xl">
         {renderContent()}
         {payments.length > 0 && (
@@ -260,7 +267,7 @@ export default function CvProfessional() {
               {payments.map((p) => (
                 <li key={p.id} className="py-3 flex flex-wrap items-center justify-between gap-2 text-sm" data-testid={`cv-payment-row-${p.id}`}>
                   <div>
-                    <p className="font-medium text-slate-900">{p.product_name || "CV Profesional"}</p>
+                    <p className="font-medium text-slate-900">{p.product_name || "Career Pro"}</p>
                     <p className="text-xs text-slate-500">{formatRupiah(p.amount)} · {formatDate(p.submitted_at)} · {p.payment_method}</p>
                   </div>
                   <span className={`inline-flex px-2.5 py-0.5 rounded-full text-xs font-semibold ${PAY_STATUS[p.status]?.cls || ""}`}>{PAY_STATUS[p.status]?.label || p.status}</span>

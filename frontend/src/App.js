@@ -29,6 +29,12 @@ import CvProfessional from "@/pages/candidate/CvProfessional";
 import CvList from "@/pages/candidate/CvList";
 import CvBuilder from "@/pages/candidate/CvBuilder";
 import CvImport from "@/pages/candidate/CvImport";
+import SavedJobs from "@/pages/candidate/SavedJobs";
+import JobAlerts from "@/pages/candidate/JobAlerts";
+import { CANDIDATE_MENU } from "@/pages/candidate/menu";
+import { COMPANY_MENU } from "@/pages/company/menu";
+import { ADMIN_MENU } from "@/pages/admin/menu";
+import NotificationsPage from "@/pages/shared/NotificationsPage";
 
 import CompanyDashboard from "@/pages/company/CompanyDashboard";
 import CompanyProfile from "@/pages/company/CompanyProfile";
@@ -36,6 +42,10 @@ import CompanyJobs from "@/pages/company/CompanyJobs";
 import JobForm from "@/pages/company/JobForm";
 import Applicants from "@/pages/company/Applicants";
 import CompanyMembership from "@/pages/company/CompanyMembership";
+import CandidateSearch from "@/pages/company/CandidateSearch";
+import Shortlists from "@/pages/company/Shortlists";
+import Interviews from "@/pages/company/Interviews";
+import CompanyStats from "@/pages/company/CompanyStats";
 
 import AdminDashboard from "@/pages/admin/AdminDashboard";
 import AdminJobs from "@/pages/admin/AdminJobs";
@@ -44,6 +54,7 @@ import AdminCandidates from "@/pages/admin/AdminCandidates";
 import AdminApplications from "@/pages/admin/AdminApplications";
 import AdminCategories from "@/pages/admin/AdminCategories";
 import AdminMonetization from "@/pages/admin/AdminMonetization";
+import AdminLaunchProgram from "@/pages/admin/AdminLaunchProgram";
 
 function ScrollToTop() {
   const { pathname } = useLocation();
@@ -103,6 +114,9 @@ function App() {
             <Route path="/candidate/cv-professional/builder" element={protect("candidate", <CvBuilder />)} />
             <Route path="/candidate/cv-professional/builder/:id" element={protect("candidate", <CvBuilder />)} />
             <Route path="/candidate/cv-professional/import" element={protect("candidate", <CvImport />)} />
+            <Route path="/candidate/saved" element={protect("candidate", <SavedJobs />)} />
+            <Route path="/candidate/job-alerts" element={protect("candidate", <JobAlerts />)} />
+            <Route path="/candidate/notifications" element={protect("candidate", <NotificationsPage menu={CANDIDATE_MENU} />)} />
 
             <Route path="/company/dashboard" element={protect("company", <CompanyDashboard />)} />
             <Route path="/company/profile" element={protect("company", <CompanyProfile />)} />
@@ -111,6 +125,11 @@ function App() {
             <Route path="/company/jobs/:id/edit" element={protect("company", <JobForm />)} />
             <Route path="/company/applicants" element={protect("company", <Applicants />)} />
             <Route path="/company/membership" element={protect("company", <CompanyMembership />)} />
+            <Route path="/company/candidates" element={protect("company", <CandidateSearch />)} />
+            <Route path="/company/shortlists" element={protect("company", <Shortlists />)} />
+            <Route path="/company/interviews" element={protect("company", <Interviews />)} />
+            <Route path="/company/stats" element={protect("company", <CompanyStats />)} />
+            <Route path="/company/notifications" element={protect("company", <NotificationsPage menu={COMPANY_MENU} />)} />
 
             <Route path="/admin" element={protect("admin", <AdminDashboard />)} />
             <Route path="/admin/jobs" element={protect("admin", <AdminJobs />)} />
@@ -120,6 +139,8 @@ function App() {
             <Route path="/admin/applications" element={protect("admin", <AdminApplications />)} />
             <Route path="/admin/categories" element={protect("admin", <AdminCategories />)} />
             <Route path="/admin/monetisasi" element={protect("admin", <AdminMonetization />)} />
+            <Route path="/admin/launch-program" element={protect("admin", <AdminLaunchProgram />)} />
+            <Route path="/admin/notifications" element={protect("admin", <NotificationsPage menu={ADMIN_MENU} />)} />
 
             <Route path="*" element={<PublicLayout404 />} />
           </Routes>

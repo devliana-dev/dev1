@@ -19,6 +19,7 @@ export const APPLICATION_STATUS = {
   terkirim: { label: "Terkirim", cls: "bg-slate-100 text-slate-700" },
   dilihat: { label: "Dilihat", cls: "bg-blue-100 text-blue-800" },
   diproses: { label: "Diproses", cls: "bg-amber-100 text-amber-800" },
+  shortlist: { label: "Shortlist", cls: "bg-cyan-100 text-cyan-800" },
   interview: { label: "Interview", cls: "bg-violet-100 text-violet-800" },
   diterima: { label: "Diterima", cls: "bg-emerald-100 text-emerald-800" },
   ditolak: { label: "Ditolak", cls: "bg-red-100 text-red-700" },
@@ -48,3 +49,25 @@ export const CV_SUB_STATUS = {
   rejected: { label: "Ditolak", cls: "bg-red-100 text-red-700" },
   cancelled: { label: "Dinonaktifkan", cls: "bg-slate-100 text-slate-600" },
 };
+
+export const INTERVIEW_STATUS = {
+  scheduled: { label: "Terjadwal", cls: "bg-blue-100 text-blue-800" },
+  confirmed: { label: "Terkonfirmasi", cls: "bg-emerald-100 text-emerald-800" },
+  completed: { label: "Selesai", cls: "bg-slate-200 text-slate-700" },
+  cancelled: { label: "Dibatalkan", cls: "bg-red-100 text-red-700" },
+};
+
+export const COMPANY_PLAN = {
+  free: { label: "Free", cls: "bg-slate-100 text-slate-600" },
+  launch_free: { label: "Launch Free", cls: "bg-sky-100 text-sky-800" },
+  member: { label: "Member", cls: "bg-emerald-100 text-emerald-800" },
+  expired: { label: "Expired", cls: "bg-red-100 text-red-700" },
+};
+
+export const SKILL_LEVELS = ["Pemula", "Menengah", "Mahir", "Ahli"];
+
+export const LANGUAGE_LEVELS = ["Dasar", "Menengah", "Fasih", "Native"];
+
+export const EDU_LEVEL_OPTIONS = ["SMP", "SMA", "SMK", "D1", "D3", "S1", "S2", "Kursus/Pelatihan"];
+
+export const PIPELINE_STEPS = ["terkirim", "dilihat", "diproses", "shortlist", "interview", "diterima"];
