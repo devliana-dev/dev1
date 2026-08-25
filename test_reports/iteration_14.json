@@ -1,0 +1,24 @@
+{
+  "summary": "Iteration 14 (Forgot/Reset Password admin-assisted) full-stack testing completed. Backend: 14/14 pytest tests passed — anti-enumeration generic response for registered/unregistered emails, dedupe of pending requests per user, admin/owner role excluded from creating records (but still returns generic 200), authz on /api/admin/password-resets (401 no token, 403 candidate, 200 admin), complete flow with password<6 → 400 and valid → 200 (old password 401, new password 200, old token 401 via iat check), reject flow (pending → rejected → re-complete 404), auth regression (login/me/register/logout), meta+jobs regression. Frontend: verified via Playwright — /login shows forgot-password-link, /forgot-password form submits and shows success state with back-to-login-btn, admin sidebar 'Reset Password' menu, /admin/password-resets page with 4 tabs, pending row list, reset-modal opens, reset-new-password-input+reset-submit-btn works, budi successfully logged in with new password set via UI, notifications (password_reset for admin, password_reset_done for user) confirmed via /api/notifications, mobile 390px overflow=0 on both pages. Cleanup executed: budi@example.com password restored to 'password123' (login verified 200) and all leftover pending requests rejected.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "test_report_links": [
+    "/app/backend/tests/test_iteration14_password_reset.py",
+    "/app/test_reports/pytest/iteration_14_results.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "server.py now >4000 lines — consider splitting into routers (auth, admin, jobs, etc.). Already flagged in prior iterations but worth revisiting.",
+    "AdminPasswordResets uses window.confirm() for reject — okay for MVP but a shadcn AlertDialog would be more consistent with rest of admin UI.",
+    "forgot_password endpoint response message is identical whether user exists or role is admin/owner — good for anti-enumeration. Timing side-channel is theoretically possible (extra DB writes when candidate/company) but negligible for this use case.",
+    "Notifications table 'password_reset_done' link=/login — user reading it is already logged in; consider deep-linking to profile settings instead. Minor UX."
+  ],
+  "updated_files": ["/app/backend/tests/test_iteration14_password_reset.py"],
+  "success_rate": {"backend": "100%", "frontend": "100%"},
+  "test_credentials": "Used muhamadwahid.sih@gmail.com/admin123, budi@example.com/password123, demo@perusahaan.com/password123 — all from /app/memory/test_credentials.md. budi restored to password123 after testing.",
+  "seed_data_creation": "During testing multiple password_reset_requests were created and processed (completed/rejected). Final state: 0 pending, budi's password back to password123 verified via login.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Feature is production-ready. Reuse /app/backend/tests/test_iteration14_password_reset.py for regression. Note: password_reset_requests collection has accumulated completed/rejected records from testing — harmless but can be pruned if desired. Token iat invalidation works for tokens issued AFTER this iteration; legacy tokens without iat remain valid until 7-day expiry (backward-compatible by design).",
+  "rca of the issue": "N/A — no issues found."
+}

@@ -54,7 +54,10 @@ export default function Login() {
               className="w-full h-11 px-3 rounded-lg border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-sky-500" data-testid="login-email-input" />
           </div>
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1.5">Password</label>
+            <div className="flex items-center justify-between mb-1.5">
+              <label className="block text-sm font-medium text-slate-700">Password</label>
+              <Link to="/forgot-password" className="text-xs text-sky-700 font-medium hover:underline" data-testid="forgot-password-link">Lupa password?</Link>
+            </div>
             <input type="password" required value={password} onChange={(e) => setPassword(e.target.value)} placeholder="••••••••"
               className="w-full h-11 px-3 rounded-lg border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-sky-500" data-testid="login-password-input" />
           </div>

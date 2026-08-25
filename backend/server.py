@@ -92,8 +92,9 @@ def verify_password(plain: str, hashed: str) -> bool:
 
 
 def create_access_token(user_id: str, email: str, role: str) -> str:
+    now = datetime.now(timezone.utc)
     payload = {"sub": user_id, "email": email, "role": role, "type": "access",
-               "exp": datetime.now(timezone.utc) + timedelta(days=7)}
+               "iat": int(now.timestamp()), "exp": now + timedelta(days=7)}
     return jwt.encode(payload, JWT_SECRET, algorithm=JWT_ALGORITHM)
 
 
@@ -125,7 +126,10 @@ async def get_user_by_token(token: str):
         payload = jwt.decode(token, JWT_SECRET, algorithms=[JWT_ALGORITHM])
     except jwt.PyJWTError:
         return None
-    return await db.users.find_one({"id": payload.get("sub")}, {"_id": 0, "password_hash": 0})
+    user = await db.users.find_one({"id": payload.get("sub")}, {"_id": 0, "password_hash": 0})
+    if user and user.get("pwd_reset_at") and payload.get("iat") and payload["iat"] < user["pwd_reset_at"]:
+        return None
+    return user
 
 
 async def get_current_user(request: Request):
@@ -218,6 +222,14 @@ class RegisterCompanyIn(BaseModel):
     employer_type: str = "company"
 
 
+class ForgotPasswordIn(BaseModel):
+    email: EmailStr
+
+
+class ResetPasswordIn(BaseModel):
+    new_password: str
+
+
 class LoginIn(BaseModel):
     email: EmailStr
     password: str
@@ -288,6 +300,23 @@ class CategoryIn(BaseModel):
 
 
 # ---------- Auth ----------
+@api_router.post("/auth/forgot-password")
+async def forgot_password(data: ForgotPasswordIn):
+    email = data.email.lower()
+    user = await db.users.find_one({"email": email, "blocked": {"$ne": True}})
+    if user and user.get("role") in ("candidate", "company"):
+        existing = await db.password_reset_requests.find_one({"user_id": user["id"], "status": "pending"})
+        if not existing:
+            await db.password_reset_requests.insert_one({
+                "id": str(uuid.uuid4()), "user_id": user["id"], "email": email,
+                "name": user.get("name", ""), "role": user.get("role", ""),
+                "status": "pending", "created_at": now_iso(), "completed_at": "", "completed_by": ""})
+            async for admin in db.users.find({"role": {"$in": ["admin", "owner"]}, "blocked": {"$ne": True}}):
+                await notify(admin["id"], "password_reset", "Permintaan reset password",
+                             f"{user.get('name', email)} ({email}) meminta reset password.", "/admin/password-resets")
+    return {"message": "Jika email terdaftar, permintaan reset password telah diteruskan ke admin."}
+
+
 @api_router.post("/auth/register")
 async def register_candidate(data: RegisterCandidateIn, response: Response):
     email = data.email.lower()
@@ -2766,6 +2795,43 @@ async def admin_log(actor, action, target_type, target_id, metadata=None):
         "target_id": str(target_id), "metadata": metadata or {}, "created_at": now_iso()})
 
 
+@api_router.get("/admin/password-resets")
+async def admin_password_resets(status: str = "", user=Depends(require_perm("users"))):
+    query = {"status": status} if status else {}
+    return await db.password_reset_requests.find(query, {"_id": 0}).sort("created_at", -1).to_list(500)
+
+
+@api_router.post("/admin/password-resets/{req_id}/complete")
+async def admin_password_reset_complete(req_id: str, data: ResetPasswordIn, user=Depends(require_perm("users"))):
+    req = await db.password_reset_requests.find_one({"id": req_id, "status": "pending"})
+    if not req:
+        raise HTTPException(status_code=404, detail="Permintaan tidak ditemukan atau sudah diproses")
+    if len(data.new_password) < 6:
+        raise HTTPException(status_code=400, detail="Password baru minimal 6 karakter")
+    result = await db.users.update_one({"id": req["user_id"]},
+                                       {"$set": {"password_hash": hash_password(data.new_password),
+                                                 "pwd_reset_at": int(datetime.now(timezone.utc).timestamp())}})
+    if result.matched_count == 0:
+        raise HTTPException(status_code=404, detail="User tidak ditemukan")
+    await db.password_reset_requests.update_one({"id": req_id}, {"$set": {
+        "status": "completed", "completed_at": now_iso(), "completed_by": user.get("email", "")}})
+    await notify(req["user_id"], "password_reset_done", "Password berhasil direset",
+                 "Password akun Anda telah direset oleh admin. Silakan login dengan password baru Anda.", "/login")
+    await admin_log(user, "Reset password user", "user", req["user_id"], {"email": req.get("email", "")})
+    return {"status": "completed"}
+
+
+@api_router.post("/admin/password-resets/{req_id}/reject")
+async def admin_password_reset_reject(req_id: str, user=Depends(require_perm("users"))):
+    req = await db.password_reset_requests.find_one({"id": req_id, "status": "pending"})
+    if not req:
+        raise HTTPException(status_code=404, detail="Permintaan tidak ditemukan atau sudah diproses")
+    await db.password_reset_requests.update_one({"id": req_id}, {"$set": {
+        "status": "rejected", "completed_at": now_iso(), "completed_by": user.get("email", "")}})
+    await admin_log(user, "Tolak reset password", "user", req["user_id"], {"email": req.get("email", "")})
+    return {"status": "rejected"}
+
+
 async def seed_owner():
     owner_email = os.environ.get("OWNER_EMAIL", "owner@cirebonkarir.com").lower()
     owner_password = os.environ.get("OWNER_PASSWORD", "owner123")
@@ -3952,6 +4018,7 @@ async def startup():
     await db.interviews.create_index("candidate_id")
     await db.invitations.create_index([("company_id", 1), ("job_id", 1), ("candidate_id", 1)], unique=True)
     await db.admin_audit_logs.create_index("created_at")
+    await db.password_reset_requests.create_index([("user_id", 1), ("status", 1)])
     await db.referral_codes.create_index("code", unique=True)
     await db.referral_codes.create_index([("owner_type", 1), ("owner_id", 1)], unique=True)
     await db.referrals.create_index("referee_user_id", unique=True)

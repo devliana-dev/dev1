@@ -87,6 +87,12 @@ Lihat CHANGELOG.md (register role, admin edit job, hero, job list horizontal, ka
 - One-Click Apply, moderasi, kuota, Career Pro, referral, membership — nol perubahan business logic.
 - Testing iterasi 13: 15/15 backend pytest + seluruh flow UI lulus termasuk mobile 390px (`/app/test_reports/iteration_13.json`). TEST 1-6 spesifikasi user semua lulus.
 
+## Iterasi 14 — Lupa/Reset Password (Admin-Assisted) (25 Agu 2026)
+- **Model**: koleksi baru `password_reset_requests` {id, user_id, email, name, role, status pending/completed/rejected, created_at, completed_at, completed_by}. Tanpa email/SMTP — admin set password sementara via dashboard dan menyampaikannya ke user di luar platform (WhatsApp/email).
+- **Backend**: POST /api/auth/forgot-password (response generik anti user-enumeration, dedupe pending per user, hanya role candidate/company, notifikasi ke semua admin/owner); admin endpoints dengan require_perm("users"): GET /api/admin/password-resets?status=, POST /:id/complete {new_password} (min 6 char, bcrypt, set pwd_reset_at epoch, notifikasi user, admin_log), POST /:id/reject; invalidasi token lama — create_access_token kini menyertakan iat, get_user_by_token menolak token dengan iat < pwd_reset_at (backward-compatible: token lama tanpa iat tetap berlaku s.d. expired); index startup password_reset_requests(user_id,status).
+- **Frontend**: link "Lupa password?" di Login; halaman publik /forgot-password (form → success state); halaman admin /admin/password-resets (tab status, tabel, modal set password baru, tolak) + menu "Reset Password" di grup SISTEM.
+- Testing iterasi 14: 14/14 backend pytest + seluruh flow UI lulus termasuk mobile 390px, cleanup kredensial budi dikembalikan (`/app/test_reports/iteration_14.json`).
+
 ## Akun Demo
 - Owner: owner@cirebonkarir.com / owner123 (env OWNER_EMAIL/OWNER_PASSWORD)
 - Admin: muhamadwahid.sih@gmail.com / admin123
@@ -97,9 +103,10 @@ Lihat CHANGELOG.md (register role, admin edit job, hero, job list horizontal, ka
 
 ## Backlog
 ### P1
-- Lupa/reset password (endpoint dasar bisa ditambah).
+- ~~Lupa/reset password~~ DONE (iterasi 14, admin-assisted).
 - Foto profil masuk ke CV Builder (data sudah ada di career_profiles).
 - Server-side PDF generation untuk CV (sekarang window.print browser).
+- Hardening security (audit message 124: hapus demo credentials di Login.jsx, security headers, rate limiting).
 ### P2
 - Payment gateway (Midtrans/Xendit) menggantikan verifikasi manual (struktur payments/subscriptions siap).
 - Notifikasi email/WhatsApp (sekarang in-app only).

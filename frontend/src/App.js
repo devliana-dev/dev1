@@ -20,6 +20,7 @@ import BlogDetail from "@/pages/BlogDetail";
 import Login from "@/pages/auth/Login";
 import Register from "@/pages/auth/Register";
 import RegisterCompany from "@/pages/auth/RegisterCompany";
+import ForgotPassword from "@/pages/auth/ForgotPassword";
 
 import CandidateDashboard from "@/pages/candidate/CandidateDashboard";
 import MyApplications from "@/pages/candidate/MyApplications";
@@ -62,6 +63,7 @@ import AdminStaff from "@/pages/admin/AdminStaff";
 import AdminSettings from "@/pages/admin/AdminSettings";
 import AdminCareerPro from "@/pages/admin/AdminCareerPro";
 import AdminReferrals from "@/pages/admin/AdminReferrals";
+import AdminPasswordResets from "@/pages/admin/AdminPasswordResets";
 import ReferralLanding from "@/pages/ReferralLanding";
 import ReferralDashboard from "@/pages/shared/ReferralDashboard";
 
@@ -106,6 +108,7 @@ function App() {
               <Route path="/blog" element={<Blog />} />
               <Route path="/blog/:slug" element={<BlogDetail />} />
               <Route path="/login" element={<Login />} />
+              <Route path="/forgot-password" element={<ForgotPassword />} />
               <Route path="/register" element={<Register />} />
               <Route path="/register-company" element={<RegisterCompany />} />
               <Route path="/tentang-kami" element={<StaticPage page="tentang-kami" />} />
@@ -159,6 +162,7 @@ function App() {
             <Route path="/admin/staff" element={protect("admin", <AdminStaff />)} />
             <Route path="/admin/settings" element={protect("admin", <AdminSettings />)} />
             <Route path="/admin/referrals" element={protect("admin", <AdminReferrals />)} />
+            <Route path="/admin/password-resets" element={protect("admin", <AdminPasswordResets />)} />
             <Route path="/admin/notifications" element={protect("admin", <NotificationsPage menu={ADMIN_MENU} />)} />
 
             <Route path="*" element={<PublicLayout404 />} />
