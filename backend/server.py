@@ -19,6 +19,10 @@ from motor.motor_asyncio import AsyncIOMotorClient
 from pymongo import ReturnDocument
 from pymongo.errors import DuplicateKeyError
 from pydantic import BaseModel, EmailStr
+import base64
+import html
+import time
+
 from starlette.middleware.cors import CORSMiddleware
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
@@ -48,6 +52,38 @@ COMPANY_STATUSES = ["pending", "verified", "rejected", "blocked"]
 
 app = FastAPI()
 api_router = APIRouter(prefix="/api")
+
+RATE_LIMIT_RULES = {
+    "/api/auth/login": (10, 60),
+    "/api/auth/register": (5, 60),
+    "/api/auth/register-company": (5, 60),
+    "/api/auth/forgot-password": (5, 60),
+}
+_rate_hits = {}
+
+
+@app.middleware("http")
+async def security_headers_and_rate_limit(request: Request, call_next):
+    path = request.url.path
+    if request.method == "POST" and path in RATE_LIMIT_RULES:
+        limit, window = RATE_LIMIT_RULES[path]
+        ip = request.client.host if request.client else "unknown"
+        key = f"{ip}:{path}"
+        now = time.time()
+        hits = [t for t in _rate_hits.get(key, []) if now - t < window]
+        if len(hits) >= limit:
+            return RawResponse(content='{"detail":"Terlalu banyak permintaan. Coba lagi beberapa saat."}',
+                               status_code=429, media_type="application/json")
+        hits.append(now)
+        _rate_hits[key] = hits
+    response = await call_next(request)
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    response.headers["X-Frame-Options"] = "DENY"
+    response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+    response.headers["Permissions-Policy"] = "camera=(), microphone=(), geolocation=()"
+    if request.headers.get("x-forwarded-proto", request.url.scheme) == "https":
+        response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
+    return response
 
 
 # ---------- Object Storage ----------
@@ -1451,6 +1487,164 @@ async def cv_delete(cv_id: str, user=Depends(require_role("candidate"))):
     if result.deleted_count == 0:
         raise HTTPException(status_code=404, detail="CV tidak ditemukan")
     return {"message": "CV dihapus"}
+
+
+CV_SECTION_TITLES = {"summary": "Ringkasan Profesional", "experience": "Pengalaman Kerja", "education": "Pendidikan",
+                     "skills": "Keahlian", "certifications": "Sertifikasi", "organizations": "Organisasi", "languages": "Bahasa"}
+CV_H2_MODERN = "font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:#0369a1;border-left:4px solid #0284c7;padding-left:8px;margin:0"
+CV_H2_MINIMAL = "font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:2px;color:#0369a1;margin:0"
+CV_H2_ATS = "font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:2px;border-bottom:1px solid #1e293b;padding-bottom:4px;margin:0"
+
+
+def _e(text):
+    return html.escape(str(text or ""))
+
+
+def render_cv_html(doc: dict, photo_uri: str = "") -> str:
+    d = doc.get("data", {}) or {}
+    p = d.get("personal", {}) or {}
+    template = doc.get("template", "modern")
+    name = _e(p.get("name") or "Nama Lengkap")
+    contact_items = [p.get("email"), p.get("phone"), ", ".join(x for x in [p.get("address"), p.get("city")] if x)]
+    contact = _e("  ·  ".join(x for x in contact_items if x))
+
+    def photo_img(size=88):
+        if not photo_uri:
+            return ""
+        return f'<img src="{photo_uri}" style="width:{size}px;height:{size}px;border-radius:50%;object-fit:cover" />'
+
+    def exp_html():
+        rows = []
+        for e in d.get("experience", []):
+            pos = _e(e.get("position"))
+            comp = _e(e.get("company"))
+            period = _e(" – ".join(x for x in [e.get("start_date"), e.get("end_date")] if x))
+            desc = _e(e.get("description"))
+            desc_html = f'<p style="margin:2px 0 0;color:#475569">{desc}</p>' if desc else ""
+            rows.append(f'<div style="margin-bottom:10px"><p style="margin:0;font-weight:600">{pos} <span style="font-weight:400;color:#64748b">— {comp}</span></p><p style="margin:0;font-size:11px;color:#94a3b8">{period}</p>{desc_html}</div>')
+        return "".join(rows)
+
+    def edu_html():
+        rows = []
+        for e in d.get("education", []):
+            inst = _e(e.get("institution"))
+            major = f' — {_e(e.get("major"))}' if e.get("major") else ""
+            period = _e(" – ".join(x for x in [e.get("start_year"), e.get("end_year")] if x))
+            desc = _e(e.get("description"))
+            desc_html = f'<p style="margin:2px 0 0;color:#475569">{desc}</p>' if desc else ""
+            rows.append(f'<div style="margin-bottom:8px"><p style="margin:0;font-weight:600">{inst}{major}</p><p style="margin:0;font-size:11px;color:#94a3b8">{period}</p>{desc_html}</div>')
+        return "".join(rows)
+
+    def skills_text(sep=" · "):
+        parts = []
+        for s in d.get("skills", []):
+            if s.get("name"):
+                lvl = f' ({_e(s.get("level"))})' if s.get("level") else ""
+                parts.append(f'{_e(s.get("name"))}{lvl}')
+        return sep.join(parts)
+
+    def certs_html():
+        rows = []
+        for c in d.get("certifications", []):
+            issuer = f' — {_e(c.get("issuer"))}' if c.get("issuer") else ""
+            year = f' ({_e(c.get("year"))})' if c.get("year") else ""
+            rows.append(f'<p style="margin:0 0 4px">• {_e(c.get("name"))}{issuer}{year}</p>')
+        return "".join(rows)
+
+    def orgs_html():
+        rows = []
+        for o in d.get("organizations", []):
+            role = f' — {_e(o.get("role"))}' if o.get("role") else ""
+            period = f' ({_e(o.get("period"))})' if o.get("period") else ""
+            desc = f': {_e(o.get("description"))}' if o.get("description") else ""
+            rows.append(f'<p style="margin:0 0 4px">• {_e(o.get("name"))}{role}{period}{desc}</p>')
+        return "".join(rows)
+
+    def langs_text(sep=" · "):
+        parts = []
+        for l in d.get("languages", []):
+            if l.get("name"):
+                lvl = f' ({_e(l.get("level"))})' if l.get("level") else ""
+                parts.append(f'{_e(l.get("name"))}{lvl}')
+        return sep.join(parts)
+
+    inners = {
+        "summary": f'<p style="margin:0;color:#334155">{_e(d.get("summary"))}</p>' if d.get("summary") else "",
+        "experience": exp_html(),
+        "education": edu_html(),
+        "skills": f'<p style="margin:0;color:#334155">{skills_text()}</p>' if d.get("skills") else "",
+        "certifications": certs_html(),
+        "organizations": orgs_html(),
+        "languages": f'<p style="margin:0;color:#334155">{langs_text()}</p>' if d.get("languages") else "",
+    }
+
+    def sec(h2_style, key):
+        if not inners[key]:
+            return ""
+        return f'<section style="margin-top:16px"><h2 style="{h2_style}">{CV_SECTION_TITLES[key]}</h2><div style="margin-top:8px">{inners[key]}</div></section>'
+
+    if template == "ats":
+        body = '<div style="padding:28px 32px">'
+        if photo_uri:
+            body += f'<div style="text-align:center;margin-bottom:8px">{photo_img(80)}</div>'
+        body += (f'<h1 style="font-size:24px;font-weight:700;text-align:center;margin:0">{name}</h1>'
+                 f'<p style="margin:4px 0 0;text-align:center;font-size:11px;color:#475569">{contact}</p>')
+        for key in ("summary", "experience", "education", "skills", "certifications", "organizations", "languages"):
+            body += sec(CV_H2_ATS, key)
+        body += "</div>"
+    elif template == "minimalis":
+        side = ""
+        if photo_uri:
+            side += f'<div style="margin-bottom:12px">{photo_img(88)}</div>'
+        side += f'<h1 style="font-size:20px;font-weight:800;margin:0;line-height:1.25">{name}</h1>'
+        side += '<div style="margin-top:14px">'
+        for x in contact_items:
+            if x:
+                side += f'<p style="margin:0 0 4px;font-size:11px;color:#475569;word-break:break-word">{_e(x)}</p>'
+        side += "</div>"
+        for key in ("skills", "languages", "certifications"):
+            side += sec(CV_H2_MINIMAL, key)
+        main = ""
+        for key in ("summary", "experience", "education", "organizations"):
+            main += sec(CV_H2_MINIMAL, key)
+        body = ('<table style="width:100%;border-collapse:collapse"><tr>'
+                f'<td style="width:32%;background:#f0f9ff;padding:28px 24px;vertical-align:top">{side}</td>'
+                f'<td style="padding:28px 24px;vertical-align:top">{main}</td></tr></table>')
+    else:
+        body = '<div style="background:#0f172a;padding:28px 32px;color:#ffffff"><table style="width:100%;border-collapse:collapse"><tr>'
+        body += (f'<td style="vertical-align:middle"><h1 style="font-size:24px;font-weight:800;margin:0;color:#ffffff">{name}</h1>'
+                 f'<p style="margin:6px 0 0;font-size:11px;color:#7dd3fc">{contact}</p></td>')
+        if photo_uri:
+            body += f'<td style="width:96px;text-align:right;vertical-align:middle">{photo_img(80)}</td>'
+        body += '</tr></table></div><div style="padding:24px 32px">'
+        for key in ("summary", "experience", "education", "skills", "certifications", "organizations", "languages"):
+            body += sec(CV_H2_MODERN, key)
+        body += "</div>"
+
+    return ('<!DOCTYPE html><html><head><meta charset="utf-8"><style>'
+            '@page { size: A4; margin: 0 } body { margin:0; font-family:"DejaVu Sans",sans-serif; font-size:13px; line-height:1.55; color:#0f172a }'
+            '</style></head><body>' + body + '</body></html>')
+
+
+@api_router.get("/cv-professional/cvs/{cv_id}/pdf")
+async def cv_pdf(cv_id: str, user=Depends(require_cv_premium)):
+    doc = await db.cv_documents.find_one({"id": cv_id, "user_id": user["id"]}, {"_id": 0})
+    if not doc:
+        raise HTTPException(status_code=404, detail="CV tidak ditemukan")
+    photo_uri = ""
+    photo_path = (doc.get("data", {}).get("personal", {}) or {}).get("photo", "")
+    if photo_path:
+        try:
+            raw, content_type = await asyncio.to_thread(get_object, photo_path)
+            photo_uri = f"data:{content_type};base64,{base64.b64encode(raw).decode()}"
+        except Exception as e:
+            logger.warning(f"CV photo fetch failed: {e}")
+    html_str = render_cv_html(doc, photo_uri)
+    from weasyprint import HTML
+    pdf_bytes = await asyncio.to_thread(lambda: HTML(string=html_str).write_pdf())
+    filename = f"{slugify(doc.get('name') or 'cv')}.pdf"
+    return RawResponse(content=pdf_bytes, media_type="application/pdf",
+                       headers={"Content-Disposition": f'attachment; filename="{filename}"'})
 
 
 def parse_cv_text(text: str) -> dict:

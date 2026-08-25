@@ -1,3 +1,5 @@
+import { imageUrl } from "../lib/format";
+
 export const CV_TEMPLATES = [
   { id: "modern", name: "Template Modern", description: "Header berwarna dengan aksen profesional" },
   { id: "ats", name: "Template ATS", description: "Format sederhana yang ramah sistem ATS" },
@@ -6,7 +8,7 @@ export const CV_TEMPLATES = [
 
 export function emptyCvData() {
   return {
-    personal: { name: "", email: "", phone: "", address: "", city: "" },
+    personal: { name: "", email: "", phone: "", address: "", city: "", photo: "" },
     summary: "",
     education: [],
     experience: [],
@@ -36,9 +38,14 @@ function ModernTemplate({ data }) {
   const { personal } = data;
   return (
     <div className="bg-white text-slate-900 font-sans text-[13px] leading-relaxed">
-      <div className="bg-slate-900 px-8 py-7">
-        <h1 className="font-display text-2xl font-extrabold text-white">{personal.name || "Nama Lengkap"}</h1>
-        <ContactLine personal={personal} className="mt-1.5 text-sky-300 text-xs" />
+      <div className="bg-slate-900 px-8 py-7 flex items-center gap-5">
+        {personal.photo && (
+          <img src={imageUrl(personal.photo)} alt={personal.name || "Foto"} className="h-20 w-20 rounded-full object-cover border-2 border-sky-400/50 shrink-0" />
+        )}
+        <div className="min-w-0">
+          <h1 className="font-display text-2xl font-extrabold text-white">{personal.name || "Nama Lengkap"}</h1>
+          <ContactLine personal={personal} className="mt-1.5 text-sky-300 text-xs" />
+        </div>
       </div>
       <div className="px-8 py-6 space-y-5">
         {data.summary && (
@@ -122,6 +129,11 @@ function AtsTemplate({ data }) {
   );
   return (
     <div className="bg-white text-slate-900 font-sans text-[13px] leading-relaxed px-8 py-7">
+      {personal.photo && (
+        <div className="flex justify-center mb-3">
+          <img src={imageUrl(personal.photo)} alt={personal.name || "Foto"} className="h-20 w-20 rounded-full object-cover border border-slate-200" />
+        </div>
+      )}
       <h1 className="font-display text-2xl font-bold text-center">{personal.name || "Nama Lengkap"}</h1>
       <ContactLine personal={personal} className="mt-1 text-center text-xs text-slate-600" />
       {data.summary && <Sec title={SECTION_TITLES.summary}><p>{data.summary}</p></Sec>}
@@ -155,6 +167,9 @@ function MinimalisTemplate({ data }) {
   return (
     <div className="bg-white text-slate-900 font-sans text-[13px] leading-relaxed flex">
       <div className="w-[32%] bg-sky-50 px-6 py-7">
+        {personal.photo && (
+          <img src={imageUrl(personal.photo)} alt={personal.name || "Foto"} className="h-20 w-20 rounded-full object-cover border border-slate-200 mb-4" />
+        )}
         <h1 className="font-display text-xl font-extrabold leading-tight">{personal.name || "Nama Lengkap"}</h1>
         <div className="mt-4 space-y-1.5 text-xs text-slate-600 break-words">
           {personal.email && <p>{personal.email}</p>}

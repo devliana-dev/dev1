@@ -53,6 +53,21 @@ export default function CvList() {
     }
   };
 
+  const downloadPdf = async (cv) => {
+    try {
+      const res = await api.get(`/cv-professional/cvs/${cv.id}/pdf`, { responseType: "blob" });
+      const url = URL.createObjectURL(res.data);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `${cv.name || "cv"}.pdf`;
+      a.click();
+      URL.revokeObjectURL(url);
+      toast.success("PDF CV berhasil diunduh");
+    } catch {
+      toast.error("Gagal mengunduh PDF");
+    }
+  };
+
   return (
     <DashboardLayout menu={CANDIDATE_MENU} title="CV Saya">
       <div data-testid="cv-list-page">
@@ -84,9 +99,9 @@ export default function CvList() {
                   <Link to={`/candidate/cv-professional/builder/${cv.id}?preview=1`} className="inline-flex items-center gap-1 h-9 px-3 rounded-lg border border-slate-300 text-xs font-semibold text-slate-700 hover:bg-slate-50" data-testid={`cv-preview-${cv.id}`}>
                     <Eye className="h-3.5 w-3.5" /> Preview
                   </Link>
-                  <Link to={`/candidate/cv-professional/builder/${cv.id}?download=1`} className="inline-flex items-center gap-1 h-9 px-3 rounded-lg border border-slate-300 text-xs font-semibold text-slate-700 hover:bg-slate-50" data-testid={`cv-download-${cv.id}`}>
+                  <button onClick={() => downloadPdf(cv)} className="inline-flex items-center gap-1 h-9 px-3 rounded-lg border border-slate-300 text-xs font-semibold text-slate-700 hover:bg-slate-50" data-testid={`cv-download-${cv.id}`}>
                     <Printer className="h-3.5 w-3.5" /> Download
-                  </Link>
+                  </button>
                   <button onClick={() => duplicate(cv)} className="inline-flex items-center gap-1 h-9 px-3 rounded-lg border border-slate-300 text-xs font-semibold text-slate-700 hover:bg-slate-50" data-testid={`cv-duplicate-${cv.id}`}>
                     <Copy className="h-3.5 w-3.5" /> Duplikat
                   </button>

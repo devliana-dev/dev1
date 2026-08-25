@@ -1,0 +1,39 @@
+{
+  "summary": "Iteration 15 tested end-to-end. Backend: 13/13 pytest passed — security headers present (X-Content-Type-Options, X-Frame-Options DENY, Referrer-Policy, Permissions-Policy) on all API responses; HSTS is set conditionally on request.url.scheme==https but was ABSENT on external HTTPS responses because the app runs behind proxy that forwards scheme as http (minor bug — see below). Rate limit login (10/min per IP) returns 429 on requests 11/12. PDF endpoint returns 200 with application/pdf + %PDF header + Content-Disposition attachment; file size ~>50KB confirming embedded photo. Authz: unauthenticated → 401, expired-subscription user (siti) → 403, non-existent CV → 404. Auth regression (login/me/admin/company) OK. Jobs, meta, companies OK. Frontend (Playwright): demo-accounts-info + forgot-password-link render in preview; CV Builder photo flow (load/preview/remove) OK for existing CV; Download PDF from Builder downloads CV Budi.pdf; New unsaved CV → 'Simpan CV terlebih dahulu' error toast shown; CvList (/candidate/cv-professional/list) download-<id> triggers direct PDF download without navigation; mobile 390px no overflow.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {
+        "endpoint": "middleware security_headers_and_rate_limit",
+        "issue": "HSTS header is only set when request.url.scheme == 'https', but FastAPI runs behind a reverse proxy/ingress that forwards requests as http internally, so HSTS is never set on external HTTPS responses. Fix: check X-Forwarded-Proto header (or trust proxy) e.g. `request.headers.get('x-forwarded-proto', request.url.scheme) == 'https'`."
+      }
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iteration15.py",
+    "/app/test_reports/pytest/iter15.xml"
+  ],
+  "action_items": [
+    "(Minor) Fix HSTS header emission behind proxy by consulting X-Forwarded-Proto so `Strict-Transport-Security` is present on HTTPS responses served via ingress."
+  ],
+  "critical_code_review_comments": [
+    "server.py is 4250 lines — should be split into routers/modules for maintainability.",
+    "Rate limiter is in-memory per-process; will not work correctly with multiple workers/replicas. Acceptable for MVP; document limitation.",
+    "HSTS scheme check should respect X-Forwarded-Proto for reverse-proxy deployments (see minor issue)."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_iteration15.py"
+  ],
+  "success_rate": {"backend": "100%", "frontend": "100%"},
+  "test_credentials": "budi@example.com/password123, siti.rahma@example.com/password123, muhamadwahid.sih@gmail.com/admin123, demo@perusahaan.com/password123",
+  "seed_data_creation": "None — used existing seeded budi CV id=43c054e5-cc0e-49cc-902c-729a0c710351",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "CvList lives at /candidate/cv-professional/list (not /candidate/cv-professional which is Career Pro overview). Login rate limit is 10/min per IP — run rate-limit tests last and sleep 60s+ before subsequent login tests. WeasyPrint PDF endpoint at GET /api/cv-professional/cvs/{id}/pdf returns ~>120KB when photo embedded.",
+  "rca of the issue": "HSTS missing on external HTTPS: middleware uses request.url.scheme which reflects the internal ASGI scheme (http) when Uvicorn is behind an ingress/CDN that terminates TLS. Need to configure Uvicorn with --proxy-headers/forwarded-allow-ips or read X-Forwarded-Proto explicitly in the middleware condition."
+}

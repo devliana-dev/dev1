@@ -73,12 +73,14 @@ export default function Login() {
           </div>
         </form>
 
-        <div className="mt-4 rounded-xl border border-sky-200 bg-sky-50 p-4 text-xs text-sky-900" data-testid="demo-accounts-info">
-          <p className="font-semibold flex items-center gap-1.5 mb-1.5"><Info className="h-3.5 w-3.5" /> Akun Demo</p>
-          <p>Admin: muhamadwahid.sih@gmail.com / admin123</p>
-          <p>Perusahaan: demo@perusahaan.com / password123</p>
-          <p>Pencari Kerja: budi@example.com / password123</p>
-        </div>
+        {process.env.NODE_ENV !== "production" && (
+          <div className="mt-4 rounded-xl border border-sky-200 bg-sky-50 p-4 text-xs text-sky-900" data-testid="demo-accounts-info">
+            <p className="font-semibold flex items-center gap-1.5 mb-1.5"><Info className="h-3.5 w-3.5" /> Akun Demo</p>
+            <p>Admin: muhamadwahid.sih@gmail.com / admin123</p>
+            <p>Perusahaan: demo@perusahaan.com / password123</p>
+            <p>Pencari Kerja: budi@example.com / password123</p>
+          </div>
+        )}
       </div>
     </div>
   );

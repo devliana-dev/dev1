@@ -1,9 +1,10 @@
 import { useEffect, useRef, useState } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
-import { Loader2, Plus, Trash2, Save, Printer, Eye, Pencil } from "lucide-react";
+import { Loader2, Plus, Trash2, Save, Eye, Pencil, Download, User } from "lucide-react";
 import { toast } from "sonner";
 import DashboardLayout from "../../components/DashboardLayout";
 import api, { formatApiError } from "../../lib/api";
+import { imageUrl } from "../../lib/format";
 import { useAuth } from "../../context/AuthContext";
 import { CANDIDATE_MENU } from "./menu";
 import { CV_TEMPLATES, CvTemplateRenderer, emptyCvData } from "../../components/cvTemplates";
@@ -63,6 +64,7 @@ export default function CvBuilder() {
   const [doc, setDoc] = useState(null);
   const [allowed, setAllowed] = useState(null);
   const [saving, setSaving] = useState(false);
+  const [downloading, setDownloading] = useState(false);
   const [mobilePreview, setMobilePreview] = useState(searchParams.get("preview") === "1");
   const printed = useRef(false);
 
@@ -100,11 +102,12 @@ export default function CvBuilder() {
   }, [allowed, id, navigate, searchParams, user]);
 
   useEffect(() => {
-    if (doc && searchParams.get("download") === "1" && !printed.current) {
+    if (doc && id && searchParams.get("download") === "1" && !printed.current) {
       printed.current = true;
-      setTimeout(() => window.print(), 600);
+      downloadPdf();
     }
-  }, [doc, searchParams]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [doc, id, searchParams]);
 
   if (!allowed || !doc)
     return (
@@ -121,6 +124,43 @@ export default function CvBuilder() {
   };
   const addItem = (section) => setDoc({ ...doc, data: { ...doc.data, [section]: [...doc.data[section], { ...SECTION_META[section].empty }] } });
   const removeItem = (section, index) => setDoc({ ...doc, data: { ...doc.data, [section]: doc.data[section].filter((_, i) => i !== index) } });
+
+  const loadProfilePhoto = async () => {
+    try {
+      const { data } = await api.get("/candidate/career-profile");
+      const photo = data.photo_path || data.profile?.photo_path || "";
+      if (!photo) {
+        toast.error("Profil Karier Anda belum memiliki foto. Unggah dulu di halaman Profil Karier.");
+        return;
+      }
+      setPersonal("photo", photo);
+      toast.success("Foto profil dimasukkan ke CV");
+    } catch {
+      toast.error("Gagal memuat foto profil");
+    }
+  };
+
+  const downloadPdf = async () => {
+    if (!id) {
+      toast.error("Simpan CV terlebih dahulu sebelum mengunduh PDF");
+      return;
+    }
+    setDownloading(true);
+    try {
+      const res = await api.get(`/cv-professional/cvs/${id}/pdf`, { responseType: "blob" });
+      const url = URL.createObjectURL(res.data);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `${doc.name || "cv"}.pdf`;
+      a.click();
+      URL.revokeObjectURL(url);
+      toast.success("PDF CV berhasil diunduh");
+    } catch {
+      toast.error("Gagal mengunduh PDF");
+    } finally {
+      setDownloading(false);
+    }
+  };
 
   const save = async () => {
     setSaving(true);
@@ -158,6 +198,25 @@ export default function CvBuilder() {
 
       <div className="bg-white rounded-xl border border-slate-200 p-5" data-testid="section-personal">
         <h3 className="font-display font-semibold text-slate-900 mb-3">Informasi Pribadi</h3>
+        <div className="flex items-center gap-4 mb-4">
+          {doc.data.personal.photo ? (
+            <img src={imageUrl(doc.data.personal.photo)} alt="Foto profil" className="h-16 w-16 rounded-full object-cover border border-slate-200" data-testid="cv-photo-preview" />
+          ) : (
+            <span className="h-16 w-16 rounded-full bg-slate-100 border border-slate-200 inline-flex items-center justify-center text-slate-400">
+              <User className="h-6 w-6" />
+            </span>
+          )}
+          <div className="flex flex-wrap gap-2">
+            <button type="button" onClick={loadProfilePhoto} className="inline-flex items-center h-9 px-3 rounded-lg border border-slate-300 text-xs font-semibold text-slate-700 hover:bg-slate-50" data-testid="cv-photo-load-btn">
+              Ambil dari Profil Karier
+            </button>
+            {doc.data.personal.photo && (
+              <button type="button" onClick={() => setPersonal("photo", "")} className="inline-flex items-center h-9 px-3 rounded-lg border border-red-200 text-xs font-semibold text-red-600 hover:bg-red-50" data-testid="cv-photo-remove-btn">
+                Hapus Foto
+              </button>
+            )}
+          </div>
+        </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           {[
             { key: "name", label: "Nama Lengkap" }, { key: "email", label: "Email" },
@@ -221,8 +280,8 @@ export default function CvBuilder() {
           <button onClick={save} disabled={saving} className="inline-flex items-center gap-1.5 h-11 px-5 rounded-lg bg-sky-600 text-white text-sm font-semibold hover:bg-sky-700 disabled:opacity-60" data-testid="cv-save-btn">
             {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />} Simpan CV
           </button>
-          <button onClick={() => window.print()} className="inline-flex items-center gap-1.5 h-11 px-5 rounded-lg bg-slate-900 text-white text-sm font-semibold hover:bg-slate-800" data-testid="cv-download-btn">
-            <Printer className="h-4 w-4" /> Download PDF
+          <button onClick={downloadPdf} disabled={downloading} className="inline-flex items-center gap-1.5 h-11 px-5 rounded-lg bg-slate-900 text-white text-sm font-semibold hover:bg-slate-800 disabled:opacity-60" data-testid="cv-download-btn">
+            {downloading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />} Download PDF
           </button>
           <button onClick={() => setMobilePreview(!mobilePreview)} className="lg:hidden inline-flex items-center gap-1.5 h-11 px-5 rounded-lg border border-slate-300 text-sm font-semibold text-slate-700" data-testid="cv-preview-toggle">
             {mobilePreview ? <><Pencil className="h-4 w-4" /> Edit Data</> : <><Eye className="h-4 w-4" /> Preview</>}
@@ -241,9 +300,6 @@ export default function CvBuilder() {
           </div>
         </div>
 
-        <div id="cv-print-area" className="hidden print:block">
-          <CvTemplateRenderer template={doc.template} data={doc.data} />
-        </div>
       </div>
     </DashboardLayout>
   );

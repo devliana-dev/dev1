@@ -93,6 +93,12 @@ Lihat CHANGELOG.md (register role, admin edit job, hero, job list horizontal, ka
 - **Frontend**: link "Lupa password?" di Login; halaman publik /forgot-password (form → success state); halaman admin /admin/password-resets (tab status, tabel, modal set password baru, tolak) + menu "Reset Password" di grup SISTEM.
 - Testing iterasi 14: 14/14 backend pytest + seluruh flow UI lulus termasuk mobile 390px, cleanup kredensial budi dikembalikan (`/app/test_reports/iteration_14.json`).
 
+## Iterasi 15 — Hardening Security + PDF CV Server-Side + Foto Profil CV (25 Agu 2026)
+- **Hardening**: middleware `security_headers_and_rate_limit` — security headers di semua response API (X-Content-Type-Options, X-Frame-Options DENY, Referrer-Policy, Permissions-Policy, HSTS via X-Forwarded-Proto); rate limit in-memory per IP untuk auth publik (login 10/mnt, register/register-company/forgot-password 5/mnt → 429). Demo credentials di Login.jsx hanya tampil saat NODE_ENV !== "production" (keputusan user). CSP sengaja tidak dipasang (risiko merusak SPA; set di web server level jika perlu).
+- **PDF CV server-side**: WeasyPrint 69 (di requirements.txt); endpoint GET /api/cv-professional/cvs/{id}/pdf (require_cv_premium + ownership); render_cv_html mirror 3 template (modern/ats/minimalis); foto profil di-embed base64 data URI dari object storage. Frontend CvBuilder & CvList "Download PDF" sekarang unduh PDF server (window.print dihapus); CV belum disimpan → toast minta simpan dulu.
+- **Foto profil di CV**: field personal.photo; tombol "Ambil dari Profil Karier" (dari career profile photo_path) + Hapus Foto; foto tampil di ketiga template (preview & PDF).
+- Testing iterasi 15: 13/13 backend pytest + seluruh flow UI lulus (`/app/test_reports/iteration_15.json`); issue minor HSTS-behind-proxy diperbaiki (X-Forwarded-Proto). Catatan: rate limiter in-memory per proses — tidak shared antar replica (batasan MVP).
+
 ## Akun Demo
 - Owner: owner@cirebonkarir.com / owner123 (env OWNER_EMAIL/OWNER_PASSWORD)
 - Admin: muhamadwahid.sih@gmail.com / admin123
@@ -104,9 +110,9 @@ Lihat CHANGELOG.md (register role, admin edit job, hero, job list horizontal, ka
 ## Backlog
 ### P1
 - ~~Lupa/reset password~~ DONE (iterasi 14, admin-assisted).
-- Foto profil masuk ke CV Builder (data sudah ada di career_profiles).
-- Server-side PDF generation untuk CV (sekarang window.print browser).
-- Hardening security (audit message 124: hapus demo credentials di Login.jsx, security headers, rate limiting).
+- ~~Hardening security (demo credentials, security headers, rate limiting)~~ DONE (iterasi 15).
+- ~~Server-side PDF generation untuk CV~~ DONE (iterasi 15, WeasyPrint).
+- ~~Foto profil masuk ke CV Builder~~ DONE (iterasi 15).
 ### P2
 - Payment gateway (Midtrans/Xendit) menggantikan verifikasi manual (struktur payments/subscriptions siap).
 - Notifikasi email/WhatsApp (sekarang in-app only).
