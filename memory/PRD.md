@@ -60,7 +60,17 @@ Lihat CHANGELOG.md (register role, admin edit job, hero, job list horizontal, ka
 ## Iterasi 10b — Section FAQ Homepage (25 Agu 2026)
 - Komponen baru `/app/frontend/src/components/FaqSection.jsx`: accordion 8 Q&A seputar CirebonKarir (cara cari loker, gratis, wilayah Ciayumajakuning, pasang lowongan, Program Launching, update harian, tracking lamaran, privasi data). Tema sky-600 (bar pertanyaan) + navy saat terbuka, ikon plus/minus, jawaban kartu putih, link "Hubungi kami". Dipasang di homepage setelah Blog, sebelum footer. Terverifikasi screenshot (buka/tutup accordion OK).
 
+## Iterasi 11 — Admin/Owner Command Center Fase A (25 Agu 2026)
+- **RBAC**: role `owner` baru (seed owner@cirebonkarir.com/owner123 via env OWNER_EMAIL/OWNER_PASSWORD); `require_role` owner-bypass untuk route admin; `require_staff` + `require_perm(perm)` (users/companies/jobs/monetization/settings/export) — admin tanpa permission → 403; halaman Tim Admin & Settings ownerOnly (menu disembunyikan utk admin biasa).
+- **Backend baru**: `/api/admin/overview` (KPI + alert center + business health growth 30d vs prev), `/analytics/growth?days=7-365` (series harian users/companies/jobs/applications), `/analytics/live-activity` (feed gabungan + pagination), `/analytics/funnel` (views→lamaran→...→diterima), `/analytics/market` (kategori+lokasi: jobs/pelamar/rasio/views/hired), `/analytics/talent` (distribusi completion profil, open-to-work, skill/pendidikan populer, avg match), `/analytics/top-performers`, `/analytics/monetization` (revenue hari/minggu/bulan/tahun/total, per produk: active/new/expired/revenue/renewal/due/rate, conversion rate), `/search` (global), `/export/{entity}` CSV (perm export), `/settings` GET/PUT (perm settings), `/staff` CRUD + status (owner only), `/audit-logs` gabungan admin_audit_logs + membership_audit_logs.
+- **admin_log()** dipasang di: approve/reject lowongan, status perusahaan, suspend user, hapus lowongan/perusahaan, tambah kategori, export, settings, staff mgmt.
+- **platform_settings** singleton (free/pro apply limit, free post limit, masa tayang free/member) — dipakai fungsi kuota/entitlement, editable tanpa coding.
+- **Koleksi baru**: platform_settings, admin_audit_logs. admin_candidates diperluas (search, filter plan/status, paket, kuota apply, aktivitas terakhir). admin_jobs + kolom applications.
+- **Frontend**: AdminDashboard rewrite (global search, health banner, alert center, 9 KPI clickable, quick actions, mini chart recharts), AdminAnalytics (5 tab: Pertumbuhan/Funnel/Pasar Kerja/Talent & Matching/Revenue & Konversi), AdminLiveActivity, AdminAuditLogs, AdminStaff, AdminSettings, AdminCareerPro (KPI + kuota + perpanjang/nonaktifkan), AdminCandidates rewrite (search/filter/kolom baru), AdminJobs +kolom Views/Lamaran, menu admin grup bertingkat, DashboardLayout header grup + ownerOnly filter, ProtectedRoute & Login owner-aware.
+- Testing iterasi 8: 33/33 backend + semua flow UI lulus (`/app/test_reports/iteration_8.json`).
+
 ## Akun Demo
+- Owner: owner@cirebonkarir.com / owner123 (env OWNER_EMAIL/OWNER_PASSWORD)
 - Admin: muhamadwahid.sih@gmail.com / admin123
 - Perusahaan: demo@perusahaan.com / password123
 - Pencari kerja: budi@example.com / password123 (Career Pro aktif)

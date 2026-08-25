@@ -21,7 +21,7 @@ export default function Login() {
       const user = await login(email, password);
       const from = location.state?.from;
       if (from) navigate(from, { replace: true });
-      else if (user.role === "admin") navigate("/admin", { replace: true });
+      else if (user.role === "admin" || user.role === "owner") navigate("/admin", { replace: true });
       else if (user.role === "company") navigate("/company/dashboard", { replace: true });
       else navigate("/candidate/dashboard", { replace: true });
     } catch (err) {

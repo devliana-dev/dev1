@@ -55,6 +55,12 @@ import AdminApplications from "@/pages/admin/AdminApplications";
 import AdminCategories from "@/pages/admin/AdminCategories";
 import AdminMonetization from "@/pages/admin/AdminMonetization";
 import AdminLaunchProgram from "@/pages/admin/AdminLaunchProgram";
+import AdminAnalytics from "@/pages/admin/AdminAnalytics";
+import AdminLiveActivity from "@/pages/admin/AdminLiveActivity";
+import AdminAuditLogs from "@/pages/admin/AdminAuditLogs";
+import AdminStaff from "@/pages/admin/AdminStaff";
+import AdminSettings from "@/pages/admin/AdminSettings";
+import AdminCareerPro from "@/pages/admin/AdminCareerPro";
 
 function ScrollToTop() {
   const { pathname } = useLocation();
@@ -140,6 +146,12 @@ function App() {
             <Route path="/admin/categories" element={protect("admin", <AdminCategories />)} />
             <Route path="/admin/monetisasi" element={protect("admin", <AdminMonetization />)} />
             <Route path="/admin/launch-program" element={protect("admin", <AdminLaunchProgram />)} />
+            <Route path="/admin/live-activity" element={protect("admin", <AdminLiveActivity />)} />
+            <Route path="/admin/analytics" element={protect("admin", <AdminAnalytics />)} />
+            <Route path="/admin/career-pro" element={protect("admin", <AdminCareerPro />)} />
+            <Route path="/admin/audit-log" element={protect("admin", <AdminAuditLogs />)} />
+            <Route path="/admin/staff" element={protect("admin", <AdminStaff />)} />
+            <Route path="/admin/settings" element={protect("admin", <AdminSettings />)} />
             <Route path="/admin/notifications" element={protect("admin", <NotificationsPage menu={ADMIN_MENU} />)} />
 
             <Route path="*" element={<PublicLayout404 />} />

@@ -95,12 +95,14 @@ export default function AdminJobs() {
         ) : (
           <div className="bg-white rounded-xl border border-slate-200 overflow-hidden" data-testid="admin-jobs-table">
             <div className="overflow-x-auto">
-              <table className="w-full text-sm min-w-[760px]">
+              <table className="w-full text-sm min-w-[900px]">
                 <thead className="bg-slate-50 text-slate-500 text-left">
                   <tr>
                     <th className="px-5 py-3 font-medium">Posisi</th>
                     <th className="px-5 py-3 font-medium">Perusahaan</th>
                     <th className="px-5 py-3 font-medium">Kategori</th>
+                    <th className="px-5 py-3 font-medium text-center">Views</th>
+                    <th className="px-5 py-3 font-medium text-center">Lamaran</th>
                     <th className="px-5 py-3 font-medium">Tanggal</th>
                     <th className="px-5 py-3 font-medium">Status</th>
                     <th className="px-5 py-3 font-medium">Aksi</th>
@@ -112,6 +114,8 @@ export default function AdminJobs() {
                       <td className="px-5 py-3.5 font-medium text-slate-900">{job.title}</td>
                       <td className="px-5 py-3.5 text-slate-600">{job.company_name}</td>
                       <td className="px-5 py-3.5 text-slate-600">{job.category}</td>
+                      <td className="px-5 py-3.5 text-center text-slate-600" data-testid={`job-views-${job.id}`}>{job.views || 0}</td>
+                      <td className="px-5 py-3.5 text-center text-slate-600" data-testid={`job-applications-${job.id}`}>{job.applications || 0}</td>
                       <td className="px-5 py-3.5 text-slate-500">{formatDate(job.created_at)}</td>
                       <td className="px-5 py-3.5">
                         <StatusBadge status={job.status} map={JOB_STATUS} />

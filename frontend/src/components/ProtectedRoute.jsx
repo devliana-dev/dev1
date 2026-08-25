@@ -13,8 +13,8 @@ export default function ProtectedRoute({ role, children }) {
       </div>
     );
   if (!user) return <Navigate to="/login" state={{ from: location.pathname }} replace />;
-  if (role && user.role !== role) {
-    const target = user.role === "admin" ? "/admin" : user.role === "company" ? "/company/dashboard" : "/candidate/dashboard";
+  if (role && user.role !== role && !(role === "admin" && user.role === "owner")) {
+    const target = (user.role === "admin" || user.role === "owner") ? "/admin" : user.role === "company" ? "/company/dashboard" : "/candidate/dashboard";
     return <Navigate to={target} replace />;
   }
   return children;

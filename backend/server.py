@@ -142,7 +142,8 @@ async def get_current_user(request: Request):
 def require_role(*roles):
     async def dep(user=Depends(get_current_user)):
         if user["role"] not in roles:
-            raise HTTPException(status_code=403, detail="Akses ditolak")
+            if not (user["role"] == "owner" and "admin" in roles):
+                raise HTTPException(status_code=403, detail="Akses ditolak")
         return user
     return dep
 
@@ -807,6 +808,11 @@ async def admin_jobs(status: str = "", user=Depends(require_role("admin"))):
     await expire_jobs()
     query = {"status": status} if status else {}
     jobs = await db.jobs.find(query, {"_id": 0}).sort("created_at", -1).to_list(1000)
+    app_counts = {}
+    async for row in db.applications.aggregate([{"$group": {"_id": "$job_id", "n": {"$sum": 1}}}]):
+        app_counts[row["_id"]] = row["n"]
+    for j in jobs:
+        j["applications"] = app_counts.get(j["id"], 0)
     cmap = await get_company_map()
     return [attach_company(j, cmap) for j in jobs]
 
@@ -829,6 +835,7 @@ async def admin_approve_job(job_id: str, user=Depends(require_role("admin"))):
     if company:
         await notify(company["user_id"], "job_approved", "Lowongan disetujui",
                      f"Lowongan \"{job['title']}\" telah aktif dan tampil di halaman publik.", "/company/jobs")
+    await admin_log(user, "Approve lowongan", "job", job_id, {"title": job.get("title", "")})
     return {"status": "active"}
 
 
@@ -837,6 +844,7 @@ async def admin_reject_job(job_id: str, data: RejectIn, user=Depends(require_rol
     result = await db.jobs.update_one({"id": job_id}, {"$set": {"status": "rejected", "rejection_reason": data.reason}})
     if result.matched_count == 0:
         raise HTTPException(status_code=404, detail="Lowongan tidak ditemukan")
+    await admin_log(user, "Reject lowongan", "job", job_id, {"reason": data.reason})
     return {"status": "rejected"}
 
 
@@ -852,6 +860,7 @@ async def admin_update_job(job_id: str, data: JobIn, user=Depends(require_role("
 async def admin_delete_job(job_id: str, user=Depends(require_role("admin"))):
     await db.jobs.delete_one({"id": job_id})
     await db.applications.delete_many({"job_id": job_id})
+    await admin_log(user, "Hapus lowongan", "job", job_id, {})
     return {"message": "Lowongan dihapus"}
 
 
@@ -888,6 +897,7 @@ async def admin_company_status(company_id: str, data: CompanyStatusIn, user=Depe
         raise HTTPException(status_code=404, detail="Perusahaan tidak ditemukan")
     await db.companies.update_one({"id": company_id}, {"$set": {"status": data.status}})
     await db.users.update_one({"id": company["user_id"]}, {"$set": {"blocked": data.status == "blocked"}})
+    await admin_log(user, f"Ubah status perusahaan → {data.status}", "company", company_id, {"name": company.get("name", "")})
     return {"status": data.status}
 
 
@@ -901,18 +911,49 @@ async def admin_delete_company(company_id: str, user=Depends(require_role("admin
     await db.jobs.delete_many({"company_id": company_id})
     await db.companies.delete_one({"id": company_id})
     await db.users.delete_one({"id": company["user_id"]})
+    await admin_log(user, "Hapus perusahaan", "company", company_id, {"name": company.get("name", "")})
     return {"message": "Perusahaan dihapus"}
 
 
 @api_router.get("/admin/candidates")
-async def admin_candidates(user=Depends(require_role("admin"))):
-    candidates = await db.users.find({"role": "candidate"}, {"_id": 0, "password_hash": 0}).sort("created_at", -1).to_list(2000)
+async def admin_candidates(q: str = "", plan: str = "", status: str = "", user=Depends(require_role("admin"))):
+    query = {"role": "candidate"}
+    if q:
+        regex = {"$regex": re.escape(q), "$options": "i"}
+        query["$or"] = [{"name": regex}, {"email": regex}]
+    candidates = await db.users.find(query, {"_id": 0, "password_hash": 0}).sort("created_at", -1).to_list(2000)
     counts = {}
-    async for row in db.applications.aggregate([{"$group": {"_id": "$candidate_id", "n": {"$sum": 1}}}]):
+    last_activity = {}
+    async for row in db.applications.aggregate([
+        {"$group": {"_id": "$candidate_id", "n": {"$sum": 1}, "last": {"$max": "$created_at"}}},
+    ]):
         counts[row["_id"]] = row["n"]
+        last_activity[row["_id"]] = row["last"]
+    await expire_subscriptions()
+    pro_ids = {s["user_id"] async for s in db.subscriptions.find(
+        {"product_type": "cv_professional", "status": "active"}, {"user_id": 1})}
+    quota_used = {}
+    now = datetime.now(timezone.utc)
+    async for qd in db.apply_quotas.find({"user_id": {"$in": [c["id"] for c in candidates]}},
+                                         {"_id": 0, "user_id": 1, "used": 1, "key": 1}):
+        if qd["key"].startswith(f"free:{qd['user_id']}:{now.year}-{now.month:02d}") or qd["key"].startswith("pro:"):
+            quota_used[qd["user_id"]] = quota_used.get(qd["user_id"], 0) + qd["used"]
+    result = []
     for c in candidates:
         c["applications_count"] = counts.get(c["id"], 0)
-    return candidates
+        c["career_pro"] = c["id"] in pro_ids
+        c["apply_used"] = quota_used.get(c["id"], 0)
+        c["last_activity"] = last_activity.get(c["id"], c.get("created_at", ""))
+        if plan == "pro" and not c["career_pro"]:
+            continue
+        if plan == "free" and c["career_pro"]:
+            continue
+        if status == "active" and c.get("blocked"):
+            continue
+        if status == "suspended" and not c.get("blocked"):
+            continue
+        result.append(c)
+    return result
 
 
 @api_router.post("/admin/users/{user_id}/status")
@@ -923,6 +964,8 @@ async def admin_user_status(user_id: str, data: UserBlockIn, user=Depends(requir
     if target["role"] == "admin":
         raise HTTPException(status_code=400, detail="Tidak dapat memblokir admin")
     await db.users.update_one({"id": user_id}, {"$set": {"blocked": data.blocked}})
+    await admin_log(user, "Suspend user" if data.blocked else "Unsuspend user", "user", user_id,
+                    {"email": target.get("email", "")})
     return {"blocked": data.blocked}
 
 
@@ -946,6 +989,7 @@ async def admin_add_category(data: CategoryIn, user=Depends(require_role("admin"
     cat = {"id": str(uuid.uuid4()), "name": name}
     await db.categories.insert_one(cat)
     cat.pop("_id", None)
+    await admin_log(user, "Tambah kategori", "category", cat["id"], {"name": name})
     return cat
 
 
@@ -1030,7 +1074,8 @@ async def get_or_create_quota(company_id):
     key = {"company_id": company_id, "period_year": now.year, "period_month": now.month}
     doc = await db.company_posting_quotas.find_one(key, {"_id": 0})
     if not doc:
-        doc = {"id": str(uuid.uuid4()), **key, "free_post_limit": 1, "free_post_used": 0,
+        settings = await get_platform_settings()
+        doc = {"id": str(uuid.uuid4()), **key, "free_post_limit": settings["free_post_limit"], "free_post_used": 0,
                "created_at": now_iso(), "updated_at": now_iso()}
         try:
             await db.company_posting_quotas.insert_one(doc)
@@ -1058,15 +1103,16 @@ async def get_company_entitlement(company):
     remaining = max(0, quota["free_post_limit"] - quota["free_post_used"])
     quota_info = {"limit": quota["free_post_limit"], "used": quota["free_post_used"],
                   "remaining": remaining, "period": f"{now.year}-{now.month:02d}"}
+    settings = await get_platform_settings()
     plan_public = {k: plan[k] for k in ("plan_type", "subscription_status", "subscription_start_date",
                                         "subscription_end_date", "launch_access", "launch_active",
                                         "launch_start_date", "launch_end_date")}
     if plan["plan_type"] in ("member", "launch_free"):
-        return {"mode": plan["plan_type"], "can_post": True, "listing_days": 30, "is_member": True,
+        return {"mode": plan["plan_type"], "can_post": True, "listing_days": settings["member_job_days"], "is_member": True,
                 "member_expires_at": plan["subscription_end_date"], "member_started_at": plan["subscription_start_date"],
                 "quota": quota_info, "plan": plan_public}
     if remaining > 0:
-        return {"mode": "free", "can_post": True, "listing_days": 7, "is_member": False,
+        return {"mode": "free", "can_post": True, "listing_days": settings["free_job_days"], "is_member": False,
                 "member_expires_at": "", "member_started_at": "", "quota": quota_info, "plan": plan_public}
     return {"mode": "none", "can_post": False, "listing_days": 0, "is_member": False,
             "member_expires_at": "", "member_started_at": "", "quota": quota_info, "plan": plan_public}
@@ -1822,12 +1868,13 @@ async def public_launch_program():
 async def get_or_create_apply_quota(user_id):
     sub = await get_active_subscription("cv_professional", user_id=user_id)
     now = datetime.now(timezone.utc)
+    settings = await get_platform_settings()
     if sub:
         key = f"pro:{user_id}:{sub['id']}"
         doc = await db.apply_quotas.find_one({"key": key}, {"_id": 0})
         if not doc:
             doc = {"id": str(uuid.uuid4()), "key": key, "user_id": user_id, "plan": "career_pro",
-                   "subscription_id": sub["id"], "limit": PRO_APPLY_LIMIT, "used": 0,
+                   "subscription_id": sub["id"], "limit": settings["pro_apply_limit"], "used": 0,
                    "period": sub.get("expires_at", ""), "created_at": now_iso(), "updated_at": now_iso()}
             try:
                 await db.apply_quotas.insert_one(doc)
@@ -1841,7 +1888,7 @@ async def get_or_create_apply_quota(user_id):
     doc = await db.apply_quotas.find_one({"key": key}, {"_id": 0})
     if not doc:
         doc = {"id": str(uuid.uuid4()), "key": key, "user_id": user_id, "plan": "free",
-               "subscription_id": "", "limit": FREE_APPLY_LIMIT, "used": 0,
+               "subscription_id": "", "limit": settings["free_apply_limit"], "used": 0,
                "period": f"{now.year}-{now.month:02d}", "created_at": now_iso(), "updated_at": now_iso()}
         try:
             await db.apply_quotas.insert_one(doc)
@@ -2626,16 +2673,533 @@ async def admin_career_pro(user=Depends(require_role("admin"))):
     return subs
 
 
+# ======================================================================
+# Admin/Owner Command Center: RBAC, Analytics, Audit, Settings, Export
+# ======================================================================
+DEFAULT_PLATFORM_SETTINGS = {
+    "free_apply_limit": FREE_APPLY_LIMIT, "pro_apply_limit": PRO_APPLY_LIMIT,
+    "free_post_limit": 1, "free_job_days": 7, "member_job_days": 30,
+}
+
+
+async def get_platform_settings():
+    s = await db.platform_settings.find_one({"id": "platform_settings"}, {"_id": 0})
+    if not s:
+        s = {"id": "platform_settings", **DEFAULT_PLATFORM_SETTINGS,
+             "updated_at": now_iso(), "updated_by": "system"}
+        await db.platform_settings.insert_one(s)
+        s.pop("_id", None)
+    return s
+
+
+async def require_staff(user=Depends(get_current_user)):
+    if user["role"] not in ("admin", "owner"):
+        raise HTTPException(status_code=403, detail="Akses ditolak")
+    return user
+
+
+def require_perm(perm):
+    async def dep(user=Depends(require_staff)):
+        if user["role"] == "owner":
+            return user
+        perms = user.get("permissions") or []
+        if "all" in perms or perm in perms:
+            return user
+        raise HTTPException(status_code=403, detail="Anda tidak memiliki permission untuk fitur ini")
+    return dep
+
+
+async def admin_log(actor, action, target_type, target_id, metadata=None):
+    await db.admin_audit_logs.insert_one({
+        "id": str(uuid.uuid4()), "actor_id": actor["id"], "actor_email": actor.get("email", ""),
+        "actor_role": actor.get("role", ""), "action": action, "target_type": target_type,
+        "target_id": str(target_id), "metadata": metadata or {}, "created_at": now_iso()})
+
+
+async def seed_owner():
+    owner_email = os.environ.get("OWNER_EMAIL", "owner@cirebonkarir.com").lower()
+    owner_password = os.environ.get("OWNER_PASSWORD", "owner123")
+    existing = await db.users.find_one({"email": owner_email})
+    if not existing:
+        await db.users.insert_one({"id": str(uuid.uuid4()), "name": "Owner CirebonKarir", "email": owner_email,
+                                   "phone": "", "password_hash": hash_password(owner_password), "role": "owner",
+                                   "blocked": False, "permissions": ["all"], "created_at": now_iso()})
+        logger.info(f"Owner seeded: {owner_email}")
+    elif not verify_password(owner_password, existing.get("password_hash", "")):
+        await db.users.update_one({"email": owner_email},
+                                  {"$set": {"password_hash": hash_password(owner_password)}})
+    await db.users.update_one({"email": owner_email},
+                              {"$set": {"role": "owner", "permissions": ["all"]}})
+
+
+# ---------- Overview & Health ----------
+def pct_change(current, previous):
+    if previous == 0:
+        return 100.0 if current > 0 else 0.0
+    return round((current - previous) / previous * 100, 1)
+
+
+@api_router.get("/admin/overview")
+async def admin_overview(user=Depends(require_staff)):
+    await expire_jobs()
+    await expire_subscriptions()
+    now = datetime.now(timezone.utc)
+    d30 = (now - timedelta(days=30)).isoformat()
+    d60 = (now - timedelta(days=60)).isoformat()
+    users_new = await db.users.count_documents({"role": "candidate", "created_at": {"$gte": d30}})
+    users_prev = await db.users.count_documents({"role": "candidate", "created_at": {"$gte": d60, "$lt": d30}})
+    comps_new = await db.companies.count_documents({"created_at": {"$gte": d30}})
+    comps_prev = await db.companies.count_documents({"created_at": {"$gte": d60, "$lt": d30}})
+    jobs_new = await db.jobs.count_documents({"created_at": {"$gte": d30}})
+    jobs_prev = await db.jobs.count_documents({"created_at": {"$gte": d60, "$lt": d30}})
+    apps_new = await db.applications.count_documents({"created_at": {"$gte": d30}})
+    apps_prev = await db.applications.count_documents({"created_at": {"$gte": d60, "$lt": d30}})
+    active_company_ids = {j["company_id"] async for j in db.jobs.find({"status": "active"}, {"company_id": 1})}
+    active_candidate_ids = {a["candidate_id"] async for a in db.applications.find({"created_at": {"$gte": d30}}, {"candidate_id": 1})}
+    payments = await db.payments.find({"status": "approved"}, {"_id": 0, "amount": 1}).to_list(10000)
+    expiring_soon = await db.subscriptions.count_documents(
+        {"status": "active", "expires_at": {"$gt": now.isoformat(), "$lte": (now + timedelta(days=14)).isoformat()}})
+    growth = {"users": pct_change(users_new, users_prev), "companies": pct_change(comps_new, comps_prev),
+              "jobs": pct_change(jobs_new, jobs_prev), "applications": pct_change(apps_new, apps_prev)}
+    avg_growth = sum(growth.values()) / 4
+    health = "Platform berkembang positif" if avg_growth > 0 else ("Platform stabil" if avg_growth == 0 else "Perlu perhatian")
+    return {
+        "kpi": {
+            "candidates": await db.users.count_documents({"role": "candidate"}),
+            "companies": await db.companies.count_documents({}),
+            "jobs": await db.jobs.count_documents({}),
+            "jobs_active": await db.jobs.count_documents({"status": "active"}),
+            "applications": await db.applications.count_documents({}),
+            "users_active": len(active_candidate_ids),
+            "companies_active": len(active_company_ids),
+            "career_pro": await db.subscriptions.count_documents({"product_type": "cv_professional", "status": "active"}),
+            "members": await db.subscriptions.count_documents({"product_type": "company_membership", "status": "active"}),
+            "revenue": sum(p.get("amount", 0) for p in payments),
+        },
+        "alerts": [
+            {"key": "jobs_pending", "label": "lowongan perlu review", "count": await db.jobs.count_documents({"status": "pending"}), "link": "/admin/jobs"},
+            {"key": "companies_pending", "label": "perusahaan menunggu verifikasi", "count": await db.companies.count_documents({"status": "pending"}), "link": "/admin/companies"},
+            {"key": "subs_expiring", "label": "subscription akan expired dalam 14 hari", "count": expiring_soon, "link": "/admin/monetisasi"},
+            {"key": "payments_pending", "label": "pembayaran menunggu verifikasi", "count": await db.payments.count_documents({"status": "pending"}), "link": "/admin/monetisasi"},
+        ],
+        "growth": growth, "health": health,
+    }
+
+
+# ---------- Growth Analytics ----------
+def date_series(days):
+    now = datetime.now(timezone.utc)
+    return [(now - timedelta(days=days - 1 - i)).date().isoformat() for i in range(days)]
+
+
+async def daily_counts(collection, days, match=None):
+    since = (datetime.now(timezone.utc) - timedelta(days=days - 1)).date().isoformat()
+    q = dict(match or {})
+    q["created_at"] = {"$gte": since}
+    counts = {}
+    async for row in db[collection].aggregate([
+        {"$match": q},
+        {"$group": {"_id": {"$substr": ["$created_at", 0, 10]}, "n": {"$sum": 1}}},
+    ]):
+        counts[row["_id"]] = row["n"]
+    return [{"date": d, "count": counts.get(d, 0)} for d in date_series(days)]
+
+
+@api_router.get("/admin/analytics/growth")
+async def admin_growth(days: int = 30, user=Depends(require_staff)):
+    days = min(max(days, 7), 365)
+    series = {
+        "users": await daily_counts("users", days, {"role": "candidate"}),
+        "companies": await daily_counts("companies", days),
+        "jobs": await daily_counts("jobs", days),
+        "applications": await daily_counts("applications", days),
+    }
+    totals = {k: sum(p["count"] for p in v) for k, v in series.items()}
+    return {"days": days, "series": series, "totals": totals}
+
+
+# ---------- Live Activity ----------
+@api_router.get("/admin/analytics/live-activity")
+async def admin_live_activity(page: int = 1, limit: int = 20, user=Depends(require_staff)):
+    events = []
+    cmap = await get_company_map()
+    async for u in db.users.find({"role": {"$in": ["candidate", "company"]}},
+                                 {"_id": 0, "name": 1, "role": 1, "created_at": 1}).sort("created_at", -1).limit(60):
+        events.append({"type": "user_registered" if u["role"] == "candidate" else "company_registered",
+                       "text": f"{u['name']} baru mendaftar", "created_at": u["created_at"]})
+    async for j in db.jobs.find({}, {"_id": 0, "title": 1, "company_id": 1, "created_at": 1}).sort("created_at", -1).limit(60):
+        cname = cmap.get(j["company_id"], {}).get("name", "Perusahaan")
+        events.append({"type": "job_posted", "text": f"{cname} membuat lowongan {j['title']}", "created_at": j["created_at"]})
+    async for a in db.applications.find({}, {"_id": 0, "name": 1, "job_title": 1, "created_at": 1}).sort("created_at", -1).limit(60):
+        events.append({"type": "application", "text": f"{a['name']} melamar {a['job_title']}", "created_at": a["created_at"]})
+    async for p in db.payments.find({"status": "approved"},
+                                    {"_id": 0, "user_id": 1, "company_id": 1, "product_name": 1, "verified_at": 1}).sort("verified_at", -1).limit(60):
+        if not p.get("verified_at"):
+            continue
+        owner = cmap.get(p.get("company_id", ""), {}).get("name", "")
+        if not owner:
+            u = await db.users.find_one({"id": p["user_id"]}, {"_id": 0, "name": 1})
+            owner = (u or {}).get("name", "User")
+        events.append({"type": "subscription", "text": f"{owner} mengaktifkan {p.get('product_name', 'paket')}",
+                       "created_at": p["verified_at"]})
+    async for h in db.application_status_history.find({"to_status": {"$in": ["shortlist", "interview"]}},
+                                                      {"_id": 0, "actor_name": 1, "to_status": 1, "created_at": 1}).sort("created_at", -1).limit(60):
+        label = "melakukan shortlist kandidat" if h["to_status"] == "shortlist" else "menjadwalkan interview"
+        events.append({"type": h["to_status"], "text": f"{h.get('actor_name', 'Perusahaan')} {label}", "created_at": h["created_at"]})
+    events.sort(key=lambda e: e["created_at"], reverse=True)
+    total = len(events)
+    start = max(page - 1, 0) * limit
+    return {"items": events[start:start + limit], "total": total, "page": page,
+            "pages": max(1, (total + limit - 1) // limit)}
+
+
+# ---------- Funnel & Market & Talent ----------
+@api_router.get("/admin/analytics/funnel")
+async def admin_funnel(user=Depends(require_staff)):
+    views = 0
+    async for row in db.jobs.aggregate([{"$group": {"_id": None, "v": {"$sum": {"$ifNull": ["$views", 0]}}}}]):
+        views = row["v"]
+    counts = {}
+    async for row in db.applications.aggregate([{"$group": {"_id": "$status", "n": {"$sum": 1}}}]):
+        counts[row["_id"]] = row["n"]
+    total_apps = sum(counts.values())
+    return {"views": views, "applications": total_apps,
+            "screening": counts.get("diproses", 0), "shortlist": counts.get("shortlist", 0),
+            "interview": counts.get("interview", 0), "hired": counts.get("diterima", 0),
+            "rejected": counts.get("ditolak", 0), "by_status": counts}
+
+
+@api_router.get("/admin/analytics/market")
+async def admin_market(user=Depends(require_staff)):
+    jobs = await db.jobs.find({}, {"_id": 0, "id": 1, "category": 1, "location": 1, "views": 1}).to_list(2000)
+    apps = await db.applications.find({}, {"_id": 0, "job_id": 1, "status": 1}).to_list(10000)
+    job_map = {j["id"]: j for j in jobs}
+
+    def bucket(keyfn):
+        data = {}
+        for j in jobs:
+            k = keyfn(j) or "Lainnya"
+            d = data.setdefault(k, {"jobs": 0, "views": 0, "applications": 0, "hired": 0})
+            d["jobs"] += 1
+            d["views"] += j.get("views", 0)
+        for a in apps:
+            j = job_map.get(a["job_id"])
+            if not j:
+                continue
+            k = keyfn(j) or "Lainnya"
+            d = data.setdefault(k, {"jobs": 0, "views": 0, "applications": 0, "hired": 0})
+            d["applications"] += 1
+            if a["status"] == "diterima":
+                d["hired"] += 1
+        items = [{"name": k, **v, "ratio": round(v["applications"] / v["jobs"], 1) if v["jobs"] else 0}
+                 for k, v in data.items()]
+        items.sort(key=lambda x: -x["applications"])
+        return items
+
+    return {"categories": bucket(lambda j: j.get("category", "")), "locations": bucket(lambda j: j.get("location", ""))}
+
+
+@api_router.get("/admin/analytics/talent")
+async def admin_talent(user=Depends(require_staff)):
+    candidates = await db.users.find({"role": "candidate"}, {"_id": 0, "password_hash": 0}).to_list(2000)
+    profiles = {p["user_id"]: p for p in await db.career_profiles.find({}, {"_id": 0}).to_list(2000)}
+    dist = {"0-25%": 0, "26-50%": 0, "51-75%": 0, "76-99%": 0, "100%": 0}
+    skill_counter = {}
+    edu_counter = {}
+    open_count = 0
+    for c in candidates:
+        profile = normalize_career_profile(profiles.get(c["id"], {}))
+        comp = profile_completion(c, profile)
+        pct = comp["percent"]
+        if pct >= 100:
+            dist["100%"] += 1
+        elif pct >= 76:
+            dist["76-99%"] += 1
+        elif pct >= 51:
+            dist["51-75%"] += 1
+        elif pct >= 26:
+            dist["26-50%"] += 1
+        else:
+            dist["0-25%"] += 1
+        if profile.get("visibility") == "public":
+            open_count += 1
+        for s in profile.get("skills", []):
+            name = (s.get("name") or "").strip()
+            if name:
+                skill_counter[name] = skill_counter.get(name, 0) + 1
+        edu = profile.get("education", [])
+        level = (edu[0].get("level") if edu else "") or c.get("education", "")
+        if level:
+            edu_counter[level] = edu_counter.get(level, 0) + 1
+    apps = await db.applications.find({}, {"_id": 0}).sort("created_at", -1).to_list(100)
+    jobs_map = {j["id"]: j for j in await db.jobs.find({}, {"_id": 0}).to_list(1000)}
+    scores = []
+    for a in apps:
+        job = jobs_map.get(a["job_id"])
+        if job:
+            scores.append(compute_match_score(profiles.get(a["candidate_id"], {}), job, a)["score"])
+    avg_match = round(sum(scores) / len(scores)) if scores else 0
+    high_match = round(len([s for s in scores if s >= 80]) / len(scores) * 100) if scores else 0
+    top_skills = sorted(({"name": k, "count": v} for k, v in skill_counter.items()), key=lambda x: -x["count"])[:10]
+    top_edu = sorted(({"name": k, "count": v} for k, v in edu_counter.items()), key=lambda x: -x["count"])[:8]
+    return {"completion_distribution": [{"range": k, "count": v} for k, v in dist.items()],
+            "open_to_work": open_count, "total_candidates": len(candidates),
+            "top_skills": top_skills, "top_education": top_edu,
+            "avg_match": avg_match, "high_match_pct": high_match, "match_sample": len(scores)}
+
+
+@api_router.get("/admin/analytics/top-performers")
+async def admin_top_performers(user=Depends(require_staff)):
+    companies = await db.companies.find({}, {"_id": 0, "id": 1, "name": 1, "logo": 1}).to_list(1000)
+    jobs = await db.jobs.find({}, {"_id": 0}).to_list(2000)
+    apps = await db.applications.find({}, {"_id": 0, "job_id": 1, "company_id": 1, "status": 1}).to_list(10000)
+    comp_stats = {}
+    for a in apps:
+        d = comp_stats.setdefault(a["company_id"], {"applications": 0, "hired": 0})
+        d["applications"] += 1
+        if a["status"] == "diterima":
+            d["hired"] += 1
+    comp_jobs = {}
+    for j in jobs:
+        comp_jobs[j["company_id"]] = comp_jobs.get(j["company_id"], 0) + 1
+    top_companies = sorted(
+        ({"id": c["id"], "name": c["name"], "logo": c.get("logo", ""),
+          "jobs": comp_jobs.get(c["id"], 0),
+          "applications": comp_stats.get(c["id"], {}).get("applications", 0),
+          "hired": comp_stats.get(c["id"], {}).get("hired", 0)} for c in companies),
+        key=lambda x: (-x["applications"], -x["jobs"]))[:5]
+    job_apps = {}
+    for a in apps:
+        d = job_apps.setdefault(a["job_id"], {"applications": 0, "hired": 0, "shortlist": 0, "interview": 0})
+        d["applications"] += 1
+        if a["status"] == "diterima":
+            d["hired"] += 1
+        if a["status"] == "shortlist" or a.get("is_shortlisted"):
+            d["shortlist"] += 1
+        if a["status"] == "interview":
+            d["interview"] += 1
+    top_jobs = sorted(
+        ({"id": j["id"], "title": j["title"], "views": j.get("views", 0),
+          "company_name": next((c["name"] for c in companies if c["id"] == j["company_id"]), ""),
+          **job_apps.get(j["id"], {"applications": 0, "hired": 0, "shortlist": 0, "interview": 0})} for j in jobs),
+        key=lambda x: (-x["applications"], -x["views"]))[:5]
+    return {"top_companies": top_companies, "top_jobs": top_jobs}
+
+
+# ---------- Monetization Analytics ----------
+@api_router.get("/admin/analytics/monetization")
+async def admin_mon_analytics(user=Depends(require_perm("monetization"))):
+    await expire_subscriptions()
+    now = datetime.now(timezone.utc)
+    payments = await db.payments.find({"status": "approved"}, {"_id": 0}).to_list(10000)
+    subs = await db.subscriptions.find({}, {"_id": 0}).to_list(10000)
+
+    def rev_since(days):
+        since = (now - timedelta(days=days)).isoformat()
+        return sum(p["amount"] for p in payments if (p.get("verified_at") or p.get("created_at", "")) >= since)
+
+    def product_stats(code):
+        ps = [p for p in payments if p["product_code"] == code]
+        ss = [s for s in subs if s["product_type"] == code]
+        owners = {}
+        for p in ps:
+            key = p.get("company_id") or p["user_id"]
+            owners[key] = owners.get(key, 0) + 1
+        d30 = (now - timedelta(days=30)).isoformat()
+        due = [s for s in ss if s["status"] == "active" and s.get("expires_at", "") <= (now + timedelta(days=14)).isoformat()]
+        return {
+            "active": sum(1 for s in ss if s["status"] == "active"),
+            "new_30d": sum(1 for s in ss if s.get("started_at", "") >= d30),
+            "expired": sum(1 for s in ss if s["status"] in ("expired", "cancelled")),
+            "revenue": sum(p["amount"] for p in ps),
+            "renewals": sum(1 for v in owners.values() if v > 1),
+            "renewal_due": len(due),
+            "renewal_rate": round(sum(1 for v in owners.values() if v > 1) / len(owners) * 100, 1) if owners else 0,
+        }
+
+    pro_ever = {s["user_id"] for s in subs if s["product_type"] == "cv_professional"}
+    member_ever = {s.get("company_id") for s in subs if s["product_type"] == "company_membership" and s.get("company_id")}
+    total_candidates = await db.users.count_documents({"role": "candidate"})
+    total_companies = await db.companies.count_documents({})
+    return {
+        "revenue_today": rev_since(1), "revenue_week": rev_since(7),
+        "revenue_month": rev_since(30), "revenue_year": rev_since(365),
+        "revenue_total": sum(p["amount"] for p in payments),
+        "career_pro": product_stats("cv_professional"),
+        "company_member": product_stats("company_membership"),
+        "conversion": {
+            "candidates_total": total_candidates, "career_pro_ever": len(pro_ever),
+            "career_pro_rate": round(len(pro_ever) / total_candidates * 100, 1) if total_candidates else 0,
+            "companies_total": total_companies, "member_ever": len(member_ever),
+            "member_rate": round(len(member_ever) / total_companies * 100, 1) if total_companies else 0,
+        },
+    }
+
+
+# ---------- Global Search ----------
+@api_router.get("/admin/search")
+async def admin_search(q: str = "", user=Depends(require_staff)):
+    q = q.strip()
+    if len(q) < 2:
+        return {"users": [], "companies": [], "jobs": [], "applications": []}
+    regex = {"$regex": re.escape(q), "$options": "i"}
+    users = await db.users.find({"role": "candidate", "$or": [{"name": regex}, {"email": regex}]},
+                                {"_id": 0, "id": 1, "name": 1, "email": 1, "blocked": 1}).to_list(5)
+    companies = await db.companies.find({"$or": [{"name": regex}, {"email": regex}]},
+                                        {"_id": 0, "id": 1, "name": 1, "email": 1, "status": 1, "plan_type": 1}).to_list(5)
+    jobs = await db.jobs.find({"title": regex}, {"_id": 0, "id": 1, "title": 1, "status": 1, "slug": 1}).to_list(5)
+    apps = await db.applications.find({"$or": [{"name": regex}, {"job_title": regex}]},
+                                      {"_id": 0, "id": 1, "name": 1, "job_title": 1, "status": 1}).to_list(5)
+    return {"users": users, "companies": companies, "jobs": jobs, "applications": apps}
+
+
+# ---------- Export CSV ----------
+@api_router.get("/admin/export/{entity}")
+async def admin_export(entity: str, user=Depends(require_perm("export"))):
+    import csv
+    import io
+
+    configs = {
+        "users": ("users", {"role": "candidate"}, ["name", "email", "phone", "blocked", "created_at"]),
+        "companies": ("companies", {}, ["name", "email", "city", "status", "plan_type", "created_at"]),
+        "jobs": ("jobs", {}, ["title", "category", "location", "job_type", "status", "views", "created_at", "expires_at"]),
+        "applications": ("applications", {}, ["name", "email", "job_title", "company_name", "status", "apply_method", "created_at"]),
+        "subscriptions": ("subscriptions", {}, ["product_type", "status", "price", "started_at", "expires_at", "created_at"]),
+        "payments": ("payments", {}, ["product_name", "amount", "payment_method", "status", "submitted_at", "verified_at"]),
+    }
+    if entity not in configs:
+        raise HTTPException(status_code=404, detail="Entity tidak tersedia untuk export")
+    collection, query, fields = configs[entity]
+    buf = io.StringIO()
+    writer = csv.writer(buf)
+    writer.writerow(fields)
+    async for doc in db[collection].find(query, {"_id": 0}).limit(10000):
+        writer.writerow([doc.get(f, "") for f in fields])
+    await admin_log(user, f"Export {entity}", "export", entity, {"rows": await db[collection].count_documents(query)})
+    return RawResponse(content=buf.getvalue(), media_type="text/csv",
+                       headers={"Content-Disposition": f"attachment; filename=cirebonkarir-{entity}.csv"})
+
+
+# ---------- System Settings ----------
+class PlatformSettingsIn(BaseModel):
+    free_apply_limit: int
+    pro_apply_limit: int
+    free_post_limit: int
+    free_job_days: int
+    member_job_days: int
+
+
+@api_router.get("/admin/settings")
+async def admin_settings_get(user=Depends(require_perm("settings"))):
+    return await get_platform_settings()
+
+
+@api_router.put("/admin/settings")
+async def admin_settings_put(data: PlatformSettingsIn, user=Depends(require_perm("settings"))):
+    values = data.model_dump()
+    if any(v <= 0 for v in values.values()):
+        raise HTTPException(status_code=400, detail="Semua nilai harus lebih dari 0")
+    await db.platform_settings.update_one({"id": "platform_settings"},
+                                          {"$set": {**values, "updated_at": now_iso(), "updated_by": user["email"]}},
+                                          upsert=True)
+    await admin_log(user, "Ubah system settings", "settings", "platform_settings", values)
+    return await get_platform_settings()
+
+
+# ---------- Staff Management (Owner only) ----------
+class StaffIn(BaseModel):
+    name: str
+    email: EmailStr
+    password: str
+    permissions: list = []
+
+
+class StaffUpdateIn(BaseModel):
+    name: str = ""
+    permissions: list = []
+
+
+@api_router.get("/admin/staff")
+async def admin_staff_list(user=Depends(require_role("owner"))):
+    return await db.users.find({"role": {"$in": ["admin", "owner"]}},
+                               {"_id": 0, "password_hash": 0}).sort("created_at", 1).to_list(100)
+
+
+@api_router.post("/admin/staff")
+async def admin_staff_create(data: StaffIn, user=Depends(require_role("owner"))):
+    email = data.email.lower()
+    if await db.users.find_one({"email": email}):
+        raise HTTPException(status_code=400, detail="Email sudah terdaftar")
+    if len(data.password) < 6:
+        raise HTTPException(status_code=400, detail="Password minimal 6 karakter")
+    allowed_perms = {"users", "companies", "jobs", "monetization", "settings", "export"}
+    perms = [p for p in data.permissions if p in allowed_perms]
+    staff = {"id": str(uuid.uuid4()), "name": data.name.strip(), "email": email,
+             "phone": "", "password_hash": hash_password(data.password), "role": "admin",
+             "blocked": False, "permissions": perms, "created_at": now_iso()}
+    await db.users.insert_one(staff)
+    await admin_log(user, "Buat akun admin", "user", staff["id"], {"email": email, "permissions": perms})
+    staff.pop("_id", None)
+    staff.pop("password_hash", None)
+    return staff
+
+
+@api_router.put("/admin/staff/{staff_id}")
+async def admin_staff_update(staff_id: str, data: StaffUpdateIn, user=Depends(require_role("owner"))):
+    target = await db.users.find_one({"id": staff_id})
+    if not target or target["role"] != "admin":
+        raise HTTPException(status_code=404, detail="Admin tidak ditemukan")
+    update = {"permissions": [p for p in data.permissions if isinstance(p, str)]}
+    if data.name.strip():
+        update["name"] = data.name.strip()
+    await db.users.update_one({"id": staff_id}, {"$set": update})
+    await admin_log(user, "Ubah admin", "user", staff_id, update)
+    return await db.users.find_one({"id": staff_id}, {"_id": 0, "password_hash": 0})
+
+
+@api_router.post("/admin/staff/{staff_id}/status")
+async def admin_staff_status(staff_id: str, data: UserBlockIn, user=Depends(require_role("owner"))):
+    target = await db.users.find_one({"id": staff_id})
+    if not target:
+        raise HTTPException(status_code=404, detail="User tidak ditemukan")
+    if target["role"] == "owner":
+        raise HTTPException(status_code=400, detail="Tidak dapat menonaktifkan Owner")
+    await db.users.update_one({"id": staff_id}, {"$set": {"blocked": data.blocked}})
+    await admin_log(user, "Nonaktifkan admin" if data.blocked else "Aktifkan admin", "user", staff_id, {})
+    return {"blocked": data.blocked}
+
+
+# ---------- Audit Log gabungan ----------
+@api_router.get("/admin/audit-logs")
+async def admin_audit_logs(page: int = 1, limit: int = 20, user=Depends(require_staff)):
+    logs = await db.admin_audit_logs.find({}, {"_id": 0}).sort("created_at", -1).to_list(500)
+    mle = await db.membership_audit_logs.find({}, {"_id": 0}).sort("created_at", -1).to_list(500)
+    user_map = {u["id"]: u["email"] for u in await db.users.find({}, {"_id": 0, "id": 1, "email": 1}).to_list(3000)}
+    for m in mle:
+        logs.append({"id": m["id"], "actor_id": m.get("actor_id", ""),
+                     "actor_email": user_map.get(m.get("actor_id", ""), m.get("actor_id", "system")),
+                     "actor_role": "", "action": m.get("action", ""), "target_type": m.get("entity_type", ""),
+                     "target_id": m.get("entity_id", ""), "metadata": m.get("metadata", {}),
+                     "created_at": m.get("created_at", "")})
+    logs.sort(key=lambda l: l["created_at"], reverse=True)
+    total = len(logs)
+    start = max(page - 1, 0) * limit
+    return {"items": logs[start:start + limit], "total": total, "page": page,
+            "pages": max(1, (total + limit - 1) // limit)}
+
+
 # ---------- Seed ----------
 async def seed_admin():
     existing = await db.users.find_one({"email": ADMIN_EMAIL})
     if not existing:
         await db.users.insert_one({"id": str(uuid.uuid4()), "name": "Admin CirebonKarir", "email": ADMIN_EMAIL,
                                    "phone": "", "password_hash": hash_password(ADMIN_PASSWORD), "role": "admin",
-                                   "blocked": False, "created_at": now_iso()})
+                                   "blocked": False, "permissions": ["all"], "created_at": now_iso()})
         logger.info(f"Admin seeded: {ADMIN_EMAIL}")
     elif not verify_password(ADMIN_PASSWORD, existing.get("password_hash", "")):
         await db.users.update_one({"email": ADMIN_EMAIL}, {"$set": {"password_hash": hash_password(ADMIN_PASSWORD)}})
+    await db.users.update_one({"email": ADMIN_EMAIL, "permissions": {"$exists": False}},
+                              {"$set": {"permissions": ["all"]}})
 
 
 async def seed_categories():
@@ -2841,6 +3405,9 @@ async def startup():
     await db.interviews.create_index("company_id")
     await db.interviews.create_index("candidate_id")
     await db.invitations.create_index([("company_id", 1), ("job_id", 1), ("candidate_id", 1)], unique=True)
+    await db.admin_audit_logs.create_index("created_at")
+    await seed_owner()
+    await get_platform_settings()
     await get_launch_program()
     await db.membership_products.update_one(
         {"product_code": "cv_professional", "name": "CV Profesional"},

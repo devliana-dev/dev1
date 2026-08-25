@@ -9,31 +9,43 @@ export default function DashboardLayout({ menu, title, children }) {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
 
-  const notifPath = user?.role === "company" ? "/company/notifications" : user?.role === "admin" ? "/admin/notifications" : "/candidate/notifications";
+  const notifPath = user?.role === "company" ? "/company/notifications" : (user?.role === "admin" || user?.role === "owner") ? "/admin/notifications" : "/candidate/notifications";
 
   const handleLogout = async () => {
     await logout();
     navigate("/");
   };
 
+  const visibleMenu = menu.filter((item) => !item.ownerOnly || user?.role === "owner");
+
   const navItems = (
     <>
-      {menu.map((item) => (
-        <NavLink
-          key={item.to}
-          to={item.to}
-          end={item.end}
-          onClick={() => setOpen(false)}
-          className={({ isActive }) =>
-            `flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
-              isActive ? "bg-sky-50 text-sky-700" : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
-            }`
-          }
-          data-testid={`sidebar-${item.label.toLowerCase().replace(/\s+/g, "-")}`}
-        >
-          <item.icon className="h-4.5 w-4.5 h-5 w-5" /> {item.label}
-        </NavLink>
-      ))}
+      {visibleMenu.map((item) =>
+        item.header ? (
+          <p
+            key={item.header}
+            className="px-3 pt-4 pb-1 text-[10px] font-bold uppercase tracking-wider text-slate-400"
+            data-testid={`sidebar-group-${item.header.toLowerCase().replace(/\s+/g, "-")}`}
+          >
+            {item.header}
+          </p>
+        ) : (
+          <NavLink
+            key={item.to}
+            to={item.to}
+            end={item.end}
+            onClick={() => setOpen(false)}
+            className={({ isActive }) =>
+              `flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
+                isActive ? "bg-sky-50 text-sky-700" : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
+              }`
+            }
+            data-testid={`sidebar-${item.label.toLowerCase().replace(/\s+/g, "-")}`}
+          >
+            <item.icon className="h-4.5 w-4.5 h-5 w-5" /> {item.label}
+          </NavLink>
+        )
+      )}
       <button
         onClick={handleLogout}
         className="flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-sm font-medium text-red-600 hover:bg-red-50 transition-colors w-full text-left"

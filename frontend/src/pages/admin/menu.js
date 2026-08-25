@@ -1,13 +1,28 @@
-import { LayoutDashboard, Briefcase, Building2, Users, Send, Tag, Crown, Rocket, Bell } from "lucide-react";
+import {
+  LayoutDashboard, Activity, Users, Crown, Building2, Rocket, Briefcase,
+  Send, BarChart3, Wallet, Tag, ScrollText, ShieldCheck, Settings, Bell,
+} from "lucide-react";
 
 export const ADMIN_MENU = [
-  { to: "/admin", label: "Dashboard", icon: LayoutDashboard, end: true },
+  { to: "/admin", label: "Overview", icon: LayoutDashboard, end: true },
+  { to: "/admin/live-activity", label: "Live Activity", icon: Activity },
+  { header: "PELAMAR" },
+  { to: "/admin/candidates", label: "Semua Pelamar", icon: Users },
+  { to: "/admin/career-pro", label: "Career Pro", icon: Crown },
+  { header: "PERUSAHAAN" },
+  { to: "/admin/companies", label: "Semua Perusahaan", icon: Building2 },
   { to: "/admin/launch-program", label: "Launch Program", icon: Rocket },
-  { to: "/admin/jobs", label: "Lowongan", icon: Briefcase },
-  { to: "/admin/companies", label: "Perusahaan", icon: Building2 },
-  { to: "/admin/candidates", label: "Pencari Kerja", icon: Users },
+  { header: "LOWONGAN & LAMARAN" },
+  { to: "/admin/jobs", label: "Semua Lowongan", icon: Briefcase },
   { to: "/admin/applications", label: "Lamaran", icon: Send },
+  { header: "ANALITIK" },
+  { to: "/admin/analytics", label: "Analytics & Insight", icon: BarChart3 },
+  { header: "MONETISASI" },
+  { to: "/admin/monetisasi", label: "Monetization", icon: Wallet },
+  { header: "SISTEM" },
   { to: "/admin/categories", label: "Kategori", icon: Tag },
-  { to: "/admin/monetisasi", label: "Membership & Monetisasi", icon: Crown },
+  { to: "/admin/audit-log", label: "Audit Log", icon: ScrollText },
+  { to: "/admin/staff", label: "Tim Admin", icon: ShieldCheck, ownerOnly: true },
+  { to: "/admin/settings", label: "Settings", icon: Settings, ownerOnly: true },
   { to: "/admin/notifications", label: "Notifikasi", icon: Bell },
 ];
