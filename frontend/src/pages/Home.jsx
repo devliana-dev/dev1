@@ -3,10 +3,11 @@ import { Link, useNavigate } from "react-router-dom";
 import {
   Search, MapPin, Newspaper, MousePointerClick, ShieldCheck, ArrowRight, Briefcase,
   ClipboardList, Calculator, Megaphone, Car, Coffee, Settings, Code2, LayoutGrid,
-  Flame, BadgeCheck, Zap, TrendingUp, Package, User,
+  Flame, BadgeCheck, Zap, TrendingUp, Package, User, Store, Wallet,
 } from "lucide-react";
 import api from "../lib/api";
-import { LOCATIONS } from "../lib/constants";
+import { LOCATIONS, EMPLOYER_TYPES } from "../lib/constants";
+import { formatSalary, timeAgo } from "../lib/format";
 import JobListItem from "../components/JobListItem";
 import BlogCard from "../components/BlogCard";
 import FaqSection from "../components/FaqSection";
@@ -38,6 +39,7 @@ export default function Home() {
   const navigate = useNavigate();
   const [keyword, setKeyword] = useState("");
   const [location, setLocation] = useState("");
+  const [empType, setEmpType] = useState("");
   const [jobs, setJobs] = useState([]);
   const [stats, setStats] = useState({ active_jobs: 0, companies: 0 });
   const [loading, setLoading] = useState(true);
@@ -55,6 +57,7 @@ export default function Home() {
     const params = new URLSearchParams();
     if (keyword) params.set("q", keyword);
     if (location) params.set("location", location);
+    if (empType) params.set("employer_type", empType);
     navigate(`/jobs?${params.toString()}`);
   };
 
@@ -81,7 +84,20 @@ export default function Home() {
             Cari lowongan kerja terbaru dari berbagai perusahaan dan UMKM di Cirebon dan sekitarnya.
           </p>
 
-          <form onSubmit={search} className="mt-8 bg-white rounded-full p-2 shadow-xl border border-slate-100 flex flex-col md:flex-row gap-2 max-w-3xl" data-testid="hero-search-form">
+          <div className="mt-8 inline-flex flex-wrap rounded-full bg-white border border-slate-200 p-1 shadow-sm gap-1" data-testid="hero-employer-tabs">
+            {EMPLOYER_TYPES.map((t) => (
+              <button
+                key={t.value}
+                type="button"
+                onClick={() => setEmpType(t.value)}
+                className={`h-9 px-4 rounded-full text-sm font-semibold transition-colors ${empType === t.value ? "bg-slate-900 text-white" : "text-slate-600 hover:bg-slate-100"}`}
+                data-testid={`hero-etype-${t.value || "all"}`}
+              >
+                {t.label}
+              </button>
+            ))}
+          </div>
+          <form onSubmit={search} className="mt-4 bg-white rounded-full p-2 shadow-xl border border-slate-100 flex flex-col md:flex-row gap-2 max-w-3xl" data-testid="hero-search-form">
             <div className="flex items-center gap-2 flex-1 px-4 h-12">
               <Search className="h-5 w-5 text-slate-400 shrink-0" />
               <input
@@ -273,6 +289,9 @@ export default function Home() {
         </div>
       </section>
 
+      {/* Loker UMKM */}
+      <UmkmSection />
+
       {/* Why us */}
       <section className="bg-white border-y border-slate-200" data-testid="why-section">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
@@ -329,6 +348,72 @@ export default function Home() {
       {/* FAQ */}
       <FaqSection />
     </div>
+  );
+}
+
+function UmkmSection() {
+  const [jobs, setJobs] = useState(null);
+
+  useEffect(() => {
+    api.get("/jobs", { params: { employer_type: "umkm", limit: 4 } })
+      .then((r) => setJobs(r.data.items))
+      .catch(() => setJobs([]));
+  }, []);
+
+  if (!jobs || jobs.length === 0) return null;
+
+  return (
+    <section className="bg-amber-50/60 border-y border-amber-100" data-testid="umkm-jobs-section">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-14">
+        <div className="flex items-end justify-between mb-6">
+          <div>
+            <h2 className="font-display text-2xl sm:text-3xl font-bold text-slate-900 flex items-center gap-2.5">
+              <span className="inline-flex h-10 w-10 items-center justify-center rounded-xl bg-amber-100 text-amber-600">
+                <Store className="h-5 w-5" />
+              </span>
+              Loker UMKM Cirebon
+            </h2>
+            <p className="text-sm text-slate-500 mt-2">Temukan peluang kerja dari UMKM dan usaha lokal di Cirebon dan sekitarnya.</p>
+          </div>
+          <Link to="/jobs?employer_type=umkm" className="hidden sm:inline-flex items-center gap-1.5 h-11 px-5 rounded-lg border border-slate-300 bg-white text-sm font-semibold text-slate-700 hover:bg-slate-50 transition-colors" data-testid="view-all-umkm-link">
+            Lihat Semua Loker UMKM <ArrowRight className="h-4 w-4" />
+          </Link>
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5" data-testid="umkm-jobs-grid">
+          {jobs.map((job) => (
+            <div key={job.id} className="bg-white rounded-xl border border-slate-200 p-5 flex flex-col shadow-sm hover:shadow-md hover:border-amber-300 transition-[box-shadow,border-color] duration-200" data-testid={`umkm-job-card-${job.id}`}>
+              <div className="flex items-center justify-between gap-2">
+                <span className="px-2.5 py-1 rounded-full bg-amber-50 text-amber-700 border border-amber-200 text-[11px] font-semibold" data-testid={`umkm-badge-${job.id}`}>🏪 UMKM</span>
+                <span className="text-[11px] text-slate-400">{timeAgo(job.created_at)}</span>
+              </div>
+              <Link to={`/jobs/${job.slug}`} className="mt-3" data-testid={`umkm-job-title-${job.id}`}>
+                <h3 className="font-display font-bold text-slate-900 leading-snug hover:text-sky-700 transition-colors line-clamp-2">{job.title}</h3>
+              </Link>
+              <p className="mt-1.5 text-sm text-slate-500 flex items-center gap-1.5 min-w-0">
+                <Store className="h-3.5 w-3.5 text-slate-400 shrink-0" />
+                <span className="truncate">{job.company_name}</span>
+              </p>
+              <div className="mt-3 space-y-1.5 text-xs text-slate-500">
+                <p className="flex items-center gap-1.5"><MapPin className="h-3.5 w-3.5 text-slate-400 shrink-0" /> {job.location}</p>
+                <p className="flex items-center gap-1.5"><Wallet className="h-3.5 w-3.5 text-slate-400 shrink-0" /> {formatSalary(job.salary_min, job.salary_max)}</p>
+              </div>
+              <span className="mt-3 inline-flex self-start px-2.5 py-1 rounded-full bg-sky-50 text-sky-700 text-[11px] font-semibold">{job.job_type}</span>
+              <div className="mt-4 pt-4 border-t border-slate-100 grid grid-cols-2 gap-2">
+                <Link to={`/jobs/${job.slug}`} className="inline-flex items-center justify-center h-10 rounded-lg border border-slate-300 text-xs font-semibold text-slate-700 hover:bg-slate-50 transition-colors" data-testid={`umkm-detail-btn-${job.id}`}>Lihat Detail</Link>
+                <Link to={`/jobs/${job.slug}`} className="inline-flex items-center justify-center gap-1 h-10 rounded-lg bg-sky-600 text-white text-xs font-semibold hover:bg-sky-700 transition-colors" data-testid={`umkm-apply-btn-${job.id}`}>
+                  <Zap className="h-3.5 w-3.5" /> Lamar Sekarang
+                </Link>
+              </div>
+            </div>
+          ))}
+        </div>
+        <div className="mt-8 text-center sm:hidden">
+          <Link to="/jobs?employer_type=umkm" className="inline-flex items-center h-11 px-6 rounded-lg bg-slate-900 text-white text-sm font-semibold" data-testid="view-all-umkm-mobile-btn">
+            Lihat Semua Loker UMKM
+          </Link>
+        </div>
+      </div>
+    </section>
   );
 }
 

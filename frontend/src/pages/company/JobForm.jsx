@@ -6,12 +6,13 @@ import DashboardLayout from "../../components/DashboardLayout";
 import api, { formatApiError } from "../../lib/api";
 import { COMPANY_MENU } from "./menu";
 import { ADMIN_MENU } from "../admin/menu";
-import { LOCATIONS, JOB_TYPES, EDUCATION_LEVELS, CATEGORIES } from "../../lib/constants";
+import { LOCATIONS, JOB_TYPES, EDUCATION_LEVELS, CATEGORIES, UMKM_BUSINESS_CATEGORIES } from "../../lib/constants";
 
 const EMPTY = {
   title: "", category: "", location: "", job_type: "", salary_min: "", salary_max: "",
   education: "Tidak ada minimal", experience: "", age_requirement: "", description: "",
   responsibilities: "", requirements: "", benefits: "", deadline: "", whatsapp: "",
+  employer_type: "company", business_category: "", work_hours: "", slots: "",
 };
 
 export default function JobForm({ admin = false }) {
@@ -27,8 +28,14 @@ export default function JobForm({ admin = false }) {
   const backPath = admin ? "/admin/jobs" : "/company/jobs";
 
   useEffect(() => {
-    if (!admin) api.get("/company/entitlement").then((r) => setEnt(r.data)).catch(() => {});
-  }, [admin]);
+    if (admin) return;
+    api.get("/company/entitlement").then((r) => setEnt(r.data)).catch(() => {});
+    if (!isEdit) {
+      api.get("/company/profile").then((r) => {
+        if (r.data?.employer_type) setForm((f) => ({ ...f, employer_type: r.data.employer_type }));
+      }).catch(() => {});
+    }
+  }, [admin, isEdit]);
 
   useEffect(() => {
     if (!isEdit) return;
@@ -47,6 +54,8 @@ export default function JobForm({ admin = false }) {
           description: job.description || "", responsibilities: job.responsibilities || "",
           requirements: job.requirements || "", benefits: job.benefits || "",
           deadline: job.deadline || "", whatsapp: job.whatsapp || "",
+          employer_type: job.employer_type || "company", business_category: job.business_category || "",
+          work_hours: job.work_hours || "", slots: job.slots || "",
         });
       })
       .catch(() => navigate(backPath))
@@ -58,7 +67,7 @@ export default function JobForm({ admin = false }) {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setSaving(true);
-    const payload = { ...form, salary_min: Number(form.salary_min) || 0, salary_max: Number(form.salary_max) || 0 };
+    const payload = { ...form, salary_min: Number(form.salary_min) || 0, salary_max: Number(form.salary_max) || 0, slots: Number(form.slots) || 0 };
     try {
       if (isEdit) {
         if (admin) {
@@ -114,6 +123,26 @@ export default function JobForm({ admin = false }) {
           </div>
         )}
         <form onSubmit={handleSubmit} className="bg-white rounded-xl border border-slate-200 p-6 sm:p-8 space-y-5" data-testid="job-form">
+          <div data-testid="jf-employer-type-group">
+            <label className={labelCls}>Jenis Pemberi Kerja</label>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {[
+                { value: "company", label: "🏢 Perusahaan", desc: "PT, CV, yayasan, instansi, atau organisasi" },
+                { value: "umkm", label: "🏪 UMKM", desc: "Toko, warung, cafe, laundry, bengkel, usaha lokal" },
+              ].map((o) => (
+                <button
+                  type="button"
+                  key={o.value}
+                  onClick={() => setForm({ ...form, employer_type: o.value })}
+                  className={`rounded-xl border p-4 text-left transition-colors ${form.employer_type === o.value ? "border-sky-500 bg-sky-50 ring-1 ring-sky-500" : "border-slate-300 bg-white hover:bg-slate-50"}`}
+                  data-testid={`jf-etype-${o.value}`}
+                >
+                  <span className="text-sm font-semibold text-slate-900">{o.label}</span>
+                  <span className="block text-xs text-slate-500 mt-1">{o.desc}</span>
+                </button>
+              ))}
+            </div>
+          </div>
           <div>
             <label className={labelCls}>Nama Posisi</label>
             <input required value={form.title} onChange={set("title")} placeholder="Contoh: Staff Admin" className={inputCls} data-testid="jf-title-input" />
@@ -134,6 +163,28 @@ export default function JobForm({ admin = false }) {
               </select>
             </div>
           </div>
+          {form.employer_type === "umkm" && (
+            <div className="rounded-xl border border-amber-200 bg-amber-50/50 p-5 space-y-5" data-testid="jf-umkm-fields">
+              <p className="text-xs font-semibold text-amber-800 uppercase tracking-wide">Informasi Usaha UMKM</p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+                <div>
+                  <label className={labelCls}>Kategori Usaha</label>
+                  <select value={form.business_category} onChange={set("business_category")} className={`${inputCls} bg-white`} data-testid="jf-business-category-select">
+                    <option value="">Pilih Kategori Usaha</option>
+                    {UMKM_BUSINESS_CATEGORIES.map((c) => <option key={c} value={c}>{c}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className={labelCls}>Jumlah Kebutuhan (orang)</label>
+                  <input type="number" min="0" value={form.slots} onChange={set("slots")} placeholder="1" className={inputCls} data-testid="jf-slots-input" />
+                </div>
+              </div>
+              <div>
+                <label className={labelCls}>Jam Kerja</label>
+                <input value={form.work_hours} onChange={set("work_hours")} placeholder="Contoh: Senin-Sabtu 08.00-17.00" className={inputCls} data-testid="jf-work-hours-input" />
+              </div>
+            </div>
+          )}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
             <div>
               <label className={labelCls}>Tipe Pekerjaan</label>

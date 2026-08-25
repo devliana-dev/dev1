@@ -80,10 +80,18 @@ Lihat CHANGELOG.md (register role, admin edit job, hero, job list horizontal, ka
 - Curl E2E terverifikasi: register via referral → komisi Rp2.000 pending→approved→available → wallet benar → duplikat payment 400 → withdrawal kurang saldo ditolak → admin overview akurat.
 - Testing iterasi 9: 19/19 backend + semua flow UI lulus (`/app/test_reports/iteration_9.json`), termasuk withdrawal lengkap (process→paid), paused/resumed, refund-cancel, company member tanpa komisi, authorization matrix, mobile 390px. Nit review diperbaiki: paused_reason kosong saat aktif, DuplicateKeyError spesifik.
 
+## Iterasi 13 — Loker UMKM (25 Agu 2026)
+- **Model**: field `employer_type` ("company"/"umkm") di koleksi `companies` & `jobs` (migrasi aman via startup update_many — semua data existing = "company"); field opsional baru di jobs: `business_category` (kategori usaha), `work_hours` (jam kerja), `slots` (jumlah kebutuhan). Keputusan user: employer_type default dari profil perusahaan, bisa diubah per lowongan; halaman UMKM pakai /jobs existing dengan tab; 19 kategori usaha hardcoded di constants.
+- **Backend**: filter `employer_type` di GET /api/jobs (umkm → hanya UMKM, company → $ne umkm agar data lama masuk) + search mencakup business_category; filter employer_type di GET /api/admin/jobs; create_job/update_job normalisasi employer_type (fallback profil perusahaan); register-company & update profil simpan employer_type; company_stats + employer_type, new_applicants (terkirim), expired_jobs; attach_company fallback employer_type dari company; index jobs.employer_type; seed_demo_umkm idempotent (2 UMKM verified: Toko Sembako Barokah, Laundry Express Cirebon; 4 lowongan aktif + 1 pending).
+- **Frontend**: Home — toggle [Semua Loker|Perusahaan|🏪 Loker UMKM] di hero (hero-employer-tabs) + section "Loker UMKM Cirebon" (UmkmSection, 4 kartu badge amber + Lihat Detail + ⚡ Lamar Sekarang → detail page One-Click Apply existing); Jobs.jsx — tab employer-type-tabs + judul dinamis; JobListItem & JobDetail — badge 🏪 UMKM; JobDetail + info Kategori Usaha/Jam Kerja/Jumlah Kebutuhan; JobForm — pilihan Jenis Pemberi Kerja (jf-etype-*) + blok field UMKM (jf-umkm-fields); RegisterCompany — pilihan jenis pemberi kerja (label dinamis Nama Usaha); AdminJobs — filter jenis pemberi kerja + badge di tabel; CompanyDashboard — badge UMKM + kartu Lamaran Baru & Lowongan Expired; CompanyProfile — select jenis pemberi kerja + opsi kategori usaha kondisional; constants — EMPLOYER_TYPES & UMKM_BUSINESS_CATEGORIES.
+- One-Click Apply, moderasi, kuota, Career Pro, referral, membership — nol perubahan business logic.
+- Testing iterasi 13: 15/15 backend pytest + seluruh flow UI lulus termasuk mobile 390px (`/app/test_reports/iteration_13.json`). TEST 1-6 spesifikasi user semua lulus.
+
 ## Akun Demo
 - Owner: owner@cirebonkarir.com / owner123 (env OWNER_EMAIL/OWNER_PASSWORD)
 - Admin: muhamadwahid.sih@gmail.com / admin123
 - Perusahaan: demo@perusahaan.com / password123
+- UMKM: demo@umkm.com / password123 (Toko Sembako Barokah), laundry@umkm.com / password123 (Laundry Express Cirebon)
 - Pencari kerja: budi@example.com / password123 (Career Pro aktif)
 - Lainnya: /app/memory/test_credentials.md
 

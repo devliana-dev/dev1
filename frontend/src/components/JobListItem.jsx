@@ -38,6 +38,14 @@ export default function JobListItem({ job }) {
         </div>
       </div>
       <div className="mt-3.5 flex items-center justify-between gap-3 md:mt-0 md:contents">
+        {job.employer_type === "umkm" && (
+          <span
+            className="px-2.5 py-1 rounded-full bg-amber-50 text-amber-700 border border-amber-200 text-xs font-semibold whitespace-nowrap"
+            data-testid={`job-umkm-badge-${job.id}`}
+          >
+            🏪 UMKM
+          </span>
+        )}
         <span
           className="px-3 py-1 rounded-full bg-sky-50 text-sky-700 text-xs font-semibold whitespace-nowrap"
           data-testid={`job-category-${job.id}`}

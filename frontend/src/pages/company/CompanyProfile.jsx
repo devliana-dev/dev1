@@ -5,7 +5,7 @@ import DashboardLayout from "../../components/DashboardLayout";
 import api, { formatApiError } from "../../lib/api";
 import { useAuth } from "../../context/AuthContext";
 import { COMPANY_MENU } from "./menu";
-import { LOCATIONS, CATEGORIES, COMPANY_SIZES, COMPANY_STATUS } from "../../lib/constants";
+import { LOCATIONS, CATEGORIES, COMPANY_SIZES, COMPANY_STATUS, UMKM_BUSINESS_CATEGORIES } from "../../lib/constants";
 import { logoUrl } from "../../lib/format";
 import StatusBadge from "../../components/StatusBadge";
 
@@ -25,6 +25,7 @@ export default function CompanyProfile() {
         city: c.city || "", phone: c.phone || "", website: c.website || "",
         instagram: c.instagram || "", founded_year: c.founded_year || "",
         business_category: c.business_category || "", size: c.size || "",
+        employer_type: c.employer_type || "company",
       });
       setStatus(c.status);
       setLogo(c.logo);
@@ -132,16 +133,23 @@ export default function CompanyProfile() {
               <input value={form.instagram} onChange={set("instagram")} placeholder="@username" className="w-full h-11 px-3 rounded-lg border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-sky-500" data-testid="cp-instagram-input" />
             </div>
           </div>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1.5">Jenis Pemberi Kerja</label>
+              <select value={form.employer_type} onChange={set("employer_type")} className="w-full h-11 px-3 rounded-lg border border-slate-300 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-sky-500" data-testid="cp-employer-type-select">
+                <option value="company">🏢 Perusahaan</option>
+                <option value="umkm">🏪 UMKM</option>
+              </select>
+            </div>
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-1.5">Tahun Berdiri</label>
               <input value={form.founded_year} onChange={set("founded_year")} placeholder="2015" className="w-full h-11 px-3 rounded-lg border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-sky-500" data-testid="cp-founded-input" />
             </div>
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1.5">Kategori Bisnis</label>
+              <label className="block text-sm font-medium text-slate-700 mb-1.5">{form.employer_type === "umkm" ? "Kategori Usaha" : "Kategori Bisnis"}</label>
               <select value={form.business_category} onChange={set("business_category")} className="w-full h-11 px-3 rounded-lg border border-slate-300 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-sky-500" data-testid="cp-category-select">
                 <option value="">Pilih Kategori</option>
-                {CATEGORIES.map((c) => <option key={c} value={c}>{c}</option>)}
+                {(form.employer_type === "umkm" ? UMKM_BUSINESS_CATEGORIES : CATEGORIES).map((c) => <option key={c} value={c}>{c}</option>)}
               </select>
             </div>
             <div>

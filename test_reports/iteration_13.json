@@ -1,0 +1,25 @@
+{
+  "summary": "Iteration 13 (LOKER UMKM) full-stack testing completed. Backend: 15/15 pytest tests passed covering employer_type filter (umkm/company/none), UMKM search, job detail new fields (business_category/work_hours/slots), company stats (employer_type/new_applicants/expired_jobs), admin jobs filter, end-to-end post UMKM job -> admin approve -> visible in public list, register-company with employer_type=umkm, and regression (meta/companies/jobs/apply-quota). Frontend: All UMKM UI elements verified via Playwright — hero-employer-tabs with 3 tabs (Semua/Perusahaan/UMKM), hero-etype-umkm click + search navigates to /jobs?employer_type=umkm, umkm-jobs-section shows 4 cards with Lihat Semua Loker UMKM linking correctly, /jobs UMKM tab shows only UMKM cards (job-umkm-badge x5, heading '🏪 Loker UMKM'), JobDetail shows umkm-badge + Kategori Usaha/Jam Kerja/Jumlah Kebutuhan, quick-apply-button opens quick-apply-modal (submit successful, no error), Admin /admin/jobs shows employer-type-filter + 6 admin-umkm-badges, UMKM CompanyDashboard shows employer-type-badge + stat-new-applicants + stat-expired-jobs, CompanyProfile cp-employer-type-select='umkm', JobForm jf-etype-company/umkm/umkm-fields all visible & toggle works, /register-company shows rc-etype options and switching to UMKM changes label to 'Nama Usaha'. Mobile 390px: no horizontal overflow on homepage and /jobs?employer_type=umkm.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iteration13_umkm.py",
+    "/app/test_reports/pytest/iteration_13_results.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "Naming inconsistency: review request expected hero-employer-tab-* but code uses hero-etype-* (both work; container hero-employer-tabs present). Similarly submit button uses hero-search-btn instead of hero-search-submit. Not a bug, just doc drift — consider aligning testids with spec for future maintainability."
+  ],
+  "updated_files": ["/app/backend/tests/test_iteration13_umkm.py"],
+  "success_rate": {"backend": "100%", "frontend": "100%"},
+  "test_credentials": "Used demo@umkm.com/password123, laundry@umkm.com/password123, budi@example.com/password123, muhamadwahid.sih@gmail.com/admin123, demo@perusahaan.com/password123 — all from /app/memory/test_credentials.md",
+  "seed_data_creation": "Created 1 UMKM job 'TEST_ Karyawan Laundry Baru' via laundry@umkm.com and approved via admin during e2e test. Registered 1 TEST_UMKM_* company via /auth/register-company. Cleanup not performed (data prefixed TEST_ per convention).",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Iteration 13 LOKER UMKM feature is fully working end-to-end. Test data TEST_* left in DB (1 approved UMKM job under Laundry Express Cirebon, 1 TEST_UMKM_* company). No blocking issues. If regression needed later, reuse /app/backend/tests/test_iteration13_umkm.py.",
+  "rca of the issue": "N/A — no issues found."
+}

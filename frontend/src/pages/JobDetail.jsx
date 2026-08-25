@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import {
   MapPin, Wallet, Clock, BadgeCheck, ArrowLeft, Share2, MessageCircle,
-  GraduationCap, Briefcase, CalendarDays, Users, CheckCircle2, Loader2, Heart, Zap, X,
+  GraduationCap, Briefcase, CalendarDays, Users, CheckCircle2, Loader2, Heart, Zap, X, Store,
 } from "lucide-react";
 import { toast } from "sonner";
 import api from "../lib/api";
@@ -176,6 +176,11 @@ export default function JobDetail() {
           <div className="flex-1 min-w-0">
             <div className="flex flex-wrap items-center gap-2">
               <h1 className="font-display text-2xl sm:text-3xl font-bold text-slate-900">{job.title}</h1>
+              {job.employer_type === "umkm" && (
+                <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-amber-50 text-amber-700 border border-amber-200" data-testid="umkm-badge">
+                  🏪 UMKM
+                </span>
+              )}
               {closed && (
                 <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-red-100 text-red-700" data-testid="closed-badge">
                   Lowongan Ditutup
@@ -209,6 +214,7 @@ export default function JobDetail() {
           <h2 className="font-display font-semibold text-slate-900 mb-4">Informasi Lowongan</h2>
           <dl className="space-y-3 text-sm">
             {[
+              ...(job.employer_type === "umkm" && job.business_category ? [{ icon: Store, label: "Kategori Usaha", value: job.business_category }] : []),
               { icon: GraduationCap, label: "Pendidikan", value: job.education },
               { icon: Briefcase, label: "Pengalaman", value: job.experience || "-" },
               { icon: Users, label: "Usia", value: job.age_requirement || "-" },
@@ -216,6 +222,8 @@ export default function JobDetail() {
               { icon: Clock, label: "Tipe", value: job.job_type },
               { icon: Wallet, label: "Gaji", value: formatSalary(job.salary_min, job.salary_max) },
               { icon: CalendarDays, label: "Deadline", value: formatDate(job.deadline) },
+              ...(job.work_hours ? [{ icon: Clock, label: "Jam Kerja", value: job.work_hours }] : []),
+              ...(job.slots ? [{ icon: Users, label: "Jumlah Kebutuhan", value: `${job.slots} orang` }] : []),
             ].map((row) => (
               <div key={row.label} className="flex items-start gap-3">
                 <row.icon className="h-4 w-4 text-slate-400 mt-0.5" />

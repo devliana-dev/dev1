@@ -71,3 +71,15 @@ export const LANGUAGE_LEVELS = ["Dasar", "Menengah", "Fasih", "Native"];
 export const EDU_LEVEL_OPTIONS = ["SMP", "SMA", "SMK", "D1", "D3", "S1", "S2", "Kursus/Pelatihan"];
 
 export const PIPELINE_STEPS = ["terkirim", "dilihat", "diproses", "shortlist", "interview", "diterima"];
+
+export const EMPLOYER_TYPES = [
+  { value: "", label: "Semua Loker" },
+  { value: "company", label: "Perusahaan" },
+  { value: "umkm", label: "🏪 Loker UMKM" },
+];
+
+export const UMKM_BUSINESS_CATEGORIES = [
+  "Kuliner", "Retail", "Toko", "Cafe", "Restoran", "Laundry", "Bengkel", "Salon", "Barbershop",
+  "Jasa", "Manufaktur Kecil", "Distributor", "Percetakan", "Pertanian", "Peternakan", "Perdagangan",
+  "Teknologi", "Pendidikan", "Lainnya",
+];

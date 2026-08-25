@@ -156,7 +156,7 @@ async def expire_jobs():
 
 
 async def get_company_map():
-    companies = await db.companies.find({}, {"_id": 0, "id": 1, "name": 1, "slug": 1, "logo": 1, "status": 1, "city": 1}).to_list(2000)
+    companies = await db.companies.find({}, {"_id": 0, "id": 1, "name": 1, "slug": 1, "logo": 1, "status": 1, "employer_type": 1, "city": 1}).to_list(2000)
     return {c["id"]: c for c in companies}
 
 
@@ -166,6 +166,8 @@ def attach_company(job: dict, cmap: dict) -> dict:
     job["company_logo"] = c.get("logo", "")
     job["company_slug"] = c.get("slug", "")
     job["company_verified"] = c.get("status") == "verified"
+    if not job.get("employer_type"):
+        job["employer_type"] = c.get("employer_type", "company")
     return job
 
 
@@ -192,6 +194,12 @@ async def save_upload(user_id: str, file: UploadFile, kind: str) -> dict:
     return {"path": result["path"], "filename": file.filename}
 
 
+EMPLOYER_TYPES = ("company", "umkm")
+UMKM_BUSINESS_CATEGORIES = ["Kuliner", "Retail", "Toko", "Cafe", "Restoran", "Laundry", "Bengkel", "Salon",
+                            "Barbershop", "Jasa", "Manufaktur Kecil", "Distributor", "Percetakan", "Pertanian",
+                            "Peternakan", "Perdagangan", "Teknologi", "Pendidikan", "Lainnya"]
+
+
 # ---------- Pydantic models ----------
 class RegisterCandidateIn(BaseModel):
     name: str
@@ -207,6 +215,7 @@ class RegisterCompanyIn(BaseModel):
     phone: str
     password: str
     pic_name: str
+    employer_type: str = "company"
 
 
 class LoginIn(BaseModel):
@@ -230,6 +239,10 @@ class JobIn(BaseModel):
     benefits: str = ""
     deadline: str = ""
     whatsapp: str = ""
+    employer_type: str = "company"
+    business_category: str = ""
+    work_hours: str = ""
+    slots: int = 0
 
 
 class CompanyProfileIn(BaseModel):
@@ -243,6 +256,7 @@ class CompanyProfileIn(BaseModel):
     founded_year: str = ""
     business_category: str = ""
     size: str = ""
+    employer_type: str = ""
 
 
 class CandidateProfileIn(BaseModel):
@@ -313,6 +327,7 @@ async def register_company(data: RegisterCompanyIn, response: Response):
                "slug": f"{slugify(data.company_name)}-{uuid.uuid4().hex[:6]}", "logo": "", "description": "",
                "address": "", "city": "", "phone": data.phone.strip(), "email": email, "website": "",
                "instagram": "", "founded_year": "", "business_category": "", "size": "",
+               "employer_type": data.employer_type if data.employer_type in EMPLOYER_TYPES else "company",
                "status": "pending", "created_at": now_iso()}
     await db.companies.insert_one(company)
     token = create_access_token(user["id"], email, "company")
@@ -388,7 +403,7 @@ async def get_meta():
 
 @api_router.get("/jobs")
 async def list_jobs(q: str = "", location: str = "", job_type: str = "", education: str = "",
-                    salary: str = "", category: str = "", page: int = 1, limit: int = 12):
+                    salary: str = "", category: str = "", employer_type: str = "", page: int = 1, limit: int = 12):
     await expire_jobs()
     cmap = await get_company_map()
     blocked_ids = [cid for cid, c in cmap.items() if c.get("status") == "blocked"]
@@ -403,6 +418,10 @@ async def list_jobs(q: str = "", location: str = "", job_type: str = "", educati
         query["education"] = education
     if category:
         query["category"] = category
+    if employer_type == "umkm":
+        query["employer_type"] = "umkm"
+    elif employer_type == "company":
+        query["employer_type"] = {"$ne": "umkm"}
     if salary == "lt2":
         query["salary_max"] = {"$lte": 2000000}
     elif salary == "2-3":
@@ -414,7 +433,7 @@ async def list_jobs(q: str = "", location: str = "", job_type: str = "", educati
     if q:
         regex = {"$regex": re.escape(q), "$options": "i"}
         matched_companies = [cid for cid, c in cmap.items() if re.search(re.escape(q), c.get("name", ""), re.I)]
-        query["$or"] = [{"title": regex}, {"description": regex}, {"category": regex}]
+        query["$or"] = [{"title": regex}, {"description": regex}, {"category": regex}, {"business_category": regex}]
         if matched_companies:
             query["$or"].append({"company_id": {"$in": matched_companies}})
     total = await db.jobs.count_documents(query)
@@ -635,7 +654,8 @@ async def update_company_profile(data: CompanyProfileIn, user=Depends(require_ro
     company = await get_my_company(user)
     update = {"name": data.name.strip(), "description": data.description, "address": data.address,
               "city": data.city, "phone": data.phone, "website": data.website, "instagram": data.instagram,
-              "founded_year": data.founded_year, "business_category": data.business_category, "size": data.size}
+              "founded_year": data.founded_year, "business_category": data.business_category, "size": data.size,
+              "employer_type": data.employer_type if data.employer_type in EMPLOYER_TYPES else company.get("employer_type", "company")}
     await db.companies.update_one({"id": company["id"]}, {"$set": update})
     return await db.companies.find_one({"id": company["id"]}, {"_id": 0})
 
@@ -658,11 +678,14 @@ async def company_stats(user=Depends(require_role("company"))):
         {"company_id": company["id"], "status": {"$in": ["scheduled", "confirmed"]}})
     return {"total_jobs": len(jobs), "active_jobs": sum(1 for j in jobs if j["status"] == "active"),
             "pending_jobs": sum(1 for j in jobs if j["status"] == "pending"),
+            "expired_jobs": sum(1 for j in jobs if j["status"] == "expired"),
             "total_applicants": len(apps),
+            "new_applicants": sum(1 for a in apps if a["status"] == "terkirim"),
             "shortlisted": sum(1 for a in apps if a.get("is_shortlisted") or a["status"] == "shortlist"),
             "interview": interviews_count,
             "hired": sum(1 for a in apps if a["status"] == "diterima"),
-            "company_status": company["status"], "company_name": company["name"]}
+            "company_status": company["status"], "company_name": company["name"],
+            "employer_type": company.get("employer_type", "company")}
 
 
 @api_router.get("/company/entitlement")
@@ -695,9 +718,10 @@ async def create_job(data: JobIn, user=Depends(require_role("company"))):
                             detail="Kuota posting gratis bulan ini telah digunakan. Upgrade ke Member Perusahaan untuk posting lowongan dengan masa tayang 30 hari.")
     if ent["mode"] == "free" and not await consume_free_quota(company["id"]):
         raise HTTPException(status_code=403, detail="Kuota posting gratis bulan ini telah digunakan.")
+    employer_type = data.employer_type if data.employer_type in EMPLOYER_TYPES else company.get("employer_type", "company")
     job = {"id": str(uuid.uuid4()), "company_id": company["id"],
            "slug": f"{slugify(data.title)}-{slugify(data.location)}-{uuid.uuid4().hex[:6]}",
-           **data.model_dump(), "status": "pending", "rejection_reason": "",
+           **data.model_dump(), "employer_type": employer_type, "status": "pending", "rejection_reason": "",
            "listing_days": ent["listing_days"], "posting_mode": ent["mode"], "expires_at": "",
            "published_at": "", "views": 0, "created_at": now_iso()}
     await db.jobs.insert_one(job)
@@ -712,6 +736,8 @@ async def update_job(job_id: str, data: JobIn, user=Depends(require_role("compan
     if not job:
         raise HTTPException(status_code=404, detail="Lowongan tidak ditemukan")
     update = data.model_dump()
+    if update.get("employer_type") not in EMPLOYER_TYPES:
+        update["employer_type"] = company.get("employer_type", "company")
     update["status"] = "pending"
     update["rejection_reason"] = ""
     await db.jobs.update_one({"id": job_id}, {"$set": update})
@@ -812,9 +838,13 @@ async def admin_stats(user=Depends(require_role("admin"))):
 
 
 @api_router.get("/admin/jobs")
-async def admin_jobs(status: str = "", user=Depends(require_role("admin"))):
+async def admin_jobs(status: str = "", employer_type: str = "", user=Depends(require_role("admin"))):
     await expire_jobs()
     query = {"status": status} if status else {}
+    if employer_type == "umkm":
+        query["employer_type"] = "umkm"
+    elif employer_type == "company":
+        query["employer_type"] = {"$ne": "umkm"}
     jobs = await db.jobs.find(query, {"_id": 0}).sort("created_at", -1).to_list(1000)
     app_counts = {}
     async for row in db.applications.aggregate([{"$group": {"_id": "$job_id", "n": {"$sum": 1}}}]):
@@ -3800,11 +3830,96 @@ async def seed_demo_data():
     logger.info("Demo data seeded")
 
 
+async def seed_demo_umkm():
+    if await db.companies.count_documents({"employer_type": "umkm"}) > 0:
+        return
+    logger.info("Seeding demo UMKM data...")
+
+    def ago(days=0, hours=0):
+        return (datetime.now(timezone.utc) - timedelta(days=days, hours=hours)).isoformat()
+
+    def deadline(days=30):
+        return (datetime.now(timezone.utc) + timedelta(days=days)).date().isoformat()
+
+    specs = [
+        ("Toko Sembako Barokah", "demo@umkm.com", "Dedi Kurniawan", "SB", "D97706", "Toko",
+         "Toko sembako keluarga yang melayani kebutuhan harian warga Kota Cirebon sejak 2010."),
+        ("Laundry Express Cirebon", "laundry@umkm.com", "Maya Puspita", "LE", "0E7490", "Laundry",
+         "Usaha laundry kiloan dan satuan dengan layanan antar jemput area Kota Cirebon."),
+    ]
+    comp_ids = {}
+    for name, email, pic, initials, color, biz, desc in specs:
+        u = {"id": str(uuid.uuid4()), "name": pic, "email": email, "phone": "081298766001",
+             "password_hash": hash_password("password123"), "role": "company", "blocked": False, "created_at": now_iso()}
+        await db.users.insert_one(u)
+        comp = {"id": str(uuid.uuid4()), "user_id": u["id"], "name": name,
+                "slug": f"{slugify(name)}-{uuid.uuid4().hex[:6]}",
+                "logo": f"https://ui-avatars.com/api/?name={initials}&background={color}&color=fff&size=128&bold=true",
+                "description": desc, "address": "Jl. Pangeran Cakrabuana No. 12", "city": "Kota Cirebon",
+                "phone": "081298766001", "email": email, "website": "", "instagram": "", "founded_year": "2015",
+                "business_category": biz, "size": "1-10 karyawan", "status": "verified",
+                "employer_type": "umkm", "plan_type": "free", "created_at": now_iso()}
+        await db.companies.insert_one(comp)
+        comp_ids[name] = comp["id"]
+
+    def ujob(company, title, category, location, job_type, smin, smax, edu, biz, hours, slots, desc, reqs, resp, ben, status, created, dl):
+        return {"id": str(uuid.uuid4()), "company_id": comp_ids[company],
+                "slug": f"{slugify(title)}-{slugify(location)}-{uuid.uuid4().hex[:6]}",
+                "title": title, "category": category, "location": location, "job_type": job_type,
+                "salary_min": smin, "salary_max": smax, "education": edu, "experience": "Tidak ada minimal",
+                "age_requirement": "", "description": desc, "responsibilities": resp,
+                "requirements": reqs, "benefits": ben, "deadline": dl, "whatsapp": "081298766001",
+                "employer_type": "umkm", "business_category": biz, "work_hours": hours, "slots": slots,
+                "status": status, "rejection_reason": "", "listing_days": 30, "posting_mode": "free",
+                "views": 0, "published_at": created if status == "active" else "",
+                "expires_at": (datetime.now(timezone.utc) + timedelta(days=30)).isoformat() if status == "active" else "",
+                "created_at": created}
+
+    jobs = [
+        ujob("Toko Sembako Barokah", "Kasir Toko", "Retail", "Kota Cirebon", "Full Time", 1800000, 2500000, "SMA/SMK", "Toko",
+             "Senin-Sabtu 08.00-17.00", 2,
+             "Dibutuhkan kasir untuk toko sembako di pusat Kota Cirebon. Fresh graduate dipersilakan melamar.",
+             "Pendidikan minimal SMA/SMK\nJujur, ramah, dan teliti\nBersedia bekerja shift",
+             "Melayani transaksi pembayaran\nMenghitung kas harian\nMembantu penataan barang",
+             "Gaji UMK + bonus\nTHR\nMakan siang", "active", ago(hours=3), deadline(30)),
+        ujob("Toko Sembako Barokah", "Karyawan Toko", "Retail", "Kota Cirebon", "Full Time", 1800000, 2200000, "SMA/SMK", "Toko",
+             "Senin-Sabtu 08.00-20.00 (2 shift)", 3,
+             "Dibutuhkan karyawan toko untuk melayani pelanggan dan menata barang dagangan.",
+             "Pendidikan minimal SMA/SMK\nRajin dan bertanggung jawab\nDomisili Cirebon diutamakan",
+             "Melayani pelanggan\nMenata display barang\nMengecek stok harian",
+             "Gaji UMK\nTHR\nMakan siang", "active", ago(days=1), deadline(21)),
+        ujob("Laundry Express Cirebon", "Karyawan Laundry", "Lainnya", "Kota Cirebon", "Full Time", 1700000, 2200000, "SMA/SMK", "Laundry",
+             "Senin-Sabtu 08.00-16.00", 2,
+             "Usaha laundry kiloan membutuhkan karyawan untuk proses cuci, setrika, dan packing.",
+             "Pendidikan minimal SMA/SMK\nTeliti dan rapi\nBersedia belajar proses laundry",
+             "Mencuci dan menyetrika pakaian\nPacking pesanan pelanggan\nMenjaga kebersihan tempat kerja",
+             "Gaji + insentif\nTHR", "active", ago(days=2), deadline(30)),
+        ujob("Laundry Express Cirebon", "Kurir Antar Jemput Laundry", "Driver", "Kota Cirebon", "Part Time", 1200000, 1800000, "SMA/SMK", "Laundry",
+             "Fleksibel (antar jemput 2x sehari)", 1,
+             "Dibutuhkan kurir part time untuk antar jemput laundry pelanggan area Kota Cirebon.",
+             "Memiliki SIM C aktif\nMemiliki motor sendiri\nHafal area Kota Cirebon",
+             "Menjemput dan mengantar laundry pelanggan\nMelaporkan status pengantaran",
+             "Gaji + uang bensin\nJam kerja fleksibel", "active", ago(days=3), deadline(14)),
+        ujob("Toko Sembako Barokah", "Admin Online Shop", "Admin", "Kabupaten Cirebon", "Full Time", 2000000, 2800000, "SMA/SMK", "Toko",
+             "Senin-Sabtu 09.00-17.00", 1,
+             "Dibutuhkan admin untuk mengelola pesanan online shop dan chat pelanggan.",
+             "Pendidikan minimal SMA/SMK\nMengetik cepat dan rapi\nMenguasai marketplace (Shopee/Tokopedia)",
+             "Membalas chat pelanggan\nMemproses pesanan online\nMembuat laporan penjualan harian",
+             "Gaji pokok + bonus performa\nTHR", "pending", ago(hours=5), deadline(30)),
+    ]
+    await db.jobs.insert_many(jobs)
+    logger.info("Demo UMKM seeded")
+
+
 @app.on_event("startup")
 async def startup():
     await db.users.create_index("email", unique=True)
     await db.jobs.create_index("slug", unique=True)
     await db.jobs.create_index("status")
+    await db.jobs.create_index("employer_type")
+    await db.companies.update_many({"employer_type": {"$exists": False}}, {"$set": {"employer_type": "company"}})
+    await db.jobs.update_many({"employer_type": {"$exists": False}}, {"$set": {"employer_type": "company"}})
+    await seed_demo_umkm()
     await db.companies.create_index("slug", unique=True)
     await db.login_attempts.create_index("identifier")
     await db.cv_subscriptions.create_index("user_id")

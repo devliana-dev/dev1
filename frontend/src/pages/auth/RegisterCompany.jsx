@@ -8,7 +8,7 @@ import { formatApiError } from "../../lib/api";
 export default function RegisterCompany() {
   const { registerCompany } = useAuth();
   const navigate = useNavigate();
-  const [form, setForm] = useState({ company_name: "", email: "", phone: "", pic_name: "", password: "", confirm: "" });
+  const [form, setForm] = useState({ company_name: "", email: "", phone: "", pic_name: "", password: "", confirm: "", employer_type: "company" });
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
@@ -23,7 +23,7 @@ export default function RegisterCompany() {
     }
     setLoading(true);
     try {
-      await registerCompany({ company_name: form.company_name, email: form.email, phone: form.phone, pic_name: form.pic_name, password: form.password });
+      await registerCompany({ company_name: form.company_name, email: form.email, phone: form.phone, pic_name: form.pic_name, password: form.password, employer_type: form.employer_type });
       toast.success("Pendaftaran berhasil! Lengkapi profil perusahaan Anda.");
       navigate("/company/profile", { replace: true });
     } catch (err) {
@@ -53,8 +53,27 @@ export default function RegisterCompany() {
         </div>
         <form onSubmit={handleSubmit} className="bg-white rounded-xl border border-slate-200 p-6 sm:p-8 space-y-4" data-testid="register-company-form">
           {error && <div className="rounded-lg bg-red-50 border border-red-200 text-red-700 text-sm px-4 py-3" data-testid="register-company-error">{error}</div>}
+          <div data-testid="rc-employer-type-group">
+            <label className="block text-sm font-medium text-slate-700 mb-1.5">Jenis Pemberi Kerja</label>
+            <div className="grid grid-cols-2 gap-2">
+              {[
+                { value: "company", label: "🏢 Perusahaan" },
+                { value: "umkm", label: "🏪 UMKM" },
+              ].map((o) => (
+                <button
+                  type="button"
+                  key={o.value}
+                  onClick={() => setForm({ ...form, employer_type: o.value })}
+                  className={`h-12 rounded-lg border text-sm font-semibold transition-colors ${form.employer_type === o.value ? "border-sky-500 bg-sky-50 text-sky-800 ring-1 ring-sky-500" : "border-slate-300 bg-white text-slate-600 hover:bg-slate-50"}`}
+                  data-testid={`rc-etype-${o.value}`}
+                >
+                  {o.label}
+                </button>
+              ))}
+            </div>
+          </div>
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1.5">Nama Perusahaan</label>
+            <label className="block text-sm font-medium text-slate-700 mb-1.5">{form.employer_type === "umkm" ? "Nama Usaha" : "Nama Perusahaan"}</label>
             <input required value={form.company_name} onChange={set("company_name")} className="w-full h-11 px-3 rounded-lg border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-sky-500" data-testid="rc-name-input" />
           </div>
           <div>

@@ -17,18 +17,28 @@ const TABS = [
   { value: "expired", label: "Expired" },
 ];
 
+const ETABS = [
+  { value: "", label: "Semua" },
+  { value: "company", label: "Perusahaan" },
+  { value: "umkm", label: "🏪 UMKM" },
+];
+
 export default function AdminJobs() {
   const [tab, setTab] = useState("");
+  const [etype, setEtype] = useState("");
   const [jobs, setJobs] = useState([]);
   const [loading, setLoading] = useState(true);
 
   const fetchJobs = useCallback(() => {
     setLoading(true);
-    api.get("/admin/jobs", { params: tab ? { status: tab } : {} })
+    const params = {};
+    if (tab) params.status = tab;
+    if (etype) params.employer_type = etype;
+    api.get("/admin/jobs", { params })
       .then((r) => setJobs(r.data))
       .catch(() => {})
       .finally(() => setLoading(false));
-  }, [tab]);
+  }, [tab, etype]);
 
   useEffect(() => {
     fetchJobs();
@@ -85,6 +95,22 @@ export default function AdminJobs() {
           ))}
         </div>
 
+        <div className="flex flex-wrap items-center gap-2 mb-5" data-testid="employer-type-filter">
+          <span className="text-xs font-medium text-slate-500 mr-1">Jenis Pemberi Kerja:</span>
+          {ETABS.map((t) => (
+            <button
+              key={t.value}
+              onClick={() => setEtype(t.value)}
+              className={`h-9 px-4 rounded-full text-xs font-semibold transition-colors ${
+                etype === t.value ? "bg-sky-600 text-white" : "bg-white border border-slate-300 text-slate-600 hover:bg-slate-50"
+              }`}
+              data-testid={`etype-tab-${t.value || "all"}`}
+            >
+              {t.label}
+            </button>
+          ))}
+        </div>
+
         {loading ? (
           <div className="flex justify-center py-16"><Loader2 className="h-8 w-8 animate-spin text-sky-600" /></div>
         ) : jobs.length === 0 ? (
@@ -112,7 +138,12 @@ export default function AdminJobs() {
                   {jobs.map((job) => (
                     <tr key={job.id} data-testid={`admin-job-row-${job.id}`}>
                       <td className="px-5 py-3.5 font-medium text-slate-900">{job.title}</td>
-                      <td className="px-5 py-3.5 text-slate-600">{job.company_name}</td>
+                      <td className="px-5 py-3.5 text-slate-600">
+                        {job.company_name}
+                        {job.employer_type === "umkm" && (
+                          <span className="ml-1.5 px-1.5 py-0.5 rounded bg-amber-50 text-amber-700 border border-amber-200 text-[10px] font-semibold whitespace-nowrap" data-testid={`admin-umkm-badge-${job.id}`}>🏪 UMKM</span>
+                        )}
+                      </td>
                       <td className="px-5 py-3.5 text-slate-600">{job.category}</td>
                       <td className="px-5 py-3.5 text-center text-slate-600" data-testid={`job-views-${job.id}`}>{job.views || 0}</td>
                       <td className="px-5 py-3.5 text-center text-slate-600" data-testid={`job-applications-${job.id}`}>{job.applications || 0}</td>

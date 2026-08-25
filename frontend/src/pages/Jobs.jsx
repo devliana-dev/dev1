@@ -2,7 +2,7 @@ import { useEffect, useState, useCallback } from "react";
 import { useSearchParams } from "react-router-dom";
 import { Search, MapPin, SlidersHorizontal, X, ChevronLeft, ChevronRight } from "lucide-react";
 import api from "../lib/api";
-import { LOCATIONS, JOB_TYPES, EDUCATION_LEVELS, CATEGORIES, SALARY_RANGES } from "../lib/constants";
+import { LOCATIONS, JOB_TYPES, EDUCATION_LEVELS, CATEGORIES, SALARY_RANGES, EMPLOYER_TYPES } from "../lib/constants";
 import JobListItem from "../components/JobListItem";
 
 function FilterGroup({ title, options, value, onChange, testId }) {
@@ -45,6 +45,7 @@ export default function Jobs() {
   const education = searchParams.get("education") || "";
   const salary = searchParams.get("salary") || "";
   const category = searchParams.get("category") || "";
+  const employerType = searchParams.get("employer_type") || "";
   const page = Number(searchParams.get("page") || 1);
 
   const setParam = (key, value) => {
@@ -57,11 +58,11 @@ export default function Jobs() {
 
   const fetchJobs = useCallback(() => {
     setLoading(true);
-    api.get("/jobs", { params: { q, location, job_type: jobType, education, salary, category, page, limit: 12 } })
+    api.get("/jobs", { params: { q, location, job_type: jobType, education, salary, category, employer_type: employerType, page, limit: 12 } })
       .then((r) => setData(r.data))
       .catch(() => {})
       .finally(() => setLoading(false));
-  }, [q, location, jobType, education, salary, category, page]);
+  }, [q, location, jobType, education, salary, category, employerType, page]);
 
   useEffect(() => {
     fetchJobs();
@@ -92,7 +93,9 @@ export default function Jobs() {
     <div className="page-fade">
       <div className="bg-slate-900 py-10">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <h1 className="font-display text-2xl sm:text-3xl font-bold text-white">Cari Lowongan</h1>
+          <h1 className="font-display text-2xl sm:text-3xl font-bold text-white">
+            {employerType === "umkm" ? "🏪 Loker UMKM" : employerType === "company" ? "Loker Perusahaan" : "Cari Lowongan"}
+          </h1>
           <form
             onSubmit={(e) => {
               e.preventDefault();
@@ -120,6 +123,20 @@ export default function Jobs() {
       </div>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="flex flex-wrap gap-2 mb-6" data-testid="employer-type-tabs">
+          {EMPLOYER_TYPES.map((t) => (
+            <button
+              key={t.value}
+              onClick={() => setParam("employer_type", t.value)}
+              className={`h-10 px-4 rounded-full text-sm font-semibold transition-colors ${
+                employerType === t.value ? "bg-slate-900 text-white" : "bg-white border border-slate-300 text-slate-600 hover:bg-slate-50"
+              }`}
+              data-testid={`tab-etype-${t.value || "all"}`}
+            >
+              {t.label}
+            </button>
+          ))}
+        </div>
         <div className="lg:grid lg:grid-cols-[260px_1fr] lg:gap-8">
           <aside className="hidden lg:block">
             <div className="bg-white rounded-xl border border-slate-200 p-5 sticky top-24" data-testid="filters-sidebar">

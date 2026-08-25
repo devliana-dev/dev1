@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { Briefcase, CheckCircle2, Users, Clock, AlertTriangle, BadgeCheck, Crown, Rocket, Star, PhoneCall, UserCheck } from "lucide-react";
+import { Briefcase, CheckCircle2, Users, Clock, AlertTriangle, BadgeCheck, Crown, Rocket, Star, PhoneCall, UserCheck, Inbox, CalendarX2 } from "lucide-react";
 import DashboardLayout from "../../components/DashboardLayout";
 import LaunchBanner from "../../components/LaunchBanner";
 import api from "../../lib/api";
@@ -22,6 +22,8 @@ export default function CompanyDashboard() {
     { label: "Kandidat Shortlist", value: stats?.shortlisted, icon: Star, cls: "bg-amber-100 text-amber-700", testId: "stat-shortlisted" },
     { label: "Interview", value: stats?.interview, icon: PhoneCall, cls: "bg-blue-100 text-blue-700", testId: "stat-interviews" },
     { label: "Kandidat Diterima", value: stats?.hired, icon: UserCheck, cls: "bg-emerald-100 text-emerald-700", testId: "stat-hired" },
+    { label: "Lamaran Baru", value: stats?.new_applicants, icon: Inbox, cls: "bg-sky-100 text-sky-700", testId: "stat-new-applicants" },
+    { label: "Lowongan Expired", value: stats?.expired_jobs, icon: CalendarX2, cls: "bg-slate-200 text-slate-600", testId: "stat-expired-jobs" },
     { label: "Menunggu Persetujuan", value: stats?.pending_jobs, icon: Clock, cls: "bg-amber-100 text-amber-700", testId: "stat-pending-jobs" },
   ];
 
@@ -31,6 +33,9 @@ export default function CompanyDashboard() {
         <h2 className="font-display text-xl font-bold text-slate-900 flex items-center gap-2">
           {stats?.company_name || "Dashboard Perusahaan"}
           {stats?.company_status === "verified" && <BadgeCheck className="h-5 w-5 text-sky-600" />}
+          {stats?.employer_type === "umkm" && (
+            <span className="px-2.5 py-0.5 rounded-full bg-amber-50 text-amber-700 border border-amber-200 text-xs font-semibold" data-testid="employer-type-badge">🏪 UMKM</span>
+          )}
         </h2>
 
         {stats?.company_status === "pending" && (
