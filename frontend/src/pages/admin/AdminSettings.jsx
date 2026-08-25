@@ -11,6 +11,9 @@ const FIELDS = [
   { key: "free_post_limit", label: "Kuota Posting Gratis Perusahaan", hint: "Per bulan kalender" },
   { key: "free_job_days", label: "Masa Tayang Lowongan — Free (hari)", hint: "Berlaku untuk lowongan baru" },
   { key: "member_job_days", label: "Masa Tayang Lowongan — Member (hari)", hint: "Berlaku untuk Member & Launch Free" },
+  { key: "referral_commission", label: "Komisi Referral (Rp)", hint: "Komisi per pembelian Career Pro dari referral" },
+  { key: "min_withdrawal", label: "Minimum Withdrawal (Rp)", hint: "Saldo minimum untuk pengajuan penarikan" },
+  { key: "holding_days", label: "Holding Period Komisi (hari)", hint: "Komisi approved otomatis menjadi tersedia setelah periode ini" },
 ];
 
 const inputCls = "w-full h-11 px-3 rounded-lg border border-slate-300 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-sky-500";

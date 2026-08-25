@@ -61,6 +61,9 @@ import AdminAuditLogs from "@/pages/admin/AdminAuditLogs";
 import AdminStaff from "@/pages/admin/AdminStaff";
 import AdminSettings from "@/pages/admin/AdminSettings";
 import AdminCareerPro from "@/pages/admin/AdminCareerPro";
+import AdminReferrals from "@/pages/admin/AdminReferrals";
+import ReferralLanding from "@/pages/ReferralLanding";
+import ReferralDashboard from "@/pages/shared/ReferralDashboard";
 
 function ScrollToTop() {
   const { pathname } = useLocation();
@@ -92,6 +95,7 @@ function App() {
           <ScrollToTop />
           <Toaster position="top-center" richColors />
           <Routes>
+            <Route path="/r/:code" element={<ReferralLanding />} />
             <Route element={<PublicLayout />}>
               <Route path="/" element={<Home />} />
               <Route path="/jobs" element={<Jobs />} />
@@ -123,6 +127,7 @@ function App() {
             <Route path="/candidate/saved" element={protect("candidate", <SavedJobs />)} />
             <Route path="/candidate/job-alerts" element={protect("candidate", <JobAlerts />)} />
             <Route path="/candidate/notifications" element={protect("candidate", <NotificationsPage menu={CANDIDATE_MENU} />)} />
+            <Route path="/candidate/referral" element={protect("candidate", <ReferralDashboard menu={CANDIDATE_MENU} />)} />
 
             <Route path="/company/dashboard" element={protect("company", <CompanyDashboard />)} />
             <Route path="/company/profile" element={protect("company", <CompanyProfile />)} />
@@ -136,6 +141,7 @@ function App() {
             <Route path="/company/interviews" element={protect("company", <Interviews />)} />
             <Route path="/company/stats" element={protect("company", <CompanyStats />)} />
             <Route path="/company/notifications" element={protect("company", <NotificationsPage menu={COMPANY_MENU} />)} />
+            <Route path="/company/referral" element={protect("company", <ReferralDashboard menu={COMPANY_MENU} />)} />
 
             <Route path="/admin" element={protect("admin", <AdminDashboard />)} />
             <Route path="/admin/jobs" element={protect("admin", <AdminJobs />)} />
@@ -152,6 +158,7 @@ function App() {
             <Route path="/admin/audit-log" element={protect("admin", <AdminAuditLogs />)} />
             <Route path="/admin/staff" element={protect("admin", <AdminStaff />)} />
             <Route path="/admin/settings" element={protect("admin", <AdminSettings />)} />
+            <Route path="/admin/referrals" element={protect("admin", <AdminReferrals />)} />
             <Route path="/admin/notifications" element={protect("admin", <NotificationsPage menu={ADMIN_MENU} />)} />
 
             <Route path="*" element={<PublicLayout404 />} />

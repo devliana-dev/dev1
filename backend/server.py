@@ -17,6 +17,7 @@ from fastapi import (APIRouter, Depends, FastAPI, File, Form, HTTPException,
 from fastapi.responses import Response as RawResponse
 from motor.motor_asyncio import AsyncIOMotorClient
 from pymongo import ReturnDocument
+from pymongo.errors import DuplicateKeyError
 from pydantic import BaseModel, EmailStr
 from starlette.middleware.cors import CORSMiddleware
 
@@ -197,6 +198,7 @@ class RegisterCandidateIn(BaseModel):
     email: EmailStr
     phone: str
     password: str
+    referral_code: str = ""
 
 
 class RegisterCompanyIn(BaseModel):
@@ -284,6 +286,12 @@ async def register_candidate(data: RegisterCandidateIn, response: Response):
             "education": "", "experience": "", "about": "", "cv_path": "", "cv_filename": "",
             "created_at": now_iso()}
     await db.users.insert_one(user)
+    try:
+        await create_referral_code("candidate", user["id"], user["name"])
+        if data.referral_code:
+            await attribute_referral(user["id"], data.referral_code)
+    except Exception as e:
+        logger.warning(f"Referral setup failed for {email}: {e}")
     token = create_access_token(user["id"], email, "candidate")
     set_auth_cookie(response, token)
     user.pop("password_hash")
@@ -1571,6 +1579,7 @@ async def admin_mon_approve(payment_id: str, user=Depends(require_role("admin"))
                   {"amount": payment["amount"], "product": payment["product_code"]})
     await mle_log(user["id"], action, "subscription", sub_id,
                   {"expires_at": new_exp.isoformat(), "duration_days": duration})
+    await create_referral_commission(payment, user)
     return {"status": "approved", "expires_at": new_exp.isoformat()}
 
 
@@ -1647,6 +1656,14 @@ async def admin_mon_cancel(sub_id: str, user=Depends(require_role("admin"))):
     if sub["status"] != "active":
         raise HTTPException(status_code=400, detail="Hanya subscription aktif yang dapat dinonaktifkan")
     await db.subscriptions.update_one({"id": sub_id}, {"$set": {"status": "cancelled", "updated_at": now_iso()}})
+    sub_doc = await db.subscriptions.find_one({"id": sub_id}, {"_id": 0, "payment_id": 1})
+    if sub_doc and sub_doc.get("payment_id"):
+        await db.referral_commissions.update_many(
+            {"payment_id": sub_doc["payment_id"], "status": {"$in": ["pending", "approved", "available"]}},
+            {"$set": {"status": "cancelled", "updated_at": now_iso()}})
+        await db.referral_commissions.update_many(
+            {"payment_id": sub_doc["payment_id"], "status": "paid"},
+            {"$set": {"suspicious": True, "updated_at": now_iso()}})
     await mle_log(user["id"], "Subscription cancelled", "subscription", sub_id, {})
     return {"status": "cancelled"}
 
@@ -2679,6 +2696,7 @@ async def admin_career_pro(user=Depends(require_role("admin"))):
 DEFAULT_PLATFORM_SETTINGS = {
     "free_apply_limit": FREE_APPLY_LIMIT, "pro_apply_limit": PRO_APPLY_LIMIT,
     "free_post_limit": 1, "free_job_days": 7, "member_job_days": 30,
+    "referral_commission": 2000, "min_withdrawal": 50000, "holding_days": 7,
 }
 
 
@@ -2689,6 +2707,8 @@ async def get_platform_settings():
              "updated_at": now_iso(), "updated_by": "system"}
         await db.platform_settings.insert_one(s)
         s.pop("_id", None)
+    for key, value in DEFAULT_PLATFORM_SETTINGS.items():
+        s.setdefault(key, value)
     return s
 
 
@@ -3087,6 +3107,9 @@ class PlatformSettingsIn(BaseModel):
     free_post_limit: int
     free_job_days: int
     member_job_days: int
+    referral_commission: int
+    min_withdrawal: int
+    holding_days: int
 
 
 @api_router.get("/admin/settings")
@@ -3186,6 +3209,414 @@ async def admin_audit_logs(page: int = 1, limit: int = 20, user=Depends(require_
     start = max(page - 1, 0) * limit
     return {"items": logs[start:start + limit], "total": total, "page": page,
             "pages": max(1, (total + limit - 1) // limit)}
+
+
+# ======================================================================
+# Referral & Commission System (1 tingkat, komisi hanya dari Career Pro)
+# ======================================================================
+WITHDRAWAL_METHODS = ["bank", "dana", "ovo", "gopay"]
+
+
+def _ref_prefix(name):
+    prefix = "".join(ch for ch in (name or "CK").upper() if ch.isalnum())[:6]
+    return prefix or "CK"
+
+
+async def create_referral_code(owner_type, owner_id, name):
+    existing = await db.referral_codes.find_one({"owner_type": owner_type, "owner_id": owner_id}, {"_id": 0})
+    if existing:
+        return existing
+    prefix = _ref_prefix(name)
+    for _ in range(10):
+        code = f"{prefix}{uuid.uuid4().hex[:4].upper()}"
+        try:
+            doc = {"id": str(uuid.uuid4()), "owner_type": owner_type, "owner_id": owner_id,
+                   "code": code, "created_at": now_iso()}
+            await db.referral_codes.insert_one(doc)
+            doc.pop("_id", None)
+            return doc
+        except Exception:
+            continue
+    raise HTTPException(status_code=500, detail="Gagal membuat referral code")
+
+
+async def attribute_referral(user_id, code):
+    code = (code or "").strip().upper()
+    if not code:
+        return
+    code_doc = await db.referral_codes.find_one({"code": code})
+    if not code_doc:
+        return
+    if code_doc["owner_type"] == "candidate" and code_doc["owner_id"] == user_id:
+        return
+    ref = {"id": str(uuid.uuid4()), "referrer_type": code_doc["owner_type"],
+           "referrer_id": code_doc["owner_id"], "referee_user_id": user_id,
+           "referral_code": code_doc["code"], "created_at": now_iso()}
+    try:
+        await db.referrals.insert_one(ref)
+    except Exception:
+        pass  # attribution sudah terkunci: first valid referral menang
+
+
+async def referral_eligible(referrer_type, referrer_id):
+    if referrer_type == "candidate":
+        return bool(await get_active_subscription("cv_professional", user_id=referrer_id))
+    company = await db.companies.find_one({"id": referrer_id}, {"_id": 0})
+    if not company:
+        return False
+    plan = await compute_company_plan(company)
+    return plan["plan_type"] in ("member", "launch_free")
+
+
+async def create_referral_commission(payment, actor=None):
+    if payment.get("product_code") != "cv_professional":
+        return  # Company Member tidak menghasilkan komisi referral
+    referral = await db.referrals.find_one({"referee_user_id": payment["user_id"]})
+    if not referral:
+        return
+    if referral["referrer_type"] == "candidate" and referral["referrer_id"] == payment["user_id"]:
+        return  # self referral
+    if not await referral_eligible(referral["referrer_type"], referral["referrer_id"]):
+        return  # referral earning sedang dijeda
+    settings = await get_platform_settings()
+    commission = {"id": str(uuid.uuid4()), "payment_id": payment["id"],
+                  "referrer_type": referral["referrer_type"], "referrer_id": referral["referrer_id"],
+                  "referee_user_id": payment["user_id"], "amount": settings["referral_commission"],
+                  "status": "pending", "suspicious": False,
+                  "created_at": now_iso(), "updated_at": now_iso()}
+    try:
+        await db.referral_commissions.insert_one(commission)
+    except DuplicateKeyError:
+        return  # duplicate payment_id: satu transaksi hanya menghasilkan satu komisi
+    except Exception as e:
+        logger.error(f"Gagal membuat komisi referral untuk payment {payment['id']}: {e}")
+        return
+    uid = referral["referrer_id"]
+    if referral["referrer_type"] == "company":
+        comp = await db.companies.find_one({"id": referral["referrer_id"]}, {"_id": 0, "user_id": 1})
+        uid = (comp or {}).get("user_id", "")
+    buyer = await db.users.find_one({"id": payment["user_id"]}, {"_id": 0, "name": 1})
+    await notify(uid, "referral_commission", "Referral berhasil!",
+                 f"{(buyer or {}).get('name', 'Pengguna')} berhasil upgrade Career Pro. "
+                 f"Komisi Rp{settings['referral_commission']:,} sedang diproses.".replace(",", "."),
+                 "/candidate/referral" if referral["referrer_type"] == "candidate" else "/company/referral")
+    if actor:
+        await admin_log(actor, "Komisi referral dibuat", "referral_commission", commission["id"],
+                        {"payment_id": payment["id"], "amount": commission["amount"]})
+
+
+async def release_available_commissions():
+    settings = await get_platform_settings()
+    cutoff = (datetime.now(timezone.utc) - timedelta(days=settings["holding_days"])).isoformat()
+    async for c in db.referral_commissions.find({"status": "approved", "updated_at": {"$lte": cutoff}}):
+        res = await db.referral_commissions.update_one({"id": c["id"], "status": "approved"},
+                                                       {"$set": {"status": "available", "updated_at": now_iso()}})
+        if res.modified_count:
+            uid = c["referrer_id"]
+            if c["referrer_type"] == "company":
+                comp = await db.companies.find_one({"id": c["referrer_id"]}, {"_id": 0, "user_id": 1})
+                uid = (comp or {}).get("user_id", "")
+            await notify(uid, "referral_available", "Komisi tersedia",
+                         f"Komisi Rp{c['amount']:,} sudah tersedia untuk ditarik.".replace(",", "."),
+                         "/candidate/referral" if c["referrer_type"] == "candidate" else "/company/referral")
+
+
+async def referral_wallet(referrer_type, referrer_id):
+    comms = await db.referral_commissions.find({"referrer_type": referrer_type, "referrer_id": referrer_id},
+                                               {"_id": 0}).to_list(5000)
+    wds = await db.withdrawal_requests.find({"referrer_type": referrer_type, "referrer_id": referrer_id},
+                                            {"_id": 0}).to_list(500)
+    total_earned = sum(c["amount"] for c in comms if c["status"] in ("approved", "available", "paid"))
+    pending = sum(c["amount"] for c in comms if c["status"] in ("pending", "approved"))
+    available_sum = sum(c["amount"] for c in comms if c["status"] == "available")
+    in_withdrawal = sum(w["amount"] for w in wds if w["status"] in ("pending", "processing"))
+    withdrawn = sum(w["amount"] for w in wds if w["status"] == "paid")
+    return {"total_earned": total_earned, "pending": pending,
+            "available": max(0, available_sum - in_withdrawal),
+            "withdrawn": withdrawn, "in_withdrawal": in_withdrawal}
+
+
+async def _my_referrer_identity(user):
+    if user["role"] == "candidate":
+        return "candidate", user["id"]
+    if user["role"] == "company":
+        company = await get_my_company(user)
+        return "company", company["id"]
+    raise HTTPException(status_code=403, detail="Akses ditolak")
+
+
+@api_router.get("/referrals/validate/{code}")
+async def validate_referral_code(code: str):
+    code_doc = await db.referral_codes.find_one({"code": code.strip().upper()}, {"_id": 0})
+    if not code_doc:
+        return {"valid": False}
+    if code_doc["owner_type"] == "candidate":
+        u = await db.users.find_one({"id": code_doc["owner_id"]}, {"_id": 0, "name": 1})
+        name = ((u or {}).get("name") or "Pengguna CirebonKarir").split(" ")[0]
+    else:
+        c = await db.companies.find_one({"id": code_doc["owner_id"]}, {"_id": 0, "name": 1})
+        name = (c or {}).get("name", "Perusahaan CirebonKarir")
+    return {"valid": True, "referrer_name": name, "referrer_type": code_doc["owner_type"], "code": code_doc["code"]}
+
+
+@api_router.get("/referral/me")
+async def referral_me(user=Depends(get_current_user)):
+    await release_available_commissions()
+    rtype, rid = await _my_referrer_identity(user)
+    active = await referral_eligible(rtype, rid)
+    code_doc = await db.referral_codes.find_one({"owner_type": rtype, "owner_id": rid}, {"_id": 0})
+    if rtype == "candidate":
+        if not code_doc:
+            code_doc = await create_referral_code(rtype, rid, user["name"])
+        paused_reason = "Referral kamu sedang dijeda karena Career Pro kamu sudah tidak aktif."
+        activate_link = "/candidate/cv-professional"
+        activate_label = "Aktifkan Career Pro"
+    else:
+        company = await get_my_company(user)
+        if active and not code_doc:
+            code_doc = await create_referral_code(rtype, rid, company["name"])
+        paused_reason = "Referral kamu sedang dijeda karena Company Member kamu sudah tidak aktif."
+        activate_link = "/company/membership"
+        activate_label = "Aktifkan Member"
+    wallet = await referral_wallet(rtype, rid)
+    settings = await get_platform_settings()
+    return {"code": (code_doc or {}).get("code", ""), "active": active,
+            "paused_reason": "" if active else paused_reason, "activate_link": activate_link, "activate_label": activate_label,
+            "wallet": wallet,
+            "total_referrals": await db.referrals.count_documents({"referrer_type": rtype, "referrer_id": rid}),
+            "conversions": await db.referral_commissions.count_documents({"referrer_type": rtype, "referrer_id": rid}),
+            "settings": {"commission": settings["referral_commission"],
+                         "min_withdrawal": settings["min_withdrawal"],
+                         "holding_days": settings["holding_days"]}}
+
+
+@api_router.get("/referral/referrals")
+async def my_referrals(user=Depends(get_current_user)):
+    rtype, rid = await _my_referrer_identity(user)
+    refs = await db.referrals.find({"referrer_type": rtype, "referrer_id": rid}, {"_id": 0}).sort("created_at", -1).to_list(500)
+    ids = [r["referee_user_id"] for r in refs]
+    user_map = {u["id"]: u["name"] for u in await db.users.find({"id": {"$in": ids}}, {"_id": 0, "id": 1, "name": 1}).to_list(500)} if ids else {}
+    comms = {}
+    async for c in db.referral_commissions.find({"referrer_type": rtype, "referrer_id": rid}, {"_id": 0}):
+        comms[c["referee_user_id"]] = c
+    return [{"name": user_map.get(r["referee_user_id"], "Pengguna"), "registered_at": r["created_at"],
+             "product": "Career Pro" if r["referee_user_id"] in comms else "-",
+             "amount": comms[r["referee_user_id"]]["amount"] if r["referee_user_id"] in comms else 0,
+             "commission_status": comms[r["referee_user_id"]]["status"] if r["referee_user_id"] in comms else ""}
+            for r in refs]
+
+
+@api_router.get("/referral/commissions")
+async def my_commissions(user=Depends(get_current_user)):
+    rtype, rid = await _my_referrer_identity(user)
+    comms = await db.referral_commissions.find({"referrer_type": rtype, "referrer_id": rid}, {"_id": 0}).sort("created_at", -1).to_list(500)
+    ids = [c["referee_user_id"] for c in comms]
+    user_map = {u["id"]: u["name"] for u in await db.users.find({"id": {"$in": ids}}, {"_id": 0, "id": 1, "name": 1}).to_list(500)} if ids else {}
+    for c in comms:
+        c["buyer_name"] = user_map.get(c["referee_user_id"], "Pengguna")
+    return comms
+
+
+class WithdrawalIn(BaseModel):
+    amount: int
+    method: str
+    account_name: str
+    account_number: str
+
+
+@api_router.post("/referral/withdrawals")
+async def request_withdrawal(data: WithdrawalIn, user=Depends(get_current_user)):
+    rtype, rid = await _my_referrer_identity(user)
+    if not await referral_eligible(rtype, rid):
+        raise HTTPException(status_code=403,
+                            detail="Referral earning sedang dijeda. Perpanjang paket untuk mengaktifkan kembali pencairan komisi.")
+    settings = await get_platform_settings()
+    if data.method not in WITHDRAWAL_METHODS:
+        raise HTTPException(status_code=400, detail="Metode pencairan tidak valid")
+    if not data.account_name.strip() or not data.account_number.strip():
+        raise HTTPException(status_code=400, detail="Data rekening/e-wallet wajib lengkap")
+    wallet = await referral_wallet(rtype, rid)
+    if data.amount < settings["min_withdrawal"]:
+        raise HTTPException(status_code=400,
+                            detail=f"Minimum penarikan Rp{settings['min_withdrawal']:,}".replace(",", "."))
+    if data.amount > wallet["available"]:
+        raise HTTPException(status_code=400, detail="Saldo tersedia tidak mencukupi")
+    wd = {"id": str(uuid.uuid4()), "referrer_type": rtype, "referrer_id": rid,
+          "amount": data.amount, "method": data.method, "account_name": data.account_name.strip(),
+          "account_number": data.account_number.strip(), "status": "pending", "admin_note": "",
+          "created_at": now_iso(), "updated_at": now_iso()}
+    await db.withdrawal_requests.insert_one(wd)
+    wd.pop("_id", None)
+    return wd
+
+
+@api_router.get("/referral/withdrawals")
+async def my_withdrawals(user=Depends(get_current_user)):
+    rtype, rid = await _my_referrer_identity(user)
+    return await db.withdrawal_requests.find({"referrer_type": rtype, "referrer_id": rid}, {"_id": 0}).sort("created_at", -1).to_list(100)
+
+
+# ---------- Admin: Referral Management ----------
+class ReferralActionIn(BaseModel):
+    action: str
+    note: str = ""
+
+
+async def _referrer_owner_info(referrer_type, referrer_id, user_map, comp_map):
+    if referrer_type == "candidate":
+        u = user_map.get(referrer_id, {})
+        return u.get("name", "-"), u.get("email", "-")
+    comp = comp_map.get(referrer_id, {})
+    return comp.get("name", "-"), comp.get("email", "-")
+
+
+@api_router.get("/admin/referrals/overview")
+async def admin_referral_overview(user=Depends(require_perm("monetization"))):
+    await release_available_commissions()
+    comms = await db.referral_commissions.find({}, {"_id": 0}).to_list(10000)
+    codes = await db.referral_codes.find({}, {"_id": 0}).to_list(5000)
+    wds = await db.withdrawal_requests.find({}, {"_id": 0}).to_list(1000)
+    active_refs, paused_refs = 0, 0
+    for c in codes:
+        if await referral_eligible(c["owner_type"], c["owner_id"]):
+            active_refs += 1
+        else:
+            paused_refs += 1
+
+    def s(statuses):
+        return sum(c["amount"] for c in comms if c["status"] in statuses)
+
+    return {
+        "total_referrers": len(codes), "active_referrers": active_refs, "paused_referrers": paused_refs,
+        "total_referred": await db.referrals.count_documents({}),
+        "conversions": len(comms),
+        "commission_total": sum(c["amount"] for c in comms if c["status"] not in ("rejected", "cancelled")),
+        "commission_pending": s(("pending", "approved")), "commission_available": s(("available",)),
+        "commission_paid": s(("paid",)),
+        "withdrawal_total": sum(w["amount"] for w in wds if w["status"] == "paid"),
+        "withdrawal_pending": sum(1 for w in wds if w["status"] in ("pending", "processing")),
+        "suspicious": [c for c in comms if c.get("suspicious")][:20],
+    }
+
+
+@api_router.get("/admin/referrals/referrers")
+async def admin_referrers(role: str = "", status: str = "", user=Depends(require_perm("monetization"))):
+    codes = await db.referral_codes.find({}, {"_id": 0}).sort("created_at", -1).to_list(1000)
+    user_map = {u["id"]: u for u in await db.users.find({}, {"_id": 0, "id": 1, "name": 1, "email": 1, "blocked": 1}).to_list(3000)}
+    comp_map = {c["id"]: c for c in await db.companies.find({}, {"_id": 0, "id": 1, "name": 1, "email": 1, "user_id": 1}).to_list(1000)}
+    items = []
+    for c in codes:
+        if role and c["owner_type"] != role:
+            continue
+        name, email = await _referrer_owner_info(c["owner_type"], c["owner_id"], user_map, comp_map)
+        blocked = user_map.get(c["owner_id"], {}).get("blocked", False) if c["owner_type"] == "candidate" \
+            else user_map.get(comp_map.get(c["owner_id"], {}).get("user_id", ""), {}).get("blocked", False)
+        active = await referral_eligible(c["owner_type"], c["owner_id"])
+        ref_status = "suspended" if blocked else ("active" if active else "paused")
+        if status and ref_status != status:
+            continue
+        wallet = await referral_wallet(c["owner_type"], c["owner_id"])
+        items.append({"owner_type": c["owner_type"], "owner_id": c["owner_id"], "code": c["code"],
+                      "name": name, "email": email, "referral_status": ref_status,
+                      "total_referrals": await db.referrals.count_documents({"referrer_type": c["owner_type"], "referrer_id": c["owner_id"]}),
+                      "conversions": await db.referral_commissions.count_documents({"referrer_type": c["owner_type"], "referrer_id": c["owner_id"]}),
+                      "wallet": wallet, "created_at": c["created_at"]})
+    return items
+
+
+@api_router.get("/admin/referrals/commissions")
+async def admin_referral_commissions(status: str = "", user=Depends(require_perm("monetization"))):
+    query = {"status": status} if status else {}
+    comms = await db.referral_commissions.find(query, {"_id": 0}).sort("created_at", -1).to_list(1000)
+    user_map = {u["id"]: u for u in await db.users.find({}, {"_id": 0, "id": 1, "name": 1, "email": 1}).to_list(3000)}
+    comp_map = {c["id"]: c for c in await db.companies.find({}, {"_id": 0, "id": 1, "name": 1, "email": 1}).to_list(1000)}
+    for c in comms:
+        c["referrer_name"], c["referrer_email"] = await _referrer_owner_info(c["referrer_type"], c["referrer_id"], user_map, comp_map)
+        c["buyer_name"] = user_map.get(c["referee_user_id"], {}).get("name", "-")
+    return comms
+
+
+@api_router.post("/admin/referrals/commissions/{comm_id}/action")
+async def admin_commission_action(comm_id: str, data: ReferralActionIn, user=Depends(require_perm("monetization"))):
+    c = await db.referral_commissions.find_one({"id": comm_id})
+    if not c:
+        raise HTTPException(status_code=404, detail="Komisi tidak ditemukan")
+    transitions = {"approve": {"pending": "approved"}, "release": {"approved": "available"},
+                   "reject": {"pending": "rejected", "approved": "rejected"},
+                   "cancel": {"pending": "cancelled", "approved": "cancelled", "available": "cancelled"}}
+    mapping = transitions.get(data.action)
+    if not mapping or c["status"] not in mapping:
+        raise HTTPException(status_code=400, detail=f"Aksi {data.action} tidak valid untuk status {c['status']}")
+    new_status = mapping[c["status"]]
+    update = {"status": new_status, "updated_at": now_iso()}
+    if data.note:
+        update["admin_note"] = data.note
+    if data.action == "reject":
+        update["suspicious"] = True
+    await db.referral_commissions.update_one({"id": comm_id}, {"$set": update})
+    if new_status == "available":
+        uid = c["referrer_id"]
+        if c["referrer_type"] == "company":
+            comp = await db.companies.find_one({"id": c["referrer_id"]}, {"_id": 0, "user_id": 1})
+            uid = (comp or {}).get("user_id", "")
+        await notify(uid, "referral_available", "Komisi tersedia",
+                     f"Komisi Rp{c['amount']:,} sudah tersedia untuk ditarik.".replace(",", "."),
+                     "/candidate/referral" if c["referrer_type"] == "candidate" else "/company/referral")
+    await admin_log(user, f"Komisi referral {data.action}", "referral_commission", comm_id,
+                    {"from": c["status"], "to": new_status, "note": data.note})
+    return {"status": new_status}
+
+
+@api_router.get("/admin/referrals/withdrawals")
+async def admin_withdrawals(status: str = "", user=Depends(require_perm("monetization"))):
+    query = {"status": status} if status else {}
+    wds = await db.withdrawal_requests.find(query, {"_id": 0}).sort("created_at", -1).to_list(500)
+    user_map = {u["id"]: u for u in await db.users.find({}, {"_id": 0, "id": 1, "name": 1, "email": 1}).to_list(3000)}
+    comp_map = {c["id"]: c for c in await db.companies.find({}, {"_id": 0, "id": 1, "name": 1, "email": 1}).to_list(1000)}
+    for w in wds:
+        w["owner_name"], w["owner_email"] = await _referrer_owner_info(w["referrer_type"], w["referrer_id"], user_map, comp_map)
+    return wds
+
+
+@api_router.post("/admin/referrals/withdrawals/{wd_id}/action")
+async def admin_withdrawal_action(wd_id: str, data: ReferralActionIn, user=Depends(require_perm("monetization"))):
+    wd = await db.withdrawal_requests.find_one({"id": wd_id})
+    if not wd:
+        raise HTTPException(status_code=404, detail="Penarikan tidak ditemukan")
+    transitions = {"process": {"pending": "processing"},
+                   "paid": {"pending": "paid", "processing": "paid"},
+                   "reject": {"pending": "rejected", "processing": "rejected"}}
+    mapping = transitions.get(data.action)
+    if not mapping or wd["status"] not in mapping:
+        raise HTTPException(status_code=400, detail=f"Aksi {data.action} tidak valid untuk status {wd['status']}")
+    new_status = mapping[wd["status"]]
+    update = {"status": new_status, "updated_at": now_iso(), "processed_by": user["email"]}
+    if data.note:
+        update["admin_note"] = data.note
+    await db.withdrawal_requests.update_one({"id": wd_id}, {"$set": update})
+    uid = wd["referrer_id"]
+    if wd["referrer_type"] == "company":
+        comp = await db.companies.find_one({"id": wd["referrer_id"]}, {"_id": 0, "user_id": 1})
+        uid = (comp or {}).get("user_id", "")
+    if new_status == "paid":
+        remaining = wd["amount"]
+        async for c in db.referral_commissions.find(
+                {"referrer_type": wd["referrer_type"], "referrer_id": wd["referrer_id"], "status": "available"},
+                {"_id": 0}).sort("created_at", 1):
+            if remaining <= 0:
+                break
+            await db.referral_commissions.update_one({"id": c["id"]}, {"$set": {"status": "paid", "updated_at": now_iso()}})
+            remaining -= c["amount"]
+        await notify(uid, "withdrawal_paid", "Penarikan komisi dibayar",
+                     f"Penarikan Rp{wd['amount']:,} telah dibayar ke {wd['method']} {wd['account_number']}.".replace(",", "."),
+                     "/candidate/referral" if wd["referrer_type"] == "candidate" else "/company/referral")
+    elif new_status == "rejected":
+        await notify(uid, "withdrawal_rejected", "Penarikan komisi ditolak",
+                     f"Penarikan Rp{wd['amount']:,} ditolak. {data.note}".replace(",", "."),
+                     "/candidate/referral" if wd["referrer_type"] == "candidate" else "/company/referral")
+    await admin_log(user, f"Withdrawal {data.action}", "withdrawal", wd_id,
+                    {"amount": wd["amount"], "from": wd["status"], "to": new_status})
+    return {"status": new_status}
 
 
 # ---------- Seed ----------
@@ -3406,6 +3837,12 @@ async def startup():
     await db.interviews.create_index("candidate_id")
     await db.invitations.create_index([("company_id", 1), ("job_id", 1), ("candidate_id", 1)], unique=True)
     await db.admin_audit_logs.create_index("created_at")
+    await db.referral_codes.create_index("code", unique=True)
+    await db.referral_codes.create_index([("owner_type", 1), ("owner_id", 1)], unique=True)
+    await db.referrals.create_index("referee_user_id", unique=True)
+    await db.referral_commissions.create_index("payment_id", unique=True)
+    await db.referral_commissions.create_index([("referrer_type", 1), ("referrer_id", 1)])
+    await db.withdrawal_requests.create_index([("referrer_type", 1), ("referrer_id", 1)])
     await seed_owner()
     await get_platform_settings()
     await get_launch_program()

@@ -1,4 +1,4 @@
-import { LayoutDashboard, Building2, Briefcase, FilePlus2, Users, Crown, UserSearch, Star, CalendarCheck, BarChart3, Bell } from "lucide-react";
+import { LayoutDashboard, Building2, Briefcase, FilePlus2, Users, Crown, UserSearch, Star, CalendarCheck, BarChart3, Bell, Gift } from "lucide-react";
 
 export const COMPANY_MENU = [
   { to: "/company/dashboard", label: "Dashboard", icon: LayoutDashboard, end: true },
@@ -10,6 +10,7 @@ export const COMPANY_MENU = [
   { to: "/company/interviews", label: "Interview", icon: CalendarCheck },
   { to: "/company/stats", label: "Statistik", icon: BarChart3 },
   { to: "/company/membership", label: "Membership", icon: Crown },
+  { to: "/company/referral", label: "Referral", icon: Gift },
   { to: "/company/profile", label: "Profil Perusahaan", icon: Building2 },
   { to: "/company/notifications", label: "Notifikasi", icon: Bell },
 ];

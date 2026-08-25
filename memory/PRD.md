@@ -69,6 +69,17 @@ Lihat CHANGELOG.md (register role, admin edit job, hero, job list horizontal, ka
 - **Frontend**: AdminDashboard rewrite (global search, health banner, alert center, 9 KPI clickable, quick actions, mini chart recharts), AdminAnalytics (5 tab: Pertumbuhan/Funnel/Pasar Kerja/Talent & Matching/Revenue & Konversi), AdminLiveActivity, AdminAuditLogs, AdminStaff, AdminSettings, AdminCareerPro (KPI + kuota + perpanjang/nonaktifkan), AdminCandidates rewrite (search/filter/kolom baru), AdminJobs +kolom Views/Lamaran, menu admin grup bertingkat, DashboardLayout header grup + ownerOnly filter, ProtectedRoute & Login owner-aware.
 - Testing iterasi 8: 33/33 backend + semua flow UI lulus (`/app/test_reports/iteration_8.json`).
 
+## Iterasi 12 — Referral & Commission System (25 Agu 2026)
+- **Model 1-tingkat**: komisi Rp2.000 hanya dari pembelian Career Pro (Rp10.000); Company Member TIDAK menghasilkan komisi. Perusahaan bisa jadi referrer dan mendapat komisi dari kandidat yang upgrade Career Pro via link-nya.
+- **Eligibility**: pelamar → Career Pro aktif; perusahaan → member/launch_free aktif. Tidak aktif = PAUSED (komisi/saldo/history tidak hilang, komisi baru & withdrawal diblokir); perpanjang = ACTIVE lagi.
+- **Koleksi baru**: referral_codes (code unik, owner unik), referrals (referee_user_id unik = first-valid attribution terkunci), referral_commissions (payment_id unik = anti duplikat komisi), withdrawal_requests. Settings referral (referral_commission 2000, min_withdrawal 50000, holding_days 7) di platform_settings, editable admin.
+- **Alur komisi**: payment Career Pro approved → komisi `pending` → admin approve → `approved` → holding 7 hari auto / admin release → `available` → withdrawal paid → komisi `paid`. Cancel subscription (refund) → komisi cancelled; yang sudah paid ditandai suspicious.
+- **Anti-fraud**: self-referral di-skip, duplikat komisi diblokir unique index, reject → flag suspicious, authorization scoped per pemilik.
+- **Endpoint**: publik `/api/referrals/validate/{code}`; self `/api/referral/me|referrals|commissions|withdrawals`; admin `/api/admin/referrals/overview|referrers|commissions|withdrawals` + action endpoints (perm monetization).
+- **Frontend**: `/r/:code` landing publik (nama referrer + CTA daftar, kode tersimpan localStorage & auto-isi di form register), `ReferralDashboard` shared kandidat/perusahaan (banner aktif/dijeda + CTA, link card copy/share WA/FB, 6 KPI wallet, riwayat referral, modal withdrawal + riwayat), `/admin/referrals` 4 tab (Overview/Referrers/Komisi/Withdrawals), field kode referral di Register, menu Referral di 3 role, AdminSettings +3 field.
+- Curl E2E terverifikasi: register via referral → komisi Rp2.000 pending→approved→available → wallet benar → duplikat payment 400 → withdrawal kurang saldo ditolak → admin overview akurat.
+- Testing iterasi 9: 19/19 backend + semua flow UI lulus (`/app/test_reports/iteration_9.json`), termasuk withdrawal lengkap (process→paid), paused/resumed, refund-cancel, company member tanpa komisi, authorization matrix, mobile 390px. Nit review diperbaiki: paused_reason kosong saat aktif, DuplicateKeyError spesifik.
+
 ## Akun Demo
 - Owner: owner@cirebonkarir.com / owner123 (env OWNER_EMAIL/OWNER_PASSWORD)
 - Admin: muhamadwahid.sih@gmail.com / admin123

@@ -1,6 +1,6 @@
 import {
   LayoutDashboard, Activity, Users, Crown, Building2, Rocket, Briefcase,
-  Send, BarChart3, Wallet, Tag, ScrollText, ShieldCheck, Settings, Bell,
+  Send, BarChart3, Wallet, Tag, ScrollText, ShieldCheck, Settings, Bell, Gift,
 } from "lucide-react";
 
 export const ADMIN_MENU = [
@@ -19,6 +19,7 @@ export const ADMIN_MENU = [
   { to: "/admin/analytics", label: "Analytics & Insight", icon: BarChart3 },
   { header: "MONETISASI" },
   { to: "/admin/monetisasi", label: "Monetization", icon: Wallet },
+  { to: "/admin/referrals", label: "Referral", icon: Gift },
   { header: "SISTEM" },
   { to: "/admin/categories", label: "Kategori", icon: Tag },
   { to: "/admin/audit-log", label: "Audit Log", icon: ScrollText },

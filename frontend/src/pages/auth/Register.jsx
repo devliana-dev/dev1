@@ -1,13 +1,15 @@
 import { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
-import { Loader2, User, Building2 } from "lucide-react";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
+import { Loader2, User, Building2, Gift } from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
 import { formatApiError } from "../../lib/api";
 
 export default function Register() {
   const { register } = useAuth();
   const navigate = useNavigate();
-  const [form, setForm] = useState({ name: "", email: "", phone: "", password: "", confirm: "" });
+  const [searchParams] = useSearchParams();
+  const initialRef = searchParams.get("ref") || localStorage.getItem("ck_referral_code") || "";
+  const [form, setForm] = useState({ name: "", email: "", phone: "", password: "", confirm: "", referral_code: initialRef });
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
@@ -22,7 +24,8 @@ export default function Register() {
     }
     setLoading(true);
     try {
-      await register({ name: form.name, email: form.email, phone: form.phone, password: form.password });
+      await register({ name: form.name, email: form.email, phone: form.phone, password: form.password, referral_code: form.referral_code });
+      localStorage.removeItem("ck_referral_code");
       navigate("/candidate/dashboard", { replace: true });
     } catch (err) {
       setError(formatApiError(err));
@@ -67,6 +70,13 @@ export default function Register() {
           <div>
             <label className="block text-sm font-medium text-slate-700 mb-1.5">Konfirmasi Password</label>
             <input required type="password" value={form.confirm} onChange={set("confirm")} className="w-full h-11 px-3 rounded-lg border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-sky-500" data-testid="register-confirm-input" />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-1.5">Kode Referral <span className="text-slate-400 font-normal">(Opsional)</span></label>
+            <div className="relative">
+              <Gift className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+              <input value={form.referral_code} onChange={set("referral_code")} placeholder="Punya kode referral? Masukkan di sini" className="w-full h-11 pl-9 pr-3 rounded-lg border border-slate-300 text-sm uppercase focus:outline-none focus:ring-2 focus:ring-sky-500" data-testid="register-referral-input" />
+            </div>
           </div>
           <button type="submit" disabled={loading} className="w-full h-12 rounded-lg bg-slate-900 text-white font-semibold hover:bg-slate-800 transition-colors disabled:opacity-60 inline-flex items-center justify-center gap-2" data-testid="register-submit-btn">
             {loading && <Loader2 className="h-4 w-4 animate-spin" />}
