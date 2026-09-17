@@ -22,5 +22,5 @@
   "seed_data_creation": "Backend tests create TEST_-prefixed jobs/categories/candidates and clean them up (delete pending/rejected TEST jobs, delete TEST categories, TEST candidate register+block persists but harmless). One approved TEST job was cleaned up manually via admin API after tests.",
   "retest_needed": false,
   "main_agent_can_self_test": true,
-  "context_for_next_testing_agent": "backend_test.py is pytest-based and requires REACT_APP_BACKEND_URL env exported before running: `export REACT_APP_BACKEND_URL=https://cbn-lowongan.preview.emergentagent.com && pytest backend/tests/backend_test.py -v`. All flows already validated on 2026-01. If retesting, avoid running the wrong-password test more than 4x per IP (15-min lockout kicks in at 5)."
+  "context_for_next_testing_agent": "backend_test.py is pytest-based and requires REACT_APP_BACKEND_URL env exported before running: `export REACT_APP_BACKEND_URL=https://cirebon-karir-home.preview.emergentagent.com && pytest backend/tests/backend_test.py -v`. All flows already validated on 2026-01. If retesting, avoid running the wrong-password test more than 4x per IP (15-min lockout kicks in at 5)."
 }

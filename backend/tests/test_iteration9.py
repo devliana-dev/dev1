@@ -12,7 +12,7 @@ import uuid
 import pytest
 import requests
 
-BASE = (os.environ.get("REACT_APP_BACKEND_URL") or "https://cbn-lowongan.preview.emergentagent.com").rstrip("/")
+BASE = (os.environ.get("REACT_APP_BACKEND_URL") or "https://cirebon-karir-home.preview.emergentagent.com").rstrip("/")
 API = f"{BASE}/api"
 
 OWNER = ("owner@cirebonkarir.com", "owner123")

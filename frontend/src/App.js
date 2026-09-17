@@ -8,7 +8,7 @@ import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import StaticPage from "@/components/StaticPage";
 
-import Home from "@/pages/Home";
+import HomeNew from "@/pages/HomeNew";
 import Jobs from "@/pages/Jobs";
 import JobDetail from "@/pages/JobDetail";
 import ApplyJob from "@/pages/ApplyJob";
@@ -100,8 +100,8 @@ function App() {
           <Toaster position="top-center" richColors />
           <Routes>
             <Route path="/r/:code" element={<ReferralLanding />} />
+            <Route path="/" element={<HomeNew />} />
             <Route element={<PublicLayout />}>
-              <Route path="/" element={<Home />} />
               <Route path="/jobs" element={<Jobs />} />
               <Route path="/jobs/:slug" element={<JobDetail />} />
               <Route path="/companies" element={<Companies />} />

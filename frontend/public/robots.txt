@@ -4,4 +4,4 @@ Disallow: /admin
 Disallow: /company
 Disallow: /candidate
 
-Sitemap: https://cbn-lowongan.preview.emergentagent.com/sitemap.xml
+Sitemap: https://cirebon-karir-home.preview.emergentagent.com/sitemap.xml

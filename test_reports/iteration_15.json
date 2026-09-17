@@ -31,7 +31,7 @@
   ],
   "success_rate": {"backend": "100%", "frontend": "100%"},
   "test_credentials": "budi@example.com/password123, siti.rahma@example.com/password123, muhamadwahid.sih@gmail.com/admin123, demo@perusahaan.com/password123",
-  "seed_data_creation": "None — used existing seeded budi CV id=43c054e5-cc0e-49cc-902c-729a0c710351",
+  "seed_data_creation": "None — used existing seeded budi CV id=cirebon-karir-home",
   "retest_needed": false,
   "should_main_agent_self_test": true,
   "context_for_next_testing_agent": "CvList lives at /candidate/cv-professional/list (not /candidate/cv-professional which is Career Pro overview). Login rate limit is 10/min per IP — run rate-limit tests last and sleep 60s+ before subsequent login tests. WeasyPrint PDF endpoint at GET /api/cv-professional/cvs/{id}/pdf returns ~>120KB when photo embedded.",

@@ -26,6 +26,6 @@
   "seed_data_creation": "None",
   "retest_needed": false,
   "should_main_agent_self_test": true,
-  "context_for_next_testing_agent": "Iteration 4 verified the batik mega mendung SVG ornament fix at hero bottom. All prior iterations 1-3 also passed. Base URL: https://cbn-lowongan.preview.emergentagent.com. No login needed for public pages.",
+  "context_for_next_testing_agent": "Iteration 4 verified the batik mega mendung SVG ornament fix at hero bottom. All prior iterations 1-3 also passed. Base URL: https://cirebon-karir-home.preview.emergentagent.com. No login needed for public pages.",
   "rca of the issue": "Previous PNG ornament (AI-generated jpeg->transparent PNG) rendered as grainy dark noise at 56-64px band height. Fix replaces bitmap with hand-crafted vector SVG (220x64 viewBox, 3 scalloped arc rows, 220px tile period = arc period => seamless repeat-x). Verified visually + via HTTP 200/image+svg content-type + computed style checks."
 }
