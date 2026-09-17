@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import {
@@ -85,6 +85,42 @@ const FALLBACK_TIPS = [
   "Cara Membuat CV yang Menarik untuk HRD",
   "Tips Lolos Interview Kerja",
   "Kesalahan yang Harus Dihindari saat Melamar Kerja",
+];
+
+const hoursAgoIso = (h) => new Date(Date.now() - h * 3600 * 1000).toISOString();
+
+const DEMO_JOBS = [
+  { id: "demo-job-1", title: "Staff Admin", company_name: "Alfamart", category: "Admin", location: "Kota Cirebon", job_type: "Full Time", education: "SMA/SMK", experience: "Tidak ada minimal", created_at: hoursAgoIso(2), demo: true },
+  { id: "demo-job-2", title: "Sales Executive", company_name: "Cirebon Elektronik Center", category: "Sales", location: "Kota Cirebon", job_type: "Full Time", education: "SMA/SMK", experience: "1 tahun", created_at: hoursAgoIso(3), demo: true },
+  { id: "demo-job-3", title: "Crew Outlet", company_name: "CW Outlet & Coffee", category: "Retail", location: "Kabupaten Cirebon", job_type: "Part Time", education: "SMA/SMK", experience: "Tidak ada minimal", created_at: hoursAgoIso(5), demo: true },
+  { id: "demo-job-4", title: "Staff Gudang", company_name: "Granmedia", category: "Gudang", location: "Indramayu", job_type: "Full Time", education: "SMA/SMK", experience: "Tidak ada minimal", created_at: hoursAgoIso(6), demo: true },
+  { id: "demo-job-5", title: "Kasir", company_name: "Hypermart Cirebon", category: "Retail", location: "Kota Cirebon", job_type: "Full Time", education: "SMA/SMK", experience: "Tidak ada minimal", created_at: hoursAgoIso(8), demo: true },
+  { id: "demo-job-6", title: "Teknisi Motor", company_name: "Astra Honda Motor", category: "Teknisi", location: "Kota Cirebon", job_type: "Full Time", education: "SMA/SMK", experience: "1 tahun", created_at: hoursAgoIso(10), demo: true },
+  { id: "demo-job-7", title: "Beauty Advisor", company_name: "Watsons Cirebon", category: "Sales", location: "Kota Cirebon", job_type: "Full Time", education: "SMA/SMK", experience: "Tidak ada minimal", created_at: hoursAgoIso(12), demo: true },
+  { id: "demo-job-8", title: "Staff Penjualan", company_name: "Mitratek Cirebon", category: "Sales", location: "Majalengka", job_type: "Full Time", education: "SMA/SMK", experience: "Tidak ada minimal", created_at: hoursAgoIso(14), demo: true },
+  { id: "demo-job-9", title: "Crew Restaurant", company_name: "KFC Cirebon", category: "F&B", location: "Kota Cirebon", job_type: "Part Time", education: "SMA/SMK", experience: "Tidak ada minimal", created_at: hoursAgoIso(16), demo: true },
+  { id: "demo-job-10", title: "Pramuniaga", company_name: "Indomaret", category: "Retail", location: "Kuningan", job_type: "Full Time", education: "SMA/SMK", experience: "Tidak ada minimal", created_at: hoursAgoIso(18), demo: true },
+];
+
+const DEMO_UMKM = [
+  { id: "demo-umkm-1", title: "Kasir Toko", company_name: "Toko Sembako Barokah", location: "Kota Cirebon", job_type: "Full Time", created_at: hoursAgoIso(3), demo: true },
+  { id: "demo-umkm-2", title: "Barista", company_name: "Kedai Kopi Kita", location: "Kota Cirebon", job_type: "Part Time", created_at: hoursAgoIso(4), demo: true },
+  { id: "demo-umkm-3", title: "Karyawan Dapur", company_name: "Bakso Cirebon Pak Untung", location: "Kota Cirebon", job_type: "Full Time", created_at: hoursAgoIso(7), demo: true },
+  { id: "demo-umkm-4", title: "Karyawan Laundry", company_name: "Laundry Express Cirebon", location: "Kota Cirebon", job_type: "Full Time", created_at: hoursAgoIso(9), demo: true },
+  { id: "demo-umkm-5", title: "Kurir Antar Jemput", company_name: "Laundry Express Cirebon", location: "Kota Cirebon", job_type: "Part Time", created_at: hoursAgoIso(11), demo: true },
+];
+
+const DEMO_COMPANIES = [
+  { id: "demo-comp-1", name: "Alfamart", logo: "", slug: "", demo: true },
+  { id: "demo-comp-2", name: "BCA", logo: "", slug: "", demo: true },
+  { id: "demo-comp-3", name: "Indomaret", logo: "", slug: "", demo: true },
+  { id: "demo-comp-4", name: "Indofood", logo: "", slug: "", demo: true },
+  { id: "demo-comp-5", name: "Bank Mandiri", logo: "", slug: "", demo: true },
+  { id: "demo-comp-6", name: "Wardah", logo: "", slug: "", demo: true },
+  { id: "demo-comp-7", name: "Paragon", logo: "", slug: "", demo: true },
+  { id: "demo-comp-8", name: "Pertamina", logo: "", slug: "", demo: true },
+  { id: "demo-comp-9", name: "KAI", logo: "", slug: "", demo: true },
+  { id: "demo-comp-10", name: "Telkomsel", logo: "", slug: "", demo: true },
 ];
 
 const TOP_KARIR = [
@@ -581,10 +617,11 @@ function SaveButton({ job, saved, onToggle }) {
 
 function JobCardNew({ job, saved, onToggle }) {
   const tags = jobTags(job);
+  const detailTo = job.demo ? "/jobs" : `/jobs/${job.slug}`;
   return (
     <div className="group bg-white rounded-xl border border-slate-200 hover:border-blue-300 hover:shadow-lg hover:shadow-blue-900/5 transition-all p-4 sm:p-5" data-testid={`latest-job-card-${job.id}`}>
       <div className="flex flex-col sm:flex-row gap-4">
-        <Link to={`/jobs/${job.slug}`} className="shrink-0 self-start" data-testid={`job-logo-${job.id}`}>
+        <Link to={detailTo} className="shrink-0 self-start" data-testid={`job-logo-${job.id}`}>
           <img
             src={logoUrl(job.company_logo, job.company_name)}
             alt={job.company_name}
@@ -594,7 +631,7 @@ function JobCardNew({ job, saved, onToggle }) {
         </Link>
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2">
-            <Link to={`/jobs/${job.slug}`} className="font-display font-bold text-[15px] text-slate-900 hover:text-blue-700 transition-colors leading-snug" data-testid={`job-title-${job.id}`}>
+            <Link to={detailTo} className="font-display font-bold text-[15px] text-slate-900 hover:text-blue-700 transition-colors leading-snug" data-testid={`job-title-${job.id}`}>
               {job.title}
             </Link>
             {isNewJob(job.created_at) && (
@@ -627,7 +664,7 @@ function JobCardNew({ job, saved, onToggle }) {
         <div className="flex sm:flex-col gap-2 sm:justify-center shrink-0 sm:w-44">
           <SaveButton job={job} saved={saved} onToggle={onToggle} />
           <Link
-            to={`/jobs/${job.slug}`}
+            to={detailTo}
             className="inline-flex items-center justify-center gap-1.5 h-10 px-4 rounded-lg bg-blue-600 text-white text-[12.5px] font-bold shadow-md shadow-blue-600/20 hover:bg-blue-700 transition-colors"
             data-testid={`apply-btn-${job.id}`}
           >
@@ -697,17 +734,41 @@ function MainArea() {
   const { user } = useAuth();
   const navigate = useNavigate();
   const [jobs, setJobs] = useState(null);
+  const [usingFallback, setUsingFallback] = useState(false);
   const [tips, setTips] = useState(FALLBACK_TIPS.map((t) => ({ slug: "", title: t })));
   const [savedIds, setSavedIds] = useState([]);
 
+  const loadJobs = useCallback(() => {
+    return api.get("/jobs", { params: { limit: 10 } })
+      .then((r) => {
+        const items = (r.data && r.data.items) || [];
+        if (items.length > 0) {
+          setJobs(items);
+          setUsingFallback(false);
+        } else {
+          setJobs(DEMO_JOBS);
+          setUsingFallback(true);
+        }
+      })
+      .catch(() => {
+        setJobs(DEMO_JOBS);
+        setUsingFallback(true);
+      });
+  }, []);
+
   useEffect(() => {
-    api.get("/jobs", { params: { limit: 10 } })
-      .then((r) => setJobs(r.data.items))
-      .catch(() => setJobs([]));
+    loadJobs();
     api.get("/blog", { params: { limit: 3 } })
       .then((r) => { if (Array.isArray(r.data) && r.data.length > 0) setTips(r.data.slice(0, 3).map((p) => ({ slug: p.slug, title: p.title }))); })
       .catch(() => {});
-  }, []);
+  }, [loadJobs]);
+
+  // Coba lagi otomatis saat sedang menampilkan data contoh, hingga data asli berhasil dimuat
+  useEffect(() => {
+    if (!usingFallback) return;
+    const iv = setInterval(() => { loadJobs(); }, 4000);
+    return () => clearInterval(iv);
+  }, [usingFallback, loadJobs]);
 
   useEffect(() => {
     if (user?.role === "candidate") {
@@ -718,6 +779,7 @@ function MainArea() {
   }, [user]);
 
   const toggleSave = (job) => {
+    if (job.demo) { toast.info("Ini contoh lowongan. Masuk untuk melihat lowongan asli"); return; }
     if (!user) { toast.info("Masuk dahulu untuk menyimpan lowongan"); navigate("/login"); return; }
     if (user.role !== "candidate") { toast.info("Simpan lowongan hanya untuk akun pencari kerja"); return; }
     const saved = savedIds.includes(job.id);
@@ -766,6 +828,12 @@ function MainArea() {
                 <JobCardNew key={job.id} job={job} saved={savedIds.includes(job.id)} onToggle={toggleSave} />
               ))}
             </div>
+          )}
+
+          {usingFallback && jobs && (
+            <p className="mt-4 text-center text-[11.5px] text-slate-400" data-testid="jobs-fallback-note">
+              Menampilkan contoh lowongan sementara memuat data terbaru...
+            </p>
           )}
 
           <div className="mt-7 text-center">
@@ -864,12 +932,35 @@ function MainArea() {
 
 function UmkmSection() {
   const [jobs, setJobs] = useState(null);
+  const [usingFallback, setUsingFallback] = useState(false);
+
+  const loadUmkm = useCallback(() => {
+    return api.get("/jobs", { params: { employer_type: "umkm", limit: 5 } })
+      .then((r) => {
+        const items = (r.data && r.data.items) || [];
+        if (items.length > 0) {
+          setJobs(items.slice(0, 5));
+          setUsingFallback(false);
+        } else {
+          setJobs(DEMO_UMKM);
+          setUsingFallback(true);
+        }
+      })
+      .catch(() => {
+        setJobs(DEMO_UMKM);
+        setUsingFallback(true);
+      });
+  }, []);
 
   useEffect(() => {
-    api.get("/jobs", { params: { employer_type: "umkm", limit: 5 } })
-      .then((r) => setJobs(r.data.items))
-      .catch(() => setJobs([]));
-  }, []);
+    loadUmkm();
+  }, [loadUmkm]);
+
+  useEffect(() => {
+    if (!usingFallback) return;
+    const iv = setInterval(() => { loadUmkm(); }, 4000);
+    return () => clearInterval(iv);
+  }, [usingFallback, loadUmkm]);
 
   if (jobs === null) {
     return (
@@ -878,7 +969,6 @@ function UmkmSection() {
       </section>
     );
   }
-  if (jobs.length === 0) return null;
 
   const COLORS = ["bg-blue-600", "bg-emerald-600", "bg-rose-500", "bg-violet-600", "bg-amber-500"];
 
@@ -907,7 +997,7 @@ function UmkmSection() {
             <span className={`inline-flex h-14 w-14 items-center justify-center rounded-full ${COLORS[i % COLORS.length]} text-white font-display font-extrabold text-lg shadow-md`}>
               {(job.company_name || "U").charAt(0).toUpperCase()}
             </span>
-            <Link to={`/jobs/${job.slug}`} className="mt-3 block" data-testid={`umkm-title-${job.id}`}>
+            <Link to={job.demo ? "/jobs?employer_type=umkm" : `/jobs/${job.slug}`} className="mt-3 block" data-testid={`umkm-title-${job.id}`}>
               <h3 className="font-display font-bold text-[13.5px] text-slate-900 leading-snug line-clamp-2 hover:text-blue-700 transition-colors">{job.title}</h3>
             </Link>
             <p className="mt-1 text-[11.5px] text-slate-500 font-medium truncate">{job.company_name}</p>
@@ -926,10 +1016,35 @@ function UmkmSection() {
 function CompaniesCarousel() {
   const scroller = useRef(null);
   const [companies, setCompanies] = useState(null);
+  const [usingFallback, setUsingFallback] = useState(false);
+
+  const loadCompanies = useCallback(() => {
+    return api.get("/companies")
+      .then((r) => {
+        const items = Array.isArray(r.data) ? r.data : [];
+        if (items.length > 0) {
+          setCompanies(items);
+          setUsingFallback(false);
+        } else {
+          setCompanies(DEMO_COMPANIES);
+          setUsingFallback(true);
+        }
+      })
+      .catch(() => {
+        setCompanies(DEMO_COMPANIES);
+        setUsingFallback(true);
+      });
+  }, []);
 
   useEffect(() => {
-    api.get("/companies").then((r) => setCompanies(r.data)).catch(() => setCompanies([]));
-  }, []);
+    loadCompanies();
+  }, [loadCompanies]);
+
+  useEffect(() => {
+    if (!usingFallback) return;
+    const iv = setInterval(() => { loadCompanies(); }, 5000);
+    return () => clearInterval(iv);
+  }, [usingFallback, loadCompanies]);
 
   if (companies === null) {
     return (
@@ -938,7 +1053,6 @@ function CompaniesCarousel() {
       </section>
     );
   }
-  if (companies.length === 0) return null;
 
   const scroll = (dir) => scroller.current?.scrollBy({ left: dir * 480, behavior: "smooth" });
 
@@ -961,7 +1075,7 @@ function CompaniesCarousel() {
           {companies.map((c) => (
             <Link
               key={c.id}
-              to={c.slug ? `/companies/${c.slug}` : "/companies"}
+              to={c.demo || !c.slug ? "/companies" : `/companies/${c.slug}`}
               className="shrink-0 w-[150px] h-[88px] bg-white border border-slate-200 rounded-xl shadow-sm hover:shadow-md hover:border-blue-300 transition-all flex flex-col items-center justify-center gap-1.5 p-3"
               data-testid={`company-card-${c.id}`}
             >
