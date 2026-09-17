@@ -5,7 +5,7 @@ import {
   Search, MapPin, Briefcase, BadgeCheck, Bookmark, ArrowRight, ArrowUpRight,
   Flame, Crown, Building2, Users, GraduationCap, Clock, ShieldCheck, Gift, Zap,
   Star, ChevronLeft, ChevronRight, Menu, X, LayoutDashboard, LogOut, Instagram,
-  Linkedin, Youtube, Music2, Megaphone, Newspaper, Store, CheckCircle2, Sparkles,
+  Linkedin, Youtube, Music2, Megaphone, Newspaper, Store, CheckCircle2, Sparkles, Send,
 } from "lucide-react";
 import api from "../lib/api";
 import { useAuth } from "../context/AuthContext";
@@ -90,16 +90,16 @@ const FALLBACK_TIPS = [
 const hoursAgoIso = (h) => new Date(Date.now() - h * 3600 * 1000).toISOString();
 
 const DEMO_JOBS = [
-  { id: "demo-job-1", title: "Staff Admin", company_name: "Alfamart", category: "Admin", location: "Kota Cirebon", job_type: "Full Time", education: "SMA/SMK", experience: "Tidak ada minimal", created_at: hoursAgoIso(2), demo: true },
-  { id: "demo-job-2", title: "Sales Executive", company_name: "Cirebon Elektronik Center", category: "Sales", location: "Kota Cirebon", job_type: "Full Time", education: "SMA/SMK", experience: "1 tahun", created_at: hoursAgoIso(3), demo: true },
-  { id: "demo-job-3", title: "Crew Outlet", company_name: "CW Outlet & Coffee", category: "Retail", location: "Kabupaten Cirebon", job_type: "Part Time", education: "SMA/SMK", experience: "Tidak ada minimal", created_at: hoursAgoIso(5), demo: true },
-  { id: "demo-job-4", title: "Staff Gudang", company_name: "Granmedia", category: "Gudang", location: "Indramayu", job_type: "Full Time", education: "SMA/SMK", experience: "Tidak ada minimal", created_at: hoursAgoIso(6), demo: true },
-  { id: "demo-job-5", title: "Kasir", company_name: "Hypermart Cirebon", category: "Retail", location: "Kota Cirebon", job_type: "Full Time", education: "SMA/SMK", experience: "Tidak ada minimal", created_at: hoursAgoIso(8), demo: true },
-  { id: "demo-job-6", title: "Teknisi Motor", company_name: "Astra Honda Motor", category: "Teknisi", location: "Kota Cirebon", job_type: "Full Time", education: "SMA/SMK", experience: "1 tahun", created_at: hoursAgoIso(10), demo: true },
-  { id: "demo-job-7", title: "Beauty Advisor", company_name: "Watsons Cirebon", category: "Sales", location: "Kota Cirebon", job_type: "Full Time", education: "SMA/SMK", experience: "Tidak ada minimal", created_at: hoursAgoIso(12), demo: true },
-  { id: "demo-job-8", title: "Staff Penjualan", company_name: "Mitratek Cirebon", category: "Sales", location: "Majalengka", job_type: "Full Time", education: "SMA/SMK", experience: "Tidak ada minimal", created_at: hoursAgoIso(14), demo: true },
-  { id: "demo-job-9", title: "Crew Restaurant", company_name: "KFC Cirebon", category: "F&B", location: "Kota Cirebon", job_type: "Part Time", education: "SMA/SMK", experience: "Tidak ada minimal", created_at: hoursAgoIso(16), demo: true },
-  { id: "demo-job-10", title: "Pramuniaga", company_name: "Indomaret", category: "Retail", location: "Kuningan", job_type: "Full Time", education: "SMA/SMK", experience: "Tidak ada minimal", created_at: hoursAgoIso(18), demo: true },
+  { id: "demo-job-1", title: "Staff Admin", company_name: "Alfamart", category: "Admin", location: "Cirebon", job_type: "Full Time", education: "SMA/SMK", experience: "1 - 2 Tahun", created_at: hoursAgoIso(2), skills: ["Administrasi", "Microsoft Office", "Data Entry"], demo: true },
+  { id: "demo-job-2", title: "Sales Executive", company_name: "PT Kawan Lama Sejahtera", category: "Sales", location: "Cirebon", job_type: "Full Time", education: "SMA/SMK", experience: "1 - 3 Tahun", created_at: hoursAgoIso(5), skills: ["Sales", "Komunikasi", "Target Oriented"], demo: true },
+  { id: "demo-job-3", title: "Crew Outlet", company_name: "J.CO Donuts & Coffee", category: "F&B", location: "Cirebon", job_type: "Part Time", education: "SMA/SMK", experience: "Tanpa Pengalaman", created_at: hoursAgoIso(8), skills: ["Pelayanan", "Food & Beverage", "Kerja Tim"], demo: true },
+  { id: "demo-job-4", title: "Staff Gudang", company_name: "Gramedia", category: "Gudang", location: "Cirebon", job_type: "Full Time", education: "SMA/SMK", experience: "1 - 2 Tahun", created_at: hoursAgoIso(24), skills: ["Logistik", "Inventory", "Administrasi"], demo: true },
+  { id: "demo-job-5", title: "Kasir", company_name: "Hypermart", category: "Retail", location: "Cirebon", job_type: "Full Time", education: "SMA/SMK", experience: "Tanpa Pengalaman", created_at: hoursAgoIso(26), skills: ["Kasir", "Pelayanan", "Retail"], demo: true },
+  { id: "demo-job-6", title: "Teknisi Motor", company_name: "AHASS Cirebon", category: "Teknisi", location: "Cirebon", job_type: "Full Time", education: "SMK", experience: "1 - 3 Tahun", created_at: hoursAgoIso(28), skills: ["Teknik", "Service Motor", "Mekanik"], demo: true },
+  { id: "demo-job-7", title: "Beauty Advisor", company_name: "Watsons Indonesia", category: "Sales", location: "Cirebon", job_type: "Full Time", education: "SMA/SMK", experience: "Tanpa Pengalaman", created_at: hoursAgoIso(48), skills: ["Beauty Care", "Pelayanan", "Komunikasi"], demo: true },
+  { id: "demo-job-8", title: "Staff Penjualan", company_name: "Mitra10", category: "Sales", location: "Cirebon", job_type: "Full Time", education: "SMA/SMK", experience: "1 - 2 Tahun", created_at: hoursAgoIso(52), skills: ["Penjualan", "Customer Service", "Retail"], demo: true },
+  { id: "demo-job-9", title: "Crew Restaurant", company_name: "KFC Cirebon", category: "F&B", location: "Cirebon", job_type: "Part Time", education: "SMA/SMK", experience: "Tanpa Pengalaman", created_at: hoursAgoIso(72), skills: ["Pelayanan", "Food & Beverage", "Kerja Tim"], demo: true },
+  { id: "demo-job-10", title: "Pramuniaga", company_name: "PT Indomarco Prismatama", category: "Retail", location: "Cirebon", job_type: "Full Time", education: "SMA/SMK", experience: "Tanpa Pengalaman", created_at: hoursAgoIso(74), skills: ["Retail", "Pelayanan", "Kasir"], demo: true },
 ];
 
 const DEMO_UMKM = [
@@ -145,6 +145,7 @@ function TrendingIcon({ className }) {
 }
 
 function jobTags(job) {
+  if (Array.isArray(job.skills) && job.skills.length > 0) return job.skills.slice(0, 3);
   const tags = [job.category, job.business_category, job.work_hours].filter(Boolean);
   return [...new Set(tags)].slice(0, 3);
 }
@@ -606,7 +607,7 @@ function SaveButton({ job, saved, onToggle }) {
       type="button"
       onClick={(e) => { e.preventDefault(); e.stopPropagation(); onToggle(job); }}
       className={`inline-flex items-center justify-center gap-1.5 h-10 px-4 rounded-lg border text-[12.5px] font-semibold transition-colors ${
-        saved ? "border-blue-600 bg-blue-50 text-blue-700" : "border-slate-200 bg-white text-slate-600 hover:border-blue-400 hover:text-blue-700"
+        saved ? "border-blue-600 bg-blue-50 text-blue-700" : "border-slate-300 bg-white text-slate-600 hover:border-blue-400 hover:text-blue-700"
       }`}
       data-testid={`save-btn-${job.id}`}
     >
@@ -618,58 +619,62 @@ function SaveButton({ job, saved, onToggle }) {
 function JobCardNew({ job, saved, onToggle }) {
   const tags = jobTags(job);
   const detailTo = job.demo ? "/jobs" : `/jobs/${job.slug}`;
+  const eduLabel = job.education && job.education !== "Tidak ada minimal" ? `Minimal ${job.education}` : "";
+  const expLabel = !job.experience || ["", "Tidak ada minimal", "Fresh graduate"].includes(job.experience) ? "Tanpa Pengalaman" : job.experience;
   return (
     <div className="group bg-white rounded-xl border border-slate-200 hover:border-blue-300 hover:shadow-lg hover:shadow-blue-900/5 transition-all p-4 sm:p-5" data-testid={`latest-job-card-${job.id}`}>
-      <div className="flex flex-col sm:flex-row gap-4">
+      <div className="flex flex-col sm:flex-row gap-4 sm:gap-5">
         <Link to={detailTo} className="shrink-0 self-start" data-testid={`job-logo-${job.id}`}>
           <img
             src={logoUrl(job.company_logo, job.company_name)}
             alt={job.company_name}
-            className="h-14 w-14 rounded-xl border border-slate-200 bg-white object-contain p-1.5"
+            className="h-16 w-16 sm:h-20 sm:w-20 rounded-xl border border-slate-200 bg-white object-contain p-2"
             loading="lazy"
           />
         </Link>
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2">
-            <Link to={detailTo} className="font-display font-bold text-[15px] text-slate-900 hover:text-blue-700 transition-colors leading-snug" data-testid={`job-title-${job.id}`}>
+            <Link to={detailTo} className="font-display font-bold text-[16px] text-slate-900 hover:text-blue-700 transition-colors leading-snug" data-testid={`job-title-${job.id}`}>
               {job.title}
             </Link>
             {isNewJob(job.created_at) && (
-              <span className="inline-flex items-center h-5 px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700 text-[10.5px] font-bold" data-testid={`job-badge-baru-${job.id}`}>Baru</span>
+              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-700 text-[10.5px] font-bold" data-testid={`job-badge-baru-${job.id}`}>Baru</span>
             )}
           </div>
-          <p className="mt-1 flex items-center gap-1.5 text-[12.5px] text-slate-600 min-w-0" data-testid={`job-company-${job.id}`}>
+          <p className="mt-1 flex items-center gap-1.5 text-[13px] text-slate-600 min-w-0" data-testid={`job-company-${job.id}`}>
             <span className="font-semibold truncate">{job.company_name}</span>
             {job.company_verified && <BadgeCheck className="h-4 w-4 text-emerald-500 shrink-0" />}
           </p>
-          <div className="mt-2 flex flex-wrap items-center gap-x-3.5 gap-y-1.5 text-[11.5px] text-slate-500">
-            <span className="inline-flex items-center gap-1"><MapPin className="h-3.5 w-3.5 text-slate-400" /> {job.location}</span>
-            <span className="inline-flex items-center gap-1"><Briefcase className="h-3.5 w-3.5 text-slate-400" /> {job.job_type}</span>
-            {job.education && job.education !== "Tidak ada minimal" && (
-              <span className="inline-flex items-center gap-1"><GraduationCap className="h-3.5 w-3.5 text-slate-400" /> {job.education}</span>
+          <div className="mt-2.5 flex flex-wrap items-center gap-x-4 gap-y-1.5 text-[12px] text-slate-500">
+            <span className="inline-flex items-center gap-1.5"><MapPin className="h-3.5 w-3.5 text-slate-400 shrink-0" /> {job.location}</span>
+            <span className="inline-flex items-center gap-1.5"><Briefcase className="h-3.5 w-3.5 text-slate-400 shrink-0" /> {job.job_type}</span>
+            {eduLabel && (
+              <span className="inline-flex items-center gap-1.5"><GraduationCap className="h-3.5 w-3.5 text-slate-400 shrink-0" /> {eduLabel}</span>
             )}
-            {job.experience && job.experience !== "Tidak ada minimal" && job.experience !== "Fresh graduate" ? (
-              <span className="inline-flex items-center gap-1"><Clock className="h-3.5 w-3.5 text-slate-400" /> {job.experience}</span>
-            ) : null}
-            <span className="inline-flex items-center gap-1"><Clock className="h-3.5 w-3.5 text-slate-400" /> {timeAgo(job.created_at)}</span>
+            <span className="inline-flex items-center gap-1.5"><Clock className="h-3.5 w-3.5 text-slate-400 shrink-0" /> {expLabel}</span>
           </div>
           {tags.length > 0 && (
             <div className="mt-2.5 flex flex-wrap gap-1.5">
               {tags.map((t) => (
-                <span key={t} className="px-2.5 py-1 rounded-full bg-blue-50 text-blue-700 border border-blue-100 text-[10.5px] font-semibold">{t}</span>
+                <span key={t} className="px-3 py-1 rounded-full bg-blue-50 text-blue-700 text-[11px] font-semibold">{t}</span>
               ))}
             </div>
           )}
         </div>
-        <div className="flex sm:flex-col gap-2 sm:justify-center shrink-0 sm:w-44">
-          <SaveButton job={job} saved={saved} onToggle={onToggle} />
-          <Link
-            to={detailTo}
-            className="inline-flex items-center justify-center gap-1.5 h-10 px-4 rounded-lg bg-blue-600 text-white text-[12.5px] font-bold shadow-md shadow-blue-600/20 hover:bg-blue-700 transition-colors"
-            data-testid={`apply-btn-${job.id}`}
-          >
-            Lamar Sekarang
-          </Link>
+        <div className="shrink-0 flex flex-col gap-3 sm:items-end sm:justify-center sm:w-[252px]">
+          <span className="text-[11.5px] text-slate-400 sm:text-right whitespace-nowrap" data-testid={`job-posted-${job.id}`}>
+            Diposting {timeAgo(job.created_at)}
+          </span>
+          <div className="flex gap-2 w-full sm:w-auto">
+            <SaveButton job={job} saved={saved} onToggle={onToggle} />
+            <Link
+              to={detailTo}
+              className="inline-flex flex-1 sm:flex-none items-center justify-center gap-1.5 h-10 px-5 rounded-lg bg-blue-600 text-white text-[12.5px] font-bold shadow-md shadow-blue-600/20 hover:bg-blue-700 transition-colors"
+              data-testid={`apply-btn-${job.id}`}
+            >
+              <Send className="h-3.5 w-3.5" /> Lamar Sekarang
+            </Link>
+          </div>
         </div>
       </div>
     </div>
@@ -808,7 +813,7 @@ function MainArea() {
               <p className="mt-2 text-[13px] text-slate-500 sm:pl-[60px]">Temukan peluang karier terbaru dari perusahaan terpercaya di Cirebon dan sekitarnya.</p>
             </div>
             <Link to="/jobs" className="inline-flex items-center gap-1.5 text-[13px] font-bold text-blue-600 hover:text-blue-800" data-testid="lihat-semua-lowongan-link">
-              Lihat Semua Lowongan <ArrowRight className="h-4 w-4" />
+              Lihat Semua <ArrowRight className="h-4 w-4" />
             </Link>
           </div>
 
@@ -836,10 +841,22 @@ function MainArea() {
             </p>
           )}
 
-          <div className="mt-7 text-center">
+          <div
+            className="mt-6 rounded-xl bg-blue-50 border border-blue-100 px-5 sm:px-6 py-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4"
+            data-testid="jobs-help-bar"
+          >
+            <div className="flex items-center gap-3">
+              <span className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-blue-100 text-blue-600">
+                <Users className="h-5 w-5" />
+              </span>
+              <div>
+                <p className="font-display font-bold text-[14px] text-[#0B1F4B]">Masih belum menemukan yang cocok?</p>
+                <p className="text-[12px] text-slate-500 mt-0.5">Jelajahi semua lowongan kerja dan temukan peluang terbaik untuk kariermu.</p>
+              </div>
+            </div>
             <Link
               to="/jobs"
-              className="inline-flex items-center gap-2 h-12 px-8 rounded-xl bg-[#0B1F4B] text-white text-sm font-bold shadow-lg shadow-blue-900/20 hover:bg-[#12307A] transition-colors"
+              className="shrink-0 inline-flex items-center justify-center gap-1.5 h-10 px-5 rounded-lg bg-white border border-blue-200 text-blue-600 text-[13px] font-bold hover:bg-blue-600 hover:text-white transition-colors"
               data-testid="lihat-semua-lowongan-btn"
             >
               Lihat Semua Lowongan <ArrowRight className="h-4 w-4" />
