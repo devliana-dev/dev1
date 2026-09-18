@@ -1,0 +1,23 @@
+{
+  "summary": "Frontend UI verification of Studio CV Profesional (iteration 18). All 12 review items pass. Login as budi.demo → /candidate/cv-professional loads with hero + 4-step 'Alur Pembuatan CV'. active-cv-card visible with preview thumbnail (initial state: Elegant/Purple carried over from iter17, changed to Creative/Green during test). Sinkron Profil Karier panel + Lamar Cepat panel (Career Pro sisa 26/30) both visible. All 6 accent-* testids present; clicking accent-green marks it selected (border-slate-900 + shadow-md class). All 8 template-card-* testids present. btn-preview-executive opens cv-preview-modal containing 'Batal' and 'Gunakan Template' buttons. btn-use-creative saves CV → active-cv-card updates to Creative/Green and shows updated preview. edit-profile-btn navigates to /candidate/profile where pref-editor, active-cv-preview-card and edit-cv-design-btn are all present. Company (demo@umkm.com) → /company/candidates → Lihat Profil for Budi Santoso opens modal with career-profile-view + cp-cv-professional showing 'Template: Creative · Aksen: Green' + thumbnail. Responsive 390px & 768px viewports render Studio CV cleanly (hero, 4-step alur, active card, template gallery, panels stack correctly, no overflow). Regression: /candidate/dashboard, /candidate/applications, /candidate/profile, /candidate/cv-professional/upgrade, /candidate/cv/jobs all return 200 with no error banner; sidebar Career Pro visible. Only console errors observed are the expected 401s from /candidate/* API probes before token attaches (pre-login navigation) and 503 from storage endpoints as noted by main agent (expected in preview).",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "Accent buttons do not expose aria-pressed / role=radio — selected state is conveyed only by border/shadow classes. Consider adding aria-pressed for accessibility and easier automated verification.",
+    "Preview modal Batal button relies on generic text; adding data-testid=cv-preview-modal-cancel / cv-preview-modal-use would make preview flow more testable.",
+    "CV thumbnail uses CSS transform scale — verify print/PDF export still works when template is later exported (not in scope this iter)."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "N/A", "frontend": "100%"},
+  "test_credentials": "budi.demo@cirebonkarir.id/password123 (Career Pro), demo@umkm.com/password123 (company)",
+  "seed_data_creation": "Changed budi.demo cv_design from {elegant, purple} (iter17) → {creative, green} via UI. Accent-green clicked before Use-Creative so final state is Creative/Green.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "budi.demo current cv_design = {creative, green}, visibility=public. Career Pro quota 26/30. UI passes end-to-end; if further tests needed for other templates use btn-use-<template_id>."
+}

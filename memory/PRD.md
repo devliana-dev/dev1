@@ -107,6 +107,27 @@ Lihat CHANGELOG.md (register role, admin edit job, hero, job list horizontal, ka
 - **Backend**: /candidate/applications diperkaya company_logo + job_location (additive); endpoint PUT /auth/change-password.
 - Testing iterasi 16: 7/7 backend pytest + seluruh flow UI lulus (11 menu, topnav, dropdown, ganti password UI cycle, bookmark, empty state akun baru, responsive 1920/768/390 tanpa overflow, regresi role company/admin tetap layout lama) — `/app/test_reports/iteration_16.json`.
 
+## Iterasi 17 — Studio CV Profesional + Single Source Profil Karier (18 Sep 2026)
+- **Scope**: Aktifkan sistem CV Profesional di Dashboard Kandidat, integrasi Profil Karier (single source of truth) + Lamar Cepat.
+- **Backend**:
+  - `career_profiles` schema diperluas: field baru `cv_design` ({template, accent}) dan `job_preferences` (list). `normalize_career_profile` selalu include kedua field. Model `CvDesignIn` tambahan.
+  - Endpoint baru: `GET /api/candidate/cv-design`, `PUT /api/candidate/cv-design` (bebas untuk semua kandidat, tidak digate premium). Template valid: modern/ats/executive/creative/minimalis/corporate/fresh_graduate/elegant. Accent valid: navy/blue/black/green/purple/gold.
+  - `quick_apply` relaxed: tidak lagi wajib `user.cv_path`; cukup Profil Karier terisi (summary + experience). Data lamaran otomatis dari profile.
+  - Product `cv_professional` diseed & di-update ke `duration_days=90` (3 bulan) — sesuai kuota "30x Lamar Cepat / 3 bulan". Nama produk = "Career Pro".
+  - Fallback local file storage (uploads_local/) DIHAPUS dari `save_upload` + file endpoint agar lolos deployment lint. Cloud storage down → 503.
+- **Frontend**:
+  - Rewrite `pages/candidate/CvProfessional.jsx` menjadi **Studio CV** modern: hero gradient, 4-step alur, card "CV Aktif Anda" dengan preview thumbnail, panel Sinkron Profil Karier (menampilkan completion), panel Lamar Cepat (kuota real-time), accent picker (6 warna), gallery 8 template dengan Preview + "Gunakan Template", modal preview full-size, quick-link ke Advanced CV Builder untuk Career Pro.
+  - Halaman baru `pages/candidate/CareerProUpgrade.jsx` untuk payment flow (dipisah dari Studio). Route `/candidate/cv-professional/upgrade`.
+  - Rewrite `components/cvTemplates.jsx`: 8 template komponen benar-benar berbeda layout (Modern, ATS, Executive/serif sidebar gelap, Creative/timeline, Minimalist/dua-kolom, Corporate/tabular, Fresh Graduate/step-numbered, Professional Elegant/serif center) × accent color param. Helper `profileToCvData(user, profile)` — single source mapping.
+  - `pages/candidate/CandidateProfile.jsx` diperluas: section "Preferensi Kerja Tambahan" + card `ActiveCvPreviewCard` di bawah yang menampilkan CV aktif (data live dari profile), tombol "Ubah Template" → Studio CV.
+  - `components/CareerProfileView.jsx` (dipakai perusahaan lihat kandidat): tampilkan CV Profesional kandidat dengan preview thumbnail (template + accent).
+- **Business rules**:
+  - Free candidate: Manual Apply only.
+  - Career Pro: Lamar Cepat menggunakan data Profil Karier — max 30x per masa aktif 3 bulan.
+  - Semua kandidat (Free & Pro) boleh design CV di Studio; download PDF & builder lanjutan (multi-CV, import) tetap fitur Career Pro.
+- **Testing iterasi 17**: backend 19/19 pytest (`/app/test_reports/iteration_17.json`) + frontend UI 12/12 (`/app/test_reports/iteration_18.json`) lulus. Termasuk: cv-design GET/PUT + validasi 400/422, career-profile berisi cv_design & job_preferences, quick-apply profile-only tanpa cv_path, seed duration_days=90, storage 503 tanpa fallback lokal, company view include cv_design, gallery 8 template + accent picker + save + sync ke Profil Karier & Company view, responsive 390/768.
+
+
 ## Akun Demo
 - Owner: owner@cirebonkarir.com / owner123 (env OWNER_EMAIL/OWNER_PASSWORD)
 - Admin: muhamadwahid.sih@gmail.com / admin123
