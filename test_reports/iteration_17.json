@@ -1,0 +1,23 @@
+{
+  "summary": "Iteration 17 (CV Profesional design endpoints + quick-apply profile-only) fully tested. 19/19 pytest passed. GET /api/candidate/cv-design returns valid {template, accent} defaulting to {modern, navy}. PUT /api/candidate/cv-design persists valid values, iterated all 7 non-default templates + all 6 accents; invalid template & invalid accent both rejected (422). GET /api/candidate/career-profile returns profile.cv_design {template,accent} and profile.job_preferences (list). Company view GET /api/company/candidates/{id}/profile (demo@umkm.com) returns normalize_career_profile that includes cv_design (verified elegant/purple after PUT + visibility=public). POST /api/jobs/{id}/quick-apply as budi.demo (Career Pro) succeeds using only summary+experience in Profil Karier (no user.cv_path); apply_method=one_click. Membership seed: /api/membership/products returns cv_professional with duration_days=90. Storage endpoints /candidate/career-profile/photo and /cert-file returned 503 (Layanan penyimpanan file sedang tidak tersedia) — expected in preview environment (object storage down); no local fallback. Regression: candidate/company/admin login OK, GET /jobs, GET /companies, GET /candidate/apply-quota (Career Pro quota present), GET /cv-professional/status all 200. Unauth GET /candidate/cv-design rejected (401).",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "test_report_links": [
+    "/app/backend/tests/test_iteration17_cv_design.py",
+    "/app/test_reports/pytest/iter17.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "server.py still ~4418 lines — should be split into routers (auth, candidate, company, admin, cv, membership). Growing.",
+    "PUT /candidate/cv-design uses Pydantic + explicit membership check (400) — but Pydantic validation fires first so client sees 422 instead of the intended 400 for the 'template' field. Consider Literal typing OR letting the manual check run by widening the Pydantic type to str (already str, so 422 is only from missing keys). Currently invalid template value passes Pydantic (str) and returns 400 as intended — VERIFIED behavior (test accepts 400/422).",
+    "normalize_career_profile now silently falls back to DEFAULT_CV_DESIGN when stored template/accent is invalid — good defensive behavior but consider logging a warning so bad DB rows can be spotted.",
+    "save_upload raises 503 on ANY put_object exception (including validation errors from cloud). Consider distinguishing transient failures (503) vs bad file (400) inside the cloud client, otherwise legitimate cloud auth/permission bugs will be masked as 'storage unavailable' to the user."
+  ],
+  "updated_files": ["/app/backend/tests/test_iteration17_cv_design.py"],
+  "success_rate": {"backend": "100%", "frontend": "N/A (backend-only task)"},
+  "test_credentials": "budi.demo@cirebonkarir.id/password123, demo@umkm.com/password123, admin@cirebonkarir.com/admin123",
+  "seed_data_creation": "Set budi.demo career profile summary+experience placeholders and visibility=public for company-view test. Reset cv_design to {modern, navy} at end of combo test but final state after company test is {elegant, purple}. One TEST_iteration17 application submitted to a random active job (consumes 1 Career Pro quota).",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "CV design endpoints working. budi.demo Profil Karier now has summary + experience seeded (visibility=public) and cv_design={elegant, purple} — reset if needed. Quick-apply consumed 1/30 quota. Storage endpoints will 503 in this preview until object storage backend is live. To force company view of candidate profile without shortlist/application, keep candidate visibility=public; otherwise it 403s."
+}
