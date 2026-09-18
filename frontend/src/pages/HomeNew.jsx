@@ -5,7 +5,7 @@ import {
   Search, MapPin, Briefcase, BadgeCheck, Bookmark, ArrowRight, ArrowUpRight,
   Flame, Crown, Building2, Users, GraduationCap, Clock, ShieldCheck, Gift, Zap,
   Star, ChevronLeft, ChevronRight, Menu, X, LayoutDashboard, LogOut, Instagram,
-  Linkedin, Youtube, Music2, Megaphone, Newspaper, Store, CheckCircle2, Send, Monitor,
+  Linkedin, Youtube, Music2, Megaphone, Newspaper, Store, CheckCircle2, Check, Send, Monitor,
 } from "lucide-react";
 import api from "../lib/api";
 import { useAuth } from "../context/AuthContext";
@@ -163,7 +163,7 @@ function Logo({ dark = false }) {
           CirebonKarir<span className="text-blue-600">.id</span>
         </span>
         <span className={`block text-[10px] font-medium ${dark ? "text-blue-200/80" : "text-slate-500"}`}>
-          Cari Lokal, Peluang Global
+          Hubungkan Talenta dengan Peluang
         </span>
       </span>
     </Link>
@@ -326,69 +326,58 @@ function Hero() {
   return (
     <section
       className="relative overflow-hidden"
-      style={{ background: "linear-gradient(100deg, #1B3FC4 0%, #2453E8 42%, #2E6BF5 74%, #3B7BFF 100%)" }}
+      style={{ background: "linear-gradient(100deg, #081A3D 0%, #0E2A6E 38%, #1A43B8 68%, #2453E8 100%)" }}
       data-testid="home-hero"
     >
-      <img src={HERO_IMG} alt="" className="absolute inset-0 h-full w-full object-cover opacity-[0.14] mix-blend-luminosity" />
-      <div className="absolute top-4 right-[24%] h-64 w-64 rounded-full bg-white/10 blur-3xl" />
-      <div className="absolute -top-20 -left-20 h-80 w-80 rounded-full bg-blue-300/20 blur-3xl" />
-      <svg className="absolute top-7 right-6 h-12 w-12 text-red-400/80 hidden lg:block" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-        <path d="M4 16c-1.7 0-3-1.3-3-3s1.3-3 3-3h.5C5 7.6 7 6 9.5 6c2 0 3.7 1 4.6 2.6.6-.4 1.4-.6 2.2-.6 2 0 3.7 1.4 4.1 3.2 1.5.2 2.6 1.5 2.6 3 0 1.7-1.3 3-3 3H4z" />
+      <div className="absolute top-[-120px] left-[22%] h-80 w-[480px] rounded-full bg-blue-500/30 blur-3xl" />
+      <div className="absolute bottom-[-160px] right-[10%] h-96 w-[560px] rounded-full bg-[#2E6BF5]/40 blur-3xl" />
+      <div className="absolute top-1/3 left-[58%] h-56 w-56 rounded-full bg-cyan-400/20 blur-3xl" />
+      <div className="absolute bottom-14 left-[3%] h-5 w-5 rounded-full bg-blue-400/60" />
+      <div className="absolute top-[42%] -right-8 h-36 w-36 rounded-full bg-blue-500/30" />
+      <svg className="absolute inset-x-0 bottom-0 h-36 w-full opacity-[0.07]" viewBox="0 0 1440 120" preserveAspectRatio="none" fill="#ffffff" aria-hidden="true">
+        <path d="M0 60c240-50 480-50 720 0s480 50 720 0v60H0z" />
       </svg>
 
-      <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-9 pb-10 lg:pt-11 lg:pb-12">
-        <div className="hidden lg:flex justify-end items-start">
-          <p className="font-serif italic text-white/90 text-base leading-snug text-right">
-            Dari Cirebon
-            <span className="block font-display font-extrabold not-italic text-white text-xl">untuk Indonesia</span>
-            <span className="block h-1 w-16 bg-yellow-400 rounded-full ml-auto mt-1.5" />
-          </p>
-        </div>
-        <p className="hidden xl:block absolute top-6 left-[46%] font-serif italic text-white/90 text-base leading-snug -rotate-2">
-          Karier Lebih Dekat
-          <span className="block font-display font-extrabold not-italic text-white text-lg">Masa Depan Lebih Hebat</span>
-          <span className="block h-1 w-14 bg-yellow-400 rounded-full mt-1" />
-        </p>
-
-        <div className="grid lg:grid-cols-12 gap-8 items-center mt-1">
+      <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-8 pb-8 lg:pt-10 lg:pb-9">
+        <div className="grid lg:grid-cols-12 gap-8 items-center">
           {/* Kolom kiri */}
-          <div className="lg:col-span-5">
-            <div className="flex flex-wrap items-center gap-2.5">
-              <span className="inline-flex items-center gap-1.5 h-8 px-4 rounded-full bg-[#0A1F4B] text-white text-[11px] font-bold tracking-wide uppercase">
+          <div className="lg:col-span-6">
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="inline-flex items-center gap-1.5 h-7 px-3.5 rounded-full bg-[#0A1F4B] text-white text-[10.5px] font-bold tracking-wide uppercase">
                 <MapPin className="h-3 w-3" /> Cirebon &amp; Sekitarnya
               </span>
-              <span className="text-[12px] text-white/80 font-medium">
-                Cirebon <span className="text-white/40 mx-1">|</span> Indramayu <span className="text-white/40 mx-1">|</span> Kuningan <span className="text-white/40 mx-1">|</span> Majalengka
+              <span className="text-[11.5px] text-white/80 font-medium">
+                Cirebon <span className="text-white/40 mx-0.5">|</span> Indramayu <span className="text-white/40 mx-0.5">|</span> Kuningan <span className="text-white/40 mx-0.5">|</span> Majalengka
               </span>
             </div>
 
-            <h1 className="mt-5 font-display text-4xl sm:text-5xl lg:text-[54px] font-extrabold leading-[1.1] tracking-tight text-white" data-testid="hero-headline">
+            <h1 className="mt-4 font-display text-3xl sm:text-4xl lg:text-[44px] font-extrabold leading-[1.14] tracking-tight text-white" data-testid="hero-headline">
               Cari Kerja atau
               <span className="block text-transparent bg-clip-text bg-gradient-to-r from-[#FFD34D] via-[#FFC93C] to-[#F5B301]">Cari Karyawan?</span>
             </h1>
-            <p className="mt-4 text-[15px] sm:text-base text-white/85 max-w-md leading-relaxed">
+            <p className="mt-3 text-[13.5px] sm:text-sm text-white/85 max-w-md leading-relaxed">
               Temukan peluang terbaik, talenta berkualitas, dan bangun masa depan yang lebih baik di Cirebon dan sekitarnya.
             </p>
 
-            <form onSubmit={search} className="mt-7 lg:w-[680px] lg:-mr-40" data-testid="hero-search-form">
-              <div className="bg-white rounded-2xl p-2 shadow-2xl shadow-blue-900/30 flex flex-col md:flex-row md:items-center gap-2">
-                <div className="flex items-center gap-2 flex-1 px-3 h-12">
-                  <Search className="h-5 w-5 text-slate-400 shrink-0" />
+            <form onSubmit={search} className="mt-5" data-testid="hero-search-form">
+              <div className="bg-white rounded-xl p-1.5 shadow-2xl shadow-blue-900/30 flex flex-col md:flex-row md:items-center gap-1.5">
+                <div className="flex items-center gap-2 flex-1 px-2.5 h-10">
+                  <Search className="h-4 w-4 text-slate-400 shrink-0" />
                   <input
                     type="text"
                     value={keyword}
                     onChange={(e) => setKeyword(e.target.value)}
                     placeholder="Cari posisi, nama perusahaan, atau kata kunci..."
-                    className="w-full bg-transparent outline-none text-sm text-slate-800 placeholder:text-slate-400"
+                    className="w-full bg-transparent outline-none text-[13px] text-slate-800 placeholder:text-slate-400"
                     data-testid="hero-search-input"
                   />
                 </div>
-                <div className="flex items-center gap-2 px-3 h-12 md:h-11 md:border-l border-slate-200">
-                  <MapPin className="h-5 w-5 text-slate-400 shrink-0" />
+                <div className="flex items-center gap-2 px-2.5 h-10 md:h-9 md:border-l border-slate-200">
+                  <MapPin className="h-4 w-4 text-slate-400 shrink-0" />
                   <select
                     value={location}
                     onChange={(e) => setLocation(e.target.value)}
-                    className="w-full md:w-40 bg-transparent outline-none text-sm text-slate-700"
+                    className="w-full md:w-40 bg-transparent outline-none text-[13px] text-slate-700"
                     data-testid="hero-location-select"
                   >
                     <option value="">Cirebon &amp; Sekitarnya</option>
@@ -399,20 +388,20 @@ function Hero() {
                 </div>
                 <button
                   type="submit"
-                  className="h-12 md:h-11 px-6 rounded-xl bg-blue-600 text-white text-sm font-bold shadow-md shadow-blue-900/25 hover:bg-blue-700 transition-colors inline-flex items-center justify-center gap-2"
+                  className="h-10 md:h-9 px-5 rounded-lg bg-blue-600 text-white text-[13px] font-bold shadow-md shadow-blue-900/25 hover:bg-blue-700 transition-colors inline-flex items-center justify-center gap-1.5"
                   data-testid="hero-search-btn"
                 >
-                  Cari Sekarang <ArrowRight className="h-4 w-4" />
+                  Cari Sekarang <ArrowRight className="h-3.5 w-3.5" />
                 </button>
               </div>
             </form>
 
-            <div className="mt-7 flex flex-wrap items-center gap-y-3 lg:w-[680px] lg:-mr-40" data-testid="hero-trust-chips">
+            <div className="mt-5 flex flex-wrap items-center gap-y-2.5" data-testid="hero-trust-chips">
               {TRUST_CHIPS.map((c, i) => (
                 <div key={c.label} className="flex items-center gap-2">
-                  {i > 0 && <span className="hidden sm:block h-9 w-px bg-white/20 mx-3" />}
+                  {i > 0 && <span className="hidden sm:block h-8 w-px bg-white/20 mx-3" />}
                   <span className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#3B7BFF] text-white shadow-md shadow-blue-900/20">
-                    <c.icon className="h-4 w-4" />
+                    <c.icon className="h-3.5 w-3.5" />
                   </span>
                   <span className="text-[10.5px] leading-tight text-white/80 font-medium">
                     {c.label}
@@ -423,30 +412,25 @@ function Hero() {
             </div>
           </div>
 
-          <div className="hidden lg:block lg:col-span-2" />
-
-          {/* Kolom kanan: ribbon gratis + panel */}
-          <div className="lg:col-span-5 relative">
-            <div className="flex justify-center lg:justify-end mb-3 lg:pr-3">
-              <GratisRibbon />
-            </div>
+          {/* Kolom kanan: panel */}
+          <div className="lg:col-span-6 relative">
             <div className="grid sm:grid-cols-2 gap-4">
               {/* Career Pro */}
-              <div className="rounded-2xl bg-[#FFF9E8] p-4 border border-yellow-200/70 shadow-2xl shadow-blue-900/25" data-testid="hero-panel-career-pro">
-                <div className="flex items-center gap-3">
-                  <span className="inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-yellow-400 text-white shadow-md shadow-yellow-500/30">
-                    <Crown className="h-6 w-6" />
+              <div className="rounded-2xl bg-white p-4 shadow-2xl shadow-blue-900/25" data-testid="hero-panel-career-pro">
+                <div className="flex items-center gap-2.5">
+                  <span className="inline-flex h-9 w-9 items-center justify-center rounded-lg bg-yellow-400 text-white shadow-md shadow-yellow-500/30">
+                    <Crown className="h-5 w-5" />
                   </span>
                   <div>
-                    <p className="font-display font-extrabold text-[15px] text-[#0B1F4B] leading-tight">Career Pro</p>
+                    <p className="font-display font-extrabold text-[14.5px] text-[#0B1F4B] leading-tight">Career Pro</p>
                     <p className="text-[10.5px] text-slate-500 leading-tight mt-0.5">Fitur Lengkap untuk Pengembangan Karier</p>
                   </div>
                 </div>
-                <ul className="mt-4 space-y-2.5">
+                <ul className="mt-3.5 space-y-2">
                   {CAREER_PRO_ITEMS.map((item) => (
-                    <li key={item} className="flex items-center gap-2 text-[12px] font-medium text-slate-700 whitespace-nowrap">
-                      <span className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-yellow-400 shrink-0">
-                        <CheckCircle2 className="h-3.5 w-3.5 text-white" />
+                    <li key={item} className="flex items-center gap-2 text-[11.5px] font-medium text-slate-700 whitespace-nowrap">
+                      <span className="inline-flex h-4 w-4 items-center justify-center rounded-full bg-yellow-400 shrink-0">
+                        <Check className="h-2.5 w-2.5 text-white" strokeWidth="3.5" />
                       </span>
                       {item}
                     </li>
@@ -454,29 +438,29 @@ function Hero() {
                 </ul>
                 <Link
                   to="/candidate/cv-professional"
-                  className="mt-4 inline-flex w-full items-center justify-center gap-1.5 h-11 rounded-xl bg-yellow-400 text-[#0B1F4B] text-[13.5px] font-bold shadow-md shadow-yellow-500/30 hover:brightness-105 transition"
+                  className="mt-3.5 inline-flex w-full items-center justify-center gap-1.5 h-10 rounded-lg bg-yellow-400 text-[#0B1F4B] text-[12.5px] font-bold shadow-md shadow-yellow-500/30 hover:brightness-105 transition"
                   data-testid="hero-career-pro-btn"
                 >
-                  Lihat Career Pro <ArrowRight className="h-4 w-4" />
+                  Lihat Career Pro <ArrowRight className="h-3.5 w-3.5" />
                 </Link>
               </div>
 
               {/* Untuk Perusahaan */}
               <div className="rounded-2xl bg-white p-4 shadow-2xl shadow-blue-900/25" data-testid="hero-panel-company">
-                <div className="flex items-center gap-3">
-                  <span className="inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-green-500 text-white shadow-md shadow-green-500/30">
-                    <Building2 className="h-6 w-6" />
+                <div className="flex items-center gap-2.5">
+                  <span className="inline-flex h-9 w-9 items-center justify-center rounded-lg bg-green-500 text-white shadow-md shadow-green-500/30">
+                    <Building2 className="h-5 w-5" />
                   </span>
                   <div>
-                    <p className="font-display font-extrabold text-[15px] text-[#0B1F4B] leading-tight">Untuk Perusahaan</p>
+                    <p className="font-display font-extrabold text-[14.5px] text-[#0B1F4B] leading-tight">Untuk Perusahaan</p>
                     <p className="text-[10.5px] text-slate-500 leading-tight mt-0.5">Temukan Kandidat Terbaik Lebih Cepat</p>
                   </div>
                 </div>
-                <ul className="mt-4 space-y-2.5">
+                <ul className="mt-3.5 space-y-2">
                   {COMPANY_PANEL_ITEMS.map((item) => (
-                    <li key={item} className="flex items-center gap-2 text-[12px] font-medium text-slate-700 whitespace-nowrap">
-                      <span className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-green-500 shrink-0">
-                        <CheckCircle2 className="h-3.5 w-3.5 text-white" />
+                    <li key={item} className="flex items-center gap-2 text-[11.5px] font-medium text-slate-700 whitespace-nowrap">
+                      <span className="inline-flex h-4 w-4 items-center justify-center rounded-full bg-green-500 shrink-0">
+                        <Check className="h-2.5 w-2.5 text-white" strokeWidth="3.5" />
                       </span>
                       {item}
                     </li>
@@ -484,55 +468,45 @@ function Hero() {
                 </ul>
                 <Link
                   to="/register-company"
-                  className="mt-4 inline-flex w-full items-center justify-center gap-1.5 h-11 rounded-xl bg-green-600 text-white text-[13.5px] font-bold shadow-md shadow-green-600/30 hover:bg-green-700 transition-colors"
+                  className="mt-3.5 inline-flex w-full items-center justify-center gap-1.5 h-10 rounded-lg bg-green-600 text-white text-[12.5px] font-bold shadow-md shadow-green-600/30 hover:bg-green-700 transition-colors"
                   data-testid="hero-company-btn"
                 >
-                  Mulai Rekrut <ArrowRight className="h-4 w-4" />
+                  Mulai Rekrut <ArrowRight className="h-3.5 w-3.5" />
                 </Link>
               </div>
             </div>
           </div>
         </div>
+      </div>
+    </section>
+  );
+}
 
-        {/* Quick links */}
-        <div className="mt-8 grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-5 gap-4 relative z-10" data-testid="hero-quick-links">
+function QuickLinksSection() {
+  return (
+    <section className="bg-white" data-testid="quick-links-section">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+        <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-5 gap-4" data-testid="hero-quick-links">
           {QUICK_LINKS.map((q) => (
             <Link
               key={q.title}
               to={q.to}
-              className="group bg-white rounded-xl p-4 flex items-center gap-3 shadow-lg shadow-blue-900/15 hover:shadow-xl hover:-translate-y-0.5 transition-all"
+              className="group bg-white rounded-xl border border-slate-200 p-3.5 flex items-center gap-3 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all"
               data-testid={`quick-link-${q.title.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`}
             >
-              <span className={`inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl ${q.iconBg} text-white shadow-md`}>
+              <span className={`inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-lg ${q.iconBg}`}>
                 <q.icon className="h-5 w-5" />
               </span>
               <span className="min-w-0">
-                <span className="flex items-center font-display font-bold text-[13.5px] text-[#0B1F4B] leading-tight">
+                <span className="flex items-center font-display font-bold text-[13px] text-[#0B1F4B] leading-tight">
                   {q.title}
-                  <ChevronRight className="h-4 w-4 text-blue-500 ml-1 shrink-0 transition-transform group-hover:translate-x-0.5" />
+                  <ChevronRight className={`h-4 w-4 ml-1 shrink-0 ${q.chevron} transition-transform group-hover:translate-x-0.5`} />
                 </span>
                 <span className="block text-[11px] text-slate-500 leading-tight mt-1">{q.sub}</span>
               </span>
             </Link>
           ))}
         </div>
-
-        <p className="hidden lg:flex justify-end items-center gap-2.5 mt-4 font-serif italic text-white/85 text-sm -rotate-1">
-          Langkah Kecil
-          <span className="not-italic font-display font-bold text-white text-base">Menuju Masa Depan Besar</span>
-          <span className="h-1 w-12 bg-yellow-400 rounded-full" />
-        </p>
-      </div>
-
-      {/* Foto profesional dalam bingkai lingkaran */}
-      <div className="hidden xl:block absolute top-[110px] left-[41%] z-0" data-testid="hero-people">
-        <div className="relative h-[272px] w-[272px] rounded-full ring-4 ring-white/25 shadow-2xl shadow-blue-900/30 overflow-hidden">
-          <img src={PEOPLE_IMG} alt="Profesional Cirebon" className="h-full w-full object-cover" />
-          <div className="absolute inset-0 bg-gradient-to-t from-[#1B3FC4]/40 via-transparent to-transparent" />
-        </div>
-        <span className="absolute bottom-3 left-1/2 -translate-x-1/2 inline-flex items-center gap-1.5 -rotate-2 rounded-lg bg-white px-3 py-2 text-[11.5px] font-bold text-[#0B1F4B] shadow-xl whitespace-nowrap z-10" data-testid="hero-tag">
-          <TrendingIcon className="h-3.5 w-3.5 text-blue-600" /> Lebih Banyak Peluang di Sini!
-        </span>
       </div>
     </section>
   );
@@ -1317,6 +1291,7 @@ export default function HomeNew() {
     <div className="bg-white min-h-screen page-fade">
       <HomeHeader />
       <Hero />
+      <QuickLinksSection />
       <KategoriPills />
       <WilayahSection />
       <StatsBar />
