@@ -148,3 +148,23 @@ code {
 .no-scrollbar::-webkit-scrollbar {
     display: none;
 }
+
+@keyframes promoShine {
+    0% { transform: translateX(-120%); }
+    55%, 100% { transform: translateX(280%); }
+}
+.promo-shine {
+    position: absolute;
+    top: 0; bottom: 0; width: 38%;
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.55), transparent);
+    animation: promoShine 3.2s ease-in-out infinite;
+    pointer-events: none;
+}
+
+@keyframes promoPulse {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.08); }
+}
+.promo-pulse {
+    animation: promoPulse 1.6s ease-in-out infinite;
+}

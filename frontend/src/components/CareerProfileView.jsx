@@ -3,6 +3,7 @@ import {
   FolderGit2, Mail, Phone, FileText, ExternalLink, Target,
 } from "lucide-react";
 import { fileUrl, imageUrl } from "../lib/format";
+import { CV_TEMPLATES, CV_ACCENTS, CvTemplateRenderer, profileToCvData } from "./cvTemplates";
 
 function Section({ icon: Icon, title, children, testId }) {
   return (
@@ -182,6 +183,34 @@ export default function CareerProfileView({ user = {}, profile = {}, showContact
           data-testid="cp-cv-link">
           <FileText className="h-4 w-4" /> Lihat CV ({user.cv_filename || "CV"})
         </a>
+      )}
+
+      {profile.cv_design && (
+        <div className="mt-6" data-testid="cp-cv-professional">
+          <h4 className="flex items-center gap-2 text-sm font-semibold text-slate-800 mb-2">
+            <FileText className="h-4 w-4 text-sky-600" /> CV Profesional
+          </h4>
+          <p className="text-xs text-slate-500 mb-2">
+            Template: <span className="font-semibold text-slate-700">{CV_TEMPLATES.find((t) => t.id === profile.cv_design.template)?.name || profile.cv_design.template}</span>
+            {" · "}
+            Aksen: <span className="font-semibold" style={{ color: CV_ACCENTS.find((a) => a.id === profile.cv_design.accent)?.hex }}>
+              {CV_ACCENTS.find((a) => a.id === profile.cv_design.accent)?.label}
+            </span>
+          </p>
+          <div className="rounded-xl overflow-hidden border border-slate-200 bg-slate-50 flex justify-center p-3">
+            <div
+              className="relative rounded-lg overflow-hidden bg-slate-100 border border-slate-200"
+              style={{ width: `${794 * 0.5}px`, height: `${1123 * 0.5}px`, maxWidth: "100%" }}>
+              <div style={{ width: "794px", height: "1123px", transform: "scale(0.5)", transformOrigin: "top left" }}>
+                <CvTemplateRenderer
+                  template={profile.cv_design.template}
+                  accent={profile.cv_design.accent}
+                  data={profileToCvData(user, profile)}
+                />
+              </div>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

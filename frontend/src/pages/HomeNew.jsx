@@ -5,7 +5,7 @@ import {
   Search, MapPin, Briefcase, BadgeCheck, Bookmark, ArrowRight, ArrowUpRight,
   Flame, Crown, Building2, Users, GraduationCap, Clock, ShieldCheck, Gift, Zap,
   Star, ChevronLeft, ChevronRight, Menu, X, LayoutDashboard, LogOut, Instagram,
-  Linkedin, Youtube, Music2, Megaphone, Newspaper, Store, CheckCircle2, Check, Send, Monitor,
+  Linkedin, Youtube, Music2, Megaphone, Newspaper, Store, CheckCircle2, Check, Send, Monitor, Sparkles,
 } from "lucide-react";
 import api from "../lib/api";
 import { useAuth } from "../context/AuthContext";
@@ -479,6 +479,33 @@ function Hero() {
         </div>
       </div>
     </section>
+  );
+}
+
+function PromoCvStrip() {
+  return (
+    <div className="relative overflow-hidden bg-gradient-to-r from-yellow-400 via-amber-300 to-yellow-400" data-testid="promo-cv-strip">
+      <div className="absolute inset-0 opacity-25" style={{ backgroundImage: "repeating-linear-gradient(45deg, rgba(255,255,255,0.7) 0 2px, transparent 2px 16px)" }} />
+      <div className="promo-shine" />
+      <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3 flex flex-col sm:flex-row items-center justify-center gap-2.5 sm:gap-4 text-center">
+        <span className="promo-pulse inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[#0B1F4B] text-yellow-400 shadow-lg">
+          <Gift className="h-5 w-5" />
+        </span>
+        <p className="text-[#0B1F4B] text-[13.5px] sm:text-[15px] leading-snug">
+          <span className="font-extrabold">Buat CV Profesional secara GRATIS!</span>
+          <span className="hidden sm:inline"> — </span>
+          <span className="block sm:inline text-[12px] sm:text-[14px] font-semibold">Klaim promo sekarang, hanya selama masa launching.</span>
+        </p>
+        <Link
+          to="/candidate/cv-professional"
+          className="shrink-0 inline-flex items-center justify-center gap-1.5 h-10 px-5 rounded-xl bg-[#0B1F4B] text-yellow-400 text-[12.5px] font-extrabold shadow-lg shadow-blue-900/30 hover:bg-[#12307A] hover:gap-2.5 transition-all"
+          data-testid="promo-cv-cta"
+        >
+          Klaim Promo Sekarang <ArrowRight className="h-4 w-4" />
+        </Link>
+        <Sparkles className="hidden lg:block h-4 w-4 text-white/80" />
+      </div>
+    </div>
   );
 }
 
@@ -1291,6 +1318,7 @@ export default function HomeNew() {
     <div className="bg-white min-h-screen page-fade">
       <HomeHeader />
       <Hero />
+      <PromoCvStrip />
       <QuickLinksSection />
       <KategoriPills />
       <WilayahSection />

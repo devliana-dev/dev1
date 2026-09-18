@@ -1,7 +1,8 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { Link } from "react-router-dom";
 import {
   Loader2, Plus, X, GraduationCap, Briefcase, Award, Languages, Users,
-  Trophy, FolderGit2, Target, UserRound, Eye, EyeOff, Camera, CheckCircle2,
+  Trophy, FolderGit2, Target, UserRound, Eye, EyeOff, Camera, CheckCircle2, FileText, Palette,
 } from "lucide-react";
 import { toast } from "sonner";
 import DashboardLayout from "../../components/DashboardLayout";
@@ -13,6 +14,7 @@ import {
   SKILL_LEVELS, LANGUAGE_LEVELS, EDU_LEVEL_OPTIONS,
 } from "../../lib/constants";
 import { imageUrl } from "../../lib/format";
+import { CV_TEMPLATES, CV_ACCENTS, CvTemplateRenderer, profileToCvData } from "../../components/cvTemplates";
 
 const inputCls = "w-full h-11 px-3 rounded-lg border border-slate-300 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-sky-500";
 const smInput = "w-full h-10 px-3 rounded-lg border border-slate-300 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-sky-500";
@@ -79,8 +81,49 @@ const EMPTY_PROFILE = {
   photo_path: "", address: "", city: "", summary: "", target_position: "", target_category: "",
   target_location: "", target_job_type: "", expected_salary: 0, visibility: "private",
   education: [], experience: [], skills: [], certifications: [], languages: [],
-  organizations: [], achievements: [], portfolios: [],
+  organizations: [], achievements: [], portfolios: [], job_preferences: [],
+  cv_design: { template: "modern", accent: "navy" },
 };
+
+function ActiveCvPreviewCard({ profile, user }) {
+  const design = profile.cv_design || { template: "modern", accent: "navy" };
+  const tplMeta = CV_TEMPLATES.find((t) => t.id === design.template);
+  const accentMeta = CV_ACCENTS.find((a) => a.id === design.accent);
+  const cvData = useMemo(() => profileToCvData(user, profile), [profile, user]);
+  return (
+    <div className="bg-white rounded-xl border border-slate-200 p-5" data-testid="active-cv-preview-card">
+      <div className="flex items-start justify-between gap-3 mb-4">
+        <div className="min-w-0">
+          <h3 className="font-display font-semibold text-slate-900 flex items-center gap-2">
+            <FileText className="h-5 w-5 text-sky-600" /> CV Profesional
+          </h3>
+          <p className="text-xs text-slate-500 mt-0.5 flex items-center gap-2 flex-wrap">
+            Template aktif: <span className="font-semibold text-slate-800">{tplMeta?.name}</span>
+            <span className="inline-flex items-center gap-1 text-xs">
+              <span className="inline-block h-3 w-3 rounded-full ring-1 ring-slate-300" style={{ background: accentMeta?.hex }} />
+              {accentMeta?.label}
+            </span>
+          </p>
+        </div>
+        <Link to="/candidate/cv-professional" className="shrink-0 inline-flex items-center gap-1.5 h-10 px-3 rounded-lg border border-slate-300 text-xs font-semibold text-slate-700 hover:bg-slate-50" data-testid="edit-cv-design-btn">
+          <Palette className="h-4 w-4" /> Ubah Template
+        </Link>
+      </div>
+      <div className="rounded-xl overflow-hidden border border-slate-200 bg-slate-50 flex justify-center p-3">
+        <div
+          className="relative rounded-lg overflow-hidden bg-slate-100 border border-slate-200"
+          style={{ width: `${794 * 0.5}px`, height: `${1123 * 0.5}px`, maxWidth: "100%" }}>
+          <div style={{ width: "794px", height: "1123px", transform: "scale(0.5)", transformOrigin: "top left" }}>
+            <CvTemplateRenderer template={design.template} accent={design.accent} data={cvData} />
+          </div>
+        </div>
+      </div>
+      <p className="mt-3 text-xs text-slate-500">
+        Data CV di atas otomatis diambil dari Profil Karier ini. Setelah Anda menyimpan perubahan Profil Karier, CV Profesional Anda ikut tersinkron.
+      </p>
+    </div>
+  );
+}
 
 export default function CandidateProfile() {
   const { refresh } = useAuth();
@@ -362,6 +405,14 @@ export default function CandidateProfile() {
             { key: "link", label: "Link", placeholder: "https://..." },
             { key: "description", label: "Deskripsi", textarea: true },
           ]} />
+
+        <ListEditor title="Preferensi Kerja Tambahan" icon={Target} items={profile.job_preferences} onChange={setList("job_preferences")} testId="pref-editor"
+          fields={[
+            { key: "label", label: "Preferensi", placeholder: "Contoh: WFO, Shift Pagi, Remote, dsb." },
+            { key: "note", label: "Catatan", placeholder: "Detail (opsional)" },
+          ]} />
+
+        <ActiveCvPreviewCard profile={profile} user={{ ...userForm, email }} />
 
         <button type="submit" disabled={saving} className="h-12 px-8 rounded-lg bg-slate-900 text-white font-semibold hover:bg-slate-800 transition-colors disabled:opacity-60 inline-flex items-center gap-2" data-testid="career-profile-save-btn">
           {saving && <Loader2 className="h-4 w-4 animate-spin" />}

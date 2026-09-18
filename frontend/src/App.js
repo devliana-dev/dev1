@@ -27,6 +27,7 @@ import MyApplications from "@/pages/candidate/MyApplications";
 import CandidateProfile from "@/pages/candidate/CandidateProfile";
 import CandidateCV from "@/pages/candidate/CandidateCV";
 import CvProfessional from "@/pages/candidate/CvProfessional";
+import CareerProUpgrade from "@/pages/candidate/CareerProUpgrade";
 import CvList from "@/pages/candidate/CvList";
 import CvBuilder from "@/pages/candidate/CvBuilder";
 import CvImport from "@/pages/candidate/CvImport";
@@ -126,6 +127,7 @@ function App() {
             <Route path="/candidate/profile" element={protect("candidate", <CandidateProfile />)} />
             <Route path="/candidate/cv" element={protect("candidate", <CandidateCV />)} />
             <Route path="/candidate/cv-professional" element={protect("candidate", <CvProfessional />)} />
+            <Route path="/candidate/cv-professional/upgrade" element={protect("candidate", <CareerProUpgrade />)} />
             <Route path="/candidate/cv-professional/list" element={protect("candidate", <CvList />)} />
             <Route path="/candidate/cv-professional/builder" element={protect("candidate", <CvBuilder />)} />
             <Route path="/candidate/cv-professional/builder/:id" element={protect("candidate", <CvBuilder />)} />

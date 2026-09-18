@@ -226,21 +226,14 @@ async def save_upload(user_id: str, file: UploadFile, kind: str) -> dict:
             "docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
             "jpg": "image/jpeg", "jpeg": "image/jpeg", "png": "image/png", "webp": "image/webp"}[ext]
     path = f"{APP_NAME}/uploads/{user_id}/{uuid.uuid4()}.{ext}"
-    storage_backend = "cloud"
     try:
         result = await asyncio.to_thread(put_object, path, data, mime)
-    except Exception:
-        # Fallback penyimpanan lokal bila object storage tidak tersedia
-        local_dir = Path("/app/backend/uploads_local")
-        local_file = local_dir / path
-        local_file.parent.mkdir(parents=True, exist_ok=True)
-        local_file.write_bytes(data)
-        result = {"path": path, "size": len(data)}
-        storage_backend = "local"
+    except Exception as e:
+        raise HTTPException(status_code=503, detail="Layanan penyimpanan file sedang tidak tersedia. Coba lagi.") from e
     await db.files.insert_one({
         "id": str(uuid.uuid4()), "storage_path": result["path"], "original_filename": file.filename,
         "content_type": mime, "size": result["size"], "kind": kind, "owner_user_id": user_id,
-        "storage": storage_backend, "is_deleted": False, "created_at": now_iso(),
+        "storage": "cloud", "is_deleted": False, "created_at": now_iso(),
     })
     return {"path": result["path"], "filename": file.filename}
 
@@ -651,23 +644,10 @@ async def download_file(path: str, request: Request, auth: str = Query(None)):
         if not allowed:
             raise HTTPException(status_code=403, detail="Tidak memiliki akses")
     data = None
-    if record.get("storage") == "local":
-        local_file = Path("/app/backend/uploads_local") / path
-        if local_file.exists():
-            data = local_file.read_bytes()
-            content_type = record.get("content_type", "application/octet-stream")
-        else:
-            raise HTTPException(status_code=404, detail="File tidak ditemukan")
-    else:
-        try:
-            data, content_type = await asyncio.to_thread(get_object, path)
-        except Exception:
-            local_file = Path("/app/backend/uploads_local") / path
-            if local_file.exists():
-                data = local_file.read_bytes()
-                content_type = record.get("content_type", "application/octet-stream")
-            else:
-                raise HTTPException(status_code=404, detail="File tidak ditemukan")
+    try:
+        data, content_type = await asyncio.to_thread(get_object, path)
+    except Exception:
+        raise HTTPException(status_code=404, detail="File tidak ditemukan")
     return RawResponse(content=data, media_type=record.get("content_type", content_type))
 
 
@@ -1252,9 +1232,9 @@ async def seed_membership_products():
     if await db.membership_products.count_documents({}) == 0:
         now = now_iso()
         await db.membership_products.insert_many([
-            {"id": str(uuid.uuid4()), "product_code": "cv_professional", "name": "CV Profesional",
-             "target_role": "job_seeker", "price": 10000, "duration_days": 30,
-             "description": "Template CV profesional, CV builder, import CV lama, dan download PDF selama 30 hari.",
+            {"id": str(uuid.uuid4()), "product_code": "cv_professional", "name": "Career Pro",
+             "target_role": "job_seeker", "price": 10000, "duration_days": 90,
+             "description": "Akses CV Profesional (8 template + 6 aksen warna), Lamar Cepat 30x, dan Preferensi Kerja selama 3 bulan.",
              "active": True, "created_at": now, "updated_at": now},
             {"id": str(uuid.uuid4()), "product_code": "company_membership", "name": "Member Perusahaan",
              "target_role": "company", "price": 50000, "duration_days": 90,
@@ -1262,6 +1242,12 @@ async def seed_membership_products():
              "active": True, "created_at": now, "updated_at": now},
         ])
         logger.info("Membership products seeded")
+    else:
+        await db.membership_products.update_one(
+            {"product_code": "cv_professional"},
+            {"$set": {"duration_days": 90, "name": "Career Pro",
+                      "description": "Akses CV Profesional (8 template + 6 aksen warna), Lamar Cepat 30x, dan Preferensi Kerja selama 3 bulan.",
+                      "updated_at": now_iso()}})
 
 
 async def get_product(product_code):
@@ -2323,9 +2309,14 @@ async def candidate_apply_quota(user=Depends(require_role("candidate"))):
 
 # ---------- Profil Karier ----------
 CAREER_PROFILE_LIST_FIELDS = ["education", "experience", "skills", "certifications",
-                              "languages", "organizations", "achievements", "portfolios"]
+                              "languages", "organizations", "achievements", "portfolios",
+                              "job_preferences"]
 CAREER_PROFILE_STR_FIELDS = ["photo_path", "address", "city", "summary", "target_position",
                              "target_category", "target_location", "target_job_type"]
+CV_TEMPLATE_IDS = ["modern", "ats", "executive", "creative", "minimalis", "corporate",
+                   "fresh_graduate", "elegant"]
+CV_ACCENT_COLORS = ["navy", "blue", "black", "green", "purple", "gold"]
+DEFAULT_CV_DESIGN = {"template": "modern", "accent": "navy"}
 
 
 async def get_career_profile(user_id):
@@ -2339,6 +2330,11 @@ def normalize_career_profile(profile):
         data[f] = profile.get(f, "")
     data["expected_salary"] = profile.get("expected_salary", 0)
     data["visibility"] = profile.get("visibility", "private")
+    design = profile.get("cv_design") or {}
+    data["cv_design"] = {
+        "template": design.get("template") if design.get("template") in CV_TEMPLATE_IDS else DEFAULT_CV_DESIGN["template"],
+        "accent": design.get("accent") if design.get("accent") in CV_ACCENT_COLORS else DEFAULT_CV_DESIGN["accent"],
+    }
     return data
 
 
@@ -2381,6 +2377,12 @@ class CareerProfileIn(BaseModel):
     organizations: list = []
     achievements: list = []
     portfolios: list = []
+    job_preferences: list = []
+
+
+class CvDesignIn(BaseModel):
+    template: str
+    accent: str
 
 
 class JobAlertIn(BaseModel):
@@ -2447,6 +2449,31 @@ async def update_career_profile(data: CareerProfileIn, user=Depends(require_role
         {"$set": update, "$setOnInsert": {"id": str(uuid.uuid4()), "user_id": user["id"], "created_at": now_iso()}},
         upsert=True)
     return await get_my_career_profile(user)
+
+
+@api_router.get("/candidate/cv-design")
+async def get_my_cv_design(user=Depends(require_role("candidate"))):
+    profile = await get_career_profile(user["id"])
+    design = profile.get("cv_design") or {}
+    return {
+        "template": design.get("template") if design.get("template") in CV_TEMPLATE_IDS else DEFAULT_CV_DESIGN["template"],
+        "accent": design.get("accent") if design.get("accent") in CV_ACCENT_COLORS else DEFAULT_CV_DESIGN["accent"],
+    }
+
+
+@api_router.put("/candidate/cv-design")
+async def update_my_cv_design(data: CvDesignIn, user=Depends(require_role("candidate"))):
+    if data.template not in CV_TEMPLATE_IDS:
+        raise HTTPException(status_code=400, detail="Template CV tidak valid")
+    if data.accent not in CV_ACCENT_COLORS:
+        raise HTTPException(status_code=400, detail="Warna aksen tidak valid")
+    design = {"template": data.template, "accent": data.accent}
+    await db.career_profiles.update_one(
+        {"user_id": user["id"]},
+        {"$set": {"cv_design": design, "updated_at": now_iso()},
+         "$setOnInsert": {"id": str(uuid.uuid4()), "user_id": user["id"], "created_at": now_iso()}},
+        upsert=True)
+    return design
 
 
 @api_router.post("/candidate/career-profile/photo")
@@ -2706,19 +2733,22 @@ async def quick_apply(job_id: str, message: str = Form(""), user=Depends(require
         raise HTTPException(status_code=400, detail="Lowongan tidak tersedia")
     if await db.applications.find_one({"job_id": job_id, "candidate_id": user["id"]}):
         raise HTTPException(status_code=400, detail="Anda sudah melamar lowongan ini")
-    if not user.get("cv_path"):
+    profile = await get_career_profile(user["id"])
+    has_summary = bool(profile.get("summary") or user.get("about"))
+    has_experience = bool(profile.get("experience") or user.get("experience"))
+    if not has_summary or not has_experience:
         raise HTTPException(status_code=400,
-                            detail="Unggah CV terlebih dahulu di halaman CV Saya untuk menggunakan Lamar Cepat.")
+                            detail="Lengkapi Profil Karier (ringkasan & pengalaman) untuk menggunakan Lamar Cepat.")
     consumed = await consume_apply_quota(user["id"])
     if not consumed:
         raise HTTPException(status_code=403,
-                            detail="Kuota One-Click Apply Anda sudah habis. Anda tetap dapat melamar dengan formulir biasa, atau upgrade ke Career Pro untuk kuota lebih besar.")
+                            detail="Kuota Lamar Cepat Anda sudah habis. Anda tetap dapat melamar dengan formulir biasa, atau upgrade ke Career Pro untuk kuota lebih besar.")
     company = await db.companies.find_one({"id": job["company_id"]}, {"_id": 0})
     application = {"id": str(uuid.uuid4()), "job_id": job["id"], "job_title": job["title"], "job_slug": job["slug"],
                    "company_id": job["company_id"], "company_name": company["name"] if company else "",
                    "candidate_id": user["id"], "name": user["name"], "email": user["email"],
                    "phone": user.get("phone", ""), "education": user.get("education", ""),
-                   "experience": user.get("experience", ""), "cv_path": user["cv_path"],
+                   "experience": user.get("experience", ""), "cv_path": user.get("cv_path", ""),
                    "cv_filename": user.get("cv_filename", ""), "message": message,
                    "apply_method": "one_click", "status": "terkirim", "is_shortlisted": False,
                    "created_at": now_iso()}
