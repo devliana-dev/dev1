@@ -54,7 +54,7 @@ function PlanBadge({ pro }) {
   );
 }
 
-function Sidebar({ onNavigate, pro }) {
+function Sidebar({ onNavigate, pro, testPrefix = "" }) {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
   const handleClick = (item) => {
@@ -84,7 +84,7 @@ function Sidebar({ onNavigate, pro }) {
             className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-[13px] font-semibold transition-colors ${
               m.end ? "bg-blue-600 text-white shadow-md shadow-blue-900/30" : "text-blue-100/85 hover:bg-white/10 hover:text-white"
             }`}
-            data-testid={`menu-${m.label.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`}
+            data-testid={`${testPrefix}menu-${m.label.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`}
           >
             <m.icon className="h-4 w-4 shrink-0" /> {m.label}
           </button>
@@ -233,6 +233,7 @@ function RecommendCard({ job, pro, onQuickApply, applying }) {
 
 export default function CandidateDashboardNew() {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [stats, setStats] = useState(null);
   const [apps, setApps] = useState([]);
   const [profile, setProfile] = useState(null);
@@ -275,7 +276,11 @@ export default function CandidateDashboardNew() {
       setRecos((prev) => prev.filter((j) => j.id !== job.id));
       toast.success(`Lamaran cepat terkirim ke ${job.company_name}!`);
     } catch (err) {
-      toast.error(err?.response?.data?.detail || "Lamar Cepat gagal. Pastikan CV sudah diunggah.");
+      const detail = err?.response?.data?.detail || "Lamar Cepat gagal. Coba lagi.";
+      toast.error(detail);
+      if (String(detail).includes("CV")) {
+        setTimeout(() => navigate("/candidate/cv"), 1400);
+      }
     } finally {
       setApplying("");
     }
@@ -292,7 +297,7 @@ export default function CandidateDashboardNew() {
         <div className="lg:hidden fixed inset-0 z-50 flex" data-testid="candidate-sidebar-mobile">
           <div className="absolute inset-0 bg-black/50" onClick={() => setOpen(false)} />
           <aside className="relative w-64 max-w-[80%]">
-            <Sidebar pro={pro} onNavigate={() => setOpen(false)} />
+            <Sidebar pro={pro} testPrefix="drawer-" onNavigate={() => setOpen(false)} />
             <button onClick={() => setOpen(false)} className="absolute top-4 -right-11 h-9 w-9 rounded-lg bg-white text-slate-700 shadow-lg flex items-center justify-center" aria-label="Tutup menu">
               <X className="h-4 w-4" />
             </button>

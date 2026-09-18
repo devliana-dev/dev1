@@ -2,6 +2,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 import asyncio
+from pathlib import Path
 import logging
 import os
 import re
@@ -225,11 +226,21 @@ async def save_upload(user_id: str, file: UploadFile, kind: str) -> dict:
             "docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
             "jpg": "image/jpeg", "jpeg": "image/jpeg", "png": "image/png", "webp": "image/webp"}[ext]
     path = f"{APP_NAME}/uploads/{user_id}/{uuid.uuid4()}.{ext}"
-    result = await asyncio.to_thread(put_object, path, data, mime)
+    storage_backend = "cloud"
+    try:
+        result = await asyncio.to_thread(put_object, path, data, mime)
+    except Exception:
+        # Fallback penyimpanan lokal bila object storage tidak tersedia
+        local_dir = Path("/app/backend/uploads_local")
+        local_file = local_dir / path
+        local_file.parent.mkdir(parents=True, exist_ok=True)
+        local_file.write_bytes(data)
+        result = {"path": path, "size": len(data)}
+        storage_backend = "local"
     await db.files.insert_one({
         "id": str(uuid.uuid4()), "storage_path": result["path"], "original_filename": file.filename,
         "content_type": mime, "size": result["size"], "kind": kind, "owner_user_id": user_id,
-        "is_deleted": False, "created_at": now_iso(),
+        "storage": storage_backend, "is_deleted": False, "created_at": now_iso(),
     })
     return {"path": result["path"], "filename": file.filename}
 
@@ -639,10 +650,24 @@ async def download_file(path: str, request: Request, auth: str = Query(None)):
                      "$or": [{"cv_path": path}, {"candidate_id": record.get("owner_user_id")}]}))
         if not allowed:
             raise HTTPException(status_code=403, detail="Tidak memiliki akses")
-    try:
-        data, content_type = await asyncio.to_thread(get_object, path)
-    except Exception:
-        raise HTTPException(status_code=404, detail="File tidak ditemukan")
+    data = None
+    if record.get("storage") == "local":
+        local_file = Path("/app/backend/uploads_local") / path
+        if local_file.exists():
+            data = local_file.read_bytes()
+            content_type = record.get("content_type", "application/octet-stream")
+        else:
+            raise HTTPException(status_code=404, detail="File tidak ditemukan")
+    else:
+        try:
+            data, content_type = await asyncio.to_thread(get_object, path)
+        except Exception:
+            local_file = Path("/app/backend/uploads_local") / path
+            if local_file.exists():
+                data = local_file.read_bytes()
+                content_type = record.get("content_type", "application/octet-stream")
+            else:
+                raise HTTPException(status_code=404, detail="File tidak ditemukan")
     return RawResponse(content=data, media_type=record.get("content_type", content_type))
 
 
@@ -729,6 +754,8 @@ async def upload_candidate_cv(file: UploadFile = File(...), user=Depends(require
 # ---------- Company ----------
 async def get_my_company(user):
     company = await db.companies.find_one({"user_id": user["id"]}, {"_id": 0})
+    if not company and user.get("company_id"):
+        company = await db.companies.find_one({"id": user["company_id"]}, {"_id": 0})
     if not company:
         raise HTTPException(status_code=404, detail="Profil perusahaan tidak ditemukan")
     return company
@@ -756,6 +783,92 @@ async def upload_company_logo(file: UploadFile = File(...), user=Depends(require
     saved = await save_upload(user["id"], file, "logo")
     await db.companies.update_one({"id": company["id"]}, {"$set": {"logo": saved["path"]}})
     return {"logo": saved["path"]}
+
+
+# ---------- Tim & Akses (manajemen anggota tim rekrutmen) ----------
+
+class TeamMemberIn(BaseModel):
+    name: str
+    email: str
+    password: str
+    role: str = "recruiter"  # admin | recruiter
+
+
+class TeamRoleIn(BaseModel):
+    role: str  # admin | recruiter
+
+
+def _team_member_out(m: dict, company: dict) -> dict:
+    return {
+        "id": m["id"], "name": m.get("name", ""), "email": m.get("email", ""),
+        "company_role": "owner" if m["id"] == company["user_id"] else m.get("company_role", "recruiter"),
+        "is_owner": m["id"] == company["user_id"],
+        "created_at": m.get("created_at", ""),
+    }
+
+
+@api_router.get("/company/team")
+async def company_team(user=Depends(require_role("company"))):
+    company = await get_my_company(user)
+    if user.get("company_role", "owner") not in ("owner", "admin"):
+        raise HTTPException(status_code=403, detail="Hanya Owner/Admin yang dapat melihat Tim & Akses")
+    members = await db.users.find(
+        {"role": "company", "$or": [{"company_id": company["id"]}, {"id": company["user_id"]}]},
+        {"_id": 0, "password_hash": 0},
+    ).sort("created_at", 1).to_list(200)
+    return [_team_member_out(m, company) for m in members]
+
+
+@api_router.post("/company/team")
+async def add_team_member(data: TeamMemberIn, user=Depends(require_role("company"))):
+    company = await get_my_company(user)
+    if user.get("company_role", "owner") not in ("owner", "admin"):
+        raise HTTPException(status_code=403, detail="Hanya Owner/Admin yang dapat menambah anggota tim")
+    role = data.role if data.role in ("admin", "recruiter") else "recruiter"
+    email = data.email.strip().lower()
+    if await db.users.find_one({"email": email}):
+        raise HTTPException(status_code=400, detail="Email sudah terdaftar")
+    member = {
+        "id": str(uuid.uuid4()), "name": data.name.strip(), "email": email, "phone": "",
+        "password_hash": hash_password(data.password), "role": "company",
+        "company_id": company["id"], "company_role": role,
+        "blocked": False, "created_at": now_iso(),
+    }
+    await db.users.insert_one(member)
+    return _team_member_out(member, company)
+
+
+@api_router.put("/company/team/{member_id}")
+async def update_team_member(member_id: str, data: TeamRoleIn, user=Depends(require_role("company"))):
+    company = await get_my_company(user)
+    if user.get("company_role", "owner") not in ("owner", "admin"):
+        raise HTTPException(status_code=403, detail="Hanya Owner/Admin yang dapat mengubah peran")
+    member = await db.users.find_one({"id": member_id, "role": "company"})
+    if not member:
+        raise HTTPException(status_code=404, detail="Anggota tim tidak ditemukan")
+    if member["id"] == company["user_id"]:
+        raise HTTPException(status_code=400, detail="Peran Owner tidak dapat diubah")
+    if member_id == user["id"]:
+        raise HTTPException(status_code=400, detail="Tidak dapat mengubah peran diri sendiri")
+    role = data.role if data.role in ("admin", "recruiter") else "recruiter"
+    await db.users.update_one({"id": member_id}, {"$set": {"company_role": role}})
+    return {"id": member_id, "company_role": role}
+
+
+@api_router.delete("/company/team/{member_id}")
+async def remove_team_member(member_id: str, user=Depends(require_role("company"))):
+    company = await get_my_company(user)
+    if user.get("company_role", "owner") not in ("owner", "admin"):
+        raise HTTPException(status_code=403, detail="Hanya Owner/Admin yang dapat menghapus anggota tim")
+    member = await db.users.find_one({"id": member_id, "role": "company"})
+    if not member:
+        raise HTTPException(status_code=404, detail="Anggota tim tidak ditemukan")
+    if member["id"] == company["user_id"]:
+        raise HTTPException(status_code=400, detail="Owner tidak dapat dihapus")
+    if member_id == user["id"]:
+        raise HTTPException(status_code=400, detail="Tidak dapat menghapus diri sendiri")
+    await db.users.delete_one({"id": member_id, "role": "company", "company_id": company["id"]})
+    return {"ok": True}
 
 
 @api_router.get("/company/stats")

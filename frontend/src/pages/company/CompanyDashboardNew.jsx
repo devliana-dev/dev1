@@ -21,7 +21,7 @@ const MENU = [
   { to: "/company/candidates", label: "Cari Kandidat", icon: UserSearch, premium: true },
   { to: "/company/shortlists", label: "Kandidat Tersimpan", icon: Star },
   { to: "/company/profile", label: "Profil Perusahaan", icon: Building2 },
-  { to: "#tim", label: "Tim & Akses", icon: UserCog, soon: true },
+  { to: "/company/team", label: "Tim & Akses", icon: UserCog, adminOnly: true },
   { to: "#pengaturan", label: "Pengaturan", icon: Settings, soon: true },
   { to: "#bantuan", label: "Bantuan & Kontak", icon: HelpCircle, soon: true },
 ];
@@ -72,12 +72,16 @@ function PlanBadge({ premium }) {
   );
 }
 
-function Sidebar({ onNavigate, premium }) {
+function Sidebar({ onNavigate, premium, testPrefix = "" }) {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
   const handleClick = (item) => {
     if (item.soon) {
       toast.info(`${item.label} segera hadir. Nantikan update berikutnya!`);
+      return;
+    }
+    if (item.adminOnly && !premium) {
+      toast.info("Tim & Akses tersedia setelah upgrade Premium Perusahaan.");
       return;
     }
     if (item.premium && !premium) {
@@ -106,7 +110,7 @@ function Sidebar({ onNavigate, premium }) {
             className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-[13px] font-semibold transition-colors ${
               m.end ? "bg-blue-600 text-white shadow-md shadow-blue-900/30" : "text-blue-100/85 hover:bg-white/10 hover:text-white"
             }`}
-            data-testid={`menu-${m.label.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`}
+            data-testid={`${testPrefix}menu-${m.label.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`}
           >
             <m.icon className="h-4 w-4 shrink-0" />
             <span className="flex-1 text-left">{m.label}</span>
@@ -233,7 +237,7 @@ export default function CompanyDashboardNew() {
         <div className="lg:hidden fixed inset-0 z-50 flex" data-testid="company-sidebar-mobile">
           <div className="absolute inset-0 bg-black/50" onClick={() => setOpen(false)} />
           <aside className="relative w-64 max-w-[80%]">
-            <Sidebar premium={premium} onNavigate={() => setOpen(false)} />
+            <Sidebar premium={premium} testPrefix="drawer-" onNavigate={() => setOpen(false)} />
             <button onClick={() => setOpen(false)} className="absolute top-4 -right-11 h-9 w-9 rounded-lg bg-white text-slate-700 shadow-lg flex items-center justify-center" aria-label="Tutup menu">
               <X className="h-4 w-4" />
             </button>

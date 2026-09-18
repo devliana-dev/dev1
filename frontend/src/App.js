@@ -40,6 +40,7 @@ import { ADMIN_MENU } from "@/pages/admin/menu";
 import NotificationsPage from "@/pages/shared/NotificationsPage";
 
 import CompanyDashboardNew from "@/pages/company/CompanyDashboardNew";
+import TeamAccess from "@/pages/company/TeamAccess";
 import CompanyProfile from "@/pages/company/CompanyProfile";
 import CompanyJobs from "@/pages/company/CompanyJobs";
 import JobForm from "@/pages/company/JobForm";
@@ -138,6 +139,7 @@ function App() {
 
             <Route path="/company/dashboard" element={protect("company", <CompanyDashboardNew />)} />
             <Route path="/company/profile" element={protect("company", <CompanyProfile />)} />
+            <Route path="/company/team" element={protect("company", <TeamAccess />)} />
             <Route path="/company/jobs" element={protect("company", <CompanyJobs />)} />
             <Route path="/company/jobs/new" element={protect("company", <JobForm />)} />
             <Route path="/company/jobs/:id/edit" element={protect("company", <JobForm />)} />

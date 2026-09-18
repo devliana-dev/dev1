@@ -16,49 +16,59 @@
 # 
 ## user_problem_statement: {problem_statement}
 ## backend:
-##   - task: "Task name"
+##   - task: "Fitur Tim & Akses Perusahaan (manajemen anggota tim rekrutmen dengan peran)"
 ##     implemented: true
-##     working: true  # or false or "NA"
-##     file: "file_path.py"
+##     working: true
+##     file: "/app/backend/server.py"
 ##     stuck_count: 0
-##     priority: "high"  # or "medium" or "low"
+##     priority: "high"
 ##     needs_retesting: false
 ##     status_history:
-##         -working: true  # or false or "NA"
-##         -agent: "main"  # or "testing" or "user"
-##         -comment: "Detailed comment about status"
+##         - working: true
+##           agent: "main"
+##           comment: "Ditambahkan di server.py: (1) get_my_company diperluas mendukung anggota tim (user role=company dengan field company_id → resolve perusahaan yang sama, backward compatible utk owner); (2) GET /company/team (owner/admin; list owner + anggota, output aman tanpa password_hash, flag is_owner); (3) POST /company/team {name,email,password,role: admin|recruiter} (email unik, bcrypt); (4) PUT /company/team/{id} ganti peran (larang ubah owner & diri sendiri); (5) DELETE /company/team/{id} (larang hapus owner & diri sendiri; hanya hapus user dengan company_id sama). Hak akses: owner/admin kelola tim; recruiter = fitur rekrutmen saja. Verifikasi manual: login demo@umkm.com → GET /company/team mengembalikan owner Dedi Kurniawan dengan benar. Perlu testing menyeluruh: tambah/ubah/hapus anggota, permission recruiter, login member + resolve perusahaan."
+##         - working: true
+##           agent: "testing"
+##           comment: "BACKEND TESTING 15/15 PASSED: GET team (owner list benar), POST tambah recruiter & admin OK, email duplikat 400, PUT ganti peran OK, larangan ubah/hapus owner 400, larangan ubah diri sendiri 400, DELETE member OK, login member baru OK, /company/stats dengan token member resolve Toko Sembako Barokah (company_id bekerja), recruiter 403 untuk kelola tim, tidak ada traceback. Script test: /app/backend_team_test.py. Production-ready."
+##         - working: true
+##           agent: "testing"
+##           comment: "FRONTEND TESTING 8/8 SKENARIO PASSED (auto_frontend_testing_agent, 30+ test case): (1) Lamar Cepat sukses - toast 'Lamaran cepat terkirim', kuota 29/30→28/30, lamaran pindah ke Lamaran Terakhir; (2) drawer mobile kandidat (hamburger → drawer-menu-* navigasi & tertutup); (3) drawer mobile perusahaan → /company/team; (4) Tim & Akses CRUD: tambah Teti Recruiter → badge Recruiter, ubah peran → Admin, hapus → hilang; (5) navigasi 12 menu perusahaan valid (Pengaturan toast segera hadir); (6) navigasi 8 menu kandidat valid + lamaran baru terlihat (Komunitas toast); (7) tombol kelola: Kelola Referral & Komisi → /candidate/referral (kode BUDISAB20D), Kelola Membership → /company/membership; (8) responsive 1366px & 390px kandidat+perusahaan tanpa overflow. Minor non-blocking: 2x 401 /api/auth/me saat load awal (timing, tidak berdampak). Aplikasi siap."
+##         - working: true
+##           agent: "testing"
+##           comment: "✅ ALL 15 BACKEND TEAM & ACCESS TESTS PASSED. Tested via /app/backend_team_test.py dengan akun owner demo@umkm.com. (1) GET /api/company/team → 200 OK, returned array dengan owner pertama (Dedi Kurniawan, is_owner=true, company_role=owner, email=demo@umkm.com) ✅. (2) POST /api/company/team tambah Rina Melati (recruiter) → 200 OK, id returned, company_role=recruiter ✅. (3) POST /api/company/team tambah Andi Admin (admin) → 200 OK, id returned, company_role=admin ✅. (4) POST /api/company/team dengan email DUPLIKAT (rina.team@umkm.com) → 400 dengan detail 'Email sudah terdaftar' (bukan 500) ✅. (5) PUT /api/company/team/{id_rina} ubah role ke admin → 200 OK, company_role=admin ✅. (6) PUT /api/company/team/{id_owner} ubah role → 400 dengan detail 'Peran Owner tidak dapat diubah' ✅. (7) PUT /api/company/team/{id_sendiri} ubah role → 400 dengan detail 'Tidak dapat mengubah peran diri sendiri' (verified dengan token Andi admin) ✅. (8) DELETE /api/company/team/{id_owner} → 400 dengan detail 'Owner tidak dapat dihapus' ✅. (9) DELETE /api/company/team/{id_rina} → 200 OK dengan {ok:true} ✅. (10) LOGIN sebagai andi.team@umkm.com → 200 OK dengan token (role company) ✅. (11) GET /api/company/stats dengan token Andi → 200 OK, company_name='Toko Sembako Barokah' (bukan 404, membuktikan get_my_company resolve via company_id) ✅. (12) Dengan token admin Andi: GET /api/company/team → 200 OK (admin boleh lihat); POST /api/company/team tambah anggota → 200 OK (admin boleh tambah) ✅. (13) Buat Sari Recruiter → login sebagai sari → GET /api/company/team → 403 dengan detail 'Hanya Owner/Admin yang dapat melihat Tim & Akses'; POST /api/company/team → 403 dengan detail 'Hanya Owner/Admin yang dapat menambah anggota tim' ✅. (14) Cleanup: DELETE sari dengan token owner → 200 OK; final team list hanya owner + andi.team@umkm.com (2 members) ✅. (15) Backend logs /var/log/supervisor/backend.err.log tidak ada traceback terkait /company/team ✅. Semua endpoint berfungsi sempurna, validasi email duplikat bekerja, permission owner/admin/recruiter benar, login member + resolve perusahaan via company_id berhasil, tidak ada error 500."
 ##
 ## frontend:
-##   - task: "Task name"
+##   - task: "2 Dashboard baru (Kandidat & Perusahaan) + halaman Tim & Akses"
 ##     implemented: true
-##     working: true  # or false or "NA"
-##     file: "file_path.js"
+##     working: true
+##     file: "/app/frontend/src/pages/candidate/CandidateDashboardNew.jsx, /app/frontend/src/pages/company/CompanyDashboardNew.jsx, /app/frontend/src/pages/company/TeamAccess.jsx"
 ##     stuck_count: 0
-##     priority: "high"  # or "medium" or "low"
+##     priority: "high"
 ##     needs_retesting: false
 ##     status_history:
-##         -working: true  # or false or "NA"
-##         -agent: "main"  # or "testing" or "user"
-##         -comment: "Detailed comment about status"
+##         - working: true
+##           agent: "main"
+##           comment: "Dashboard Kandidat baru di route /candidate/dashboard: sidebar navy 8 menu (Dashboard, Cari Lowongan, Lamaran Saya, Lowongan Tersimpan, Komunitas segera-hadir, Profil Karier, Pengaturan Akun, Bantuan & Kontak), greeting + badge plan FREE/Career Pro, 4 stat cards, Lamaran Terakhir, Profil Karier %, Tersimpan, Rekomendasi (tanpa gaji & match score utk Free; Lamar Manual utk Free; Lamar Cepat utk Career Pro via /jobs/{id}/quick-apply dengan kuota 30x dari /candidate/apply-quota), sidebar kanan HANYA 1 card Career Pro (6 fitur + Rp20.000/3 bulan + Upgrade; state aktif: kuota + referral Rp5.000/upgrade tanpa berjenjang). Dashboard Perusahaan baru di /company/dashboard: sidebar navy 12 menu (Cari Kandidat = premium, Tim & Akses/Pengaturan/Bantuan toast), plan chip FREE/Premium (entitlement), 4 stat cards, Lowongan Saya, Pelamar Terbaru, hint upgrade, sidebar kanan HANYA 1 card Premium (8 fitur + Upgrade → /company/membership). TANPA gaji di dashboard. Halaman Tim & Akses baru /company/team (TeamAccess.jsx): info peran Owner/Admin/Recruiter, form tambah anggota, ubah peran, hapus, responsive. Verifikasi manual: login budi.demo@cirebonkarir.id (Career Pro aktif, kuota 30/30, kode referral BUDISAB20D) & demo@umkm.com (Premium via Masa Launching) - screenshot desktop+mobile OK. Backend tidak diubah untuk dashboard (hanya fitur Tim & Akses)."
 ##
 ## metadata:
 ##   created_by: "main_agent"
 ##   version: "1.0"
-##   test_sequence: 0
+##   test_sequence: 3
 ##   run_ui: false
 ##
 ## test_plan:
 ##   current_focus:
-##     - "Task name 1"
-##     - "Task name 2"
+##     - "Backend Tim & Akses testing COMPLETE - all CRUD operations verified"
 ##   stuck_tasks:
-##     - "Task name with persistent issues"
+##     - ""
 ##   test_all: false
-##   test_priority: "high_first"  # or "sequential" or "stuck_first"
+##   test_priority: "high_first"
 ##
 ## agent_communication:
-##     -agent: "main"  # or "testing" or "user"
-##     -message: "Communication message between agents"
+##     - agent: "main"
+##       message: "Fix lanjutan utk testing frontend: (1) Lamar Cepat sebelumnya gagal karena akun demo belum punya CV terunggah (syarat endpoint quick-apply) + object storage Emergent tidak tersedia di environment ini → dibuat FALLBACK PENYIMPANAN LOKAL di server.py (save_upload → /app/backend/uploads_local + files doc ber-flag storage=local; /files/{path} membaca lokal bila cloud gagal) - CV Budi sudah terunggah & quick-apply API sukses (kuota 29/30); frontend kini mengarahkan user ke /candidate/cv bila error menyebut CV. (2) Sidebar drawer mobile diberi testid unik (drawer-menu-*) agar tidak ambigu dengan sidebar desktop. Tolong FUTURE testing frontend mengulang: klik Lamar Cepat (harus sukses + kuota turun), drawer mobile kandidat & perusahaan, plus skenario sebelumnya yang sudah PASS dipastikan tidak regresi."
+##     - agent: "testing"
+##       message: "✅ Backend Team & Access testing COMPLETE. All 15 test steps PASSED. Created comprehensive test script /app/backend_team_test.py. Test results: (1) GET /api/company/team returns owner first with correct fields ✅. (2-3) POST /api/company/team successfully adds recruiter and admin members ✅. (4) POST duplicate email correctly returns 400 (not 500) ✅. (5) PUT /api/company/team/{id} successfully updates role ✅. (6) PUT owner role correctly blocked with 400 ✅. (7) PUT self role correctly blocked with 400 'Tidak dapat mengubah peran diri sendiri' ✅. (8) DELETE owner correctly blocked with 400 ✅. (9) DELETE member successful ✅. (10-11) Login as new admin member successful, GET /api/company/stats returns correct company_name='Toko Sembako Barokah' (proves get_my_company resolves via company_id) ✅. (12) Admin permissions verified: can view and add team members ✅. (13) Recruiter permissions verified: correctly denied with 403 for both GET and POST /api/company/team ✅. (14) Cleanup successful: only owner + andi.team@umkm.com remain ✅. (15) No tracebacks in backend logs ✅. All CRUD operations working perfectly, email validation working, permission system (owner/admin/recruiter) working correctly, member login and company resolution working. No 500 errors encountered. Backend is production-ready."
 
 # Protocol Guidelines for Main agent
 #
@@ -192,3 +202,5 @@
 ##       message: "✅ Backend testing COMPLETE. All 6 public API endpoints tested and working perfectly. Created /app/backend_test.py for comprehensive testing. Test results: (1) GET /api → ✅ 200 OK. (2) GET /api/meta → ✅ 200 OK, all required locations present, 11 categories, stats showing 4 active jobs and 2 companies. (3) GET /api/jobs?limit=10 → ✅ 200 OK, returned 4 jobs with all required fields. (4) GET /api/jobs?employer_type=umkm&limit=5 → ✅ 200 OK, all 4 returned items are UMKM type. (5) GET /api/companies → ✅ 200 OK, 2 verified companies with all required fields. (6) GET /api/blog?limit=3 → ✅ 200 OK, 3 blog posts returned. No 500 errors encountered. Database seed working correctly. Backend is production-ready for homepage."
 ##     - agent: "testing"
 ##       message: "✅ Dashboard backend testing COMPLETE. All 17 dashboard API endpoints tested and working perfectly. Created /app/backend_dashboard_test.py for comprehensive testing. Test credentials used: budi.demo@cirebonkarir.id (Career Pro active until 2026-12-17, quota 30x, referral code BUDISAB20D) and demo@umkm.com (Premium via Masa Launching). CANDIDATE endpoints (10): auth/login ✅, auth/me ✅, candidate/stats ✅, candidate/applications ✅, candidate/career-profile (education & skills with correct structure) ✅, candidate/recommendations (8 items with match.score, NO 500 error) ✅, candidate/apply-quota (plan=career_pro, limit=30) ✅, cv-professional/status (has_access=true) ✅, referral/me (code=BUDISAB20D) ✅, candidate/saved-jobs/ids ✅. COMPANY endpoints (6): auth/login ✅, auth/me ✅, company/stats (active_jobs=3, company_name present) ✅, company/entitlement (is_member=true, plan.plan_type=launch_free) ✅, company/jobs (3 jobs with title/status/created_at) ✅, company/applications ✅. AUTH: wrong password correctly returns 401 (not 500) ✅. All endpoints return correct status codes and data structures. No 500 errors. Backend is production-ready for both dashboards."
+##     - agent: "testing"
+##       message: "✅✅✅ REGRESSION TEST COMPLETE - ALL 8 SCENARIOS PASSED ✅✅✅ Tested comprehensive UI regression after fixes using Playwright automation at https://cirebon-karir-home.preview.emergentagent.com. Test credentials: budi.demo@cirebonkarir.id/password123 (Career Pro, kuota 29/30) & demo@umkm.com/password123 (Premium). RESULTS: (1) Quick Apply ✅: Clicked 'Lamar Cepat' button → toast 'Lamaran cepat terkirim' appeared, quota decreased 29/30 → 28/30, job moved to 'Lamaran Terakhir' section. (2) Mobile Candidate Drawer ✅: Viewport 390x844 → hamburger → drawer opened → clicked drawer-menu-cari-lowongan → navigated to /jobs, drawer closed → repeated for drawer-menu-lamaran-saya → /candidate/applications, drawer closed. (3) Mobile Company Drawer ✅: Viewport 390 → hamburger → drawer opened → clicked drawer-menu-tim-akses → navigated to /company/team, page displays Dedi Kurniawan (Owner) and Admin member. (4) Desktop Team Management ✅: Viewport 1366 → clicked 'Tambah Anggota' → filled form (Teti Recruiter, teti.team@umkm.com, password123, role Recruiter) → submitted → Teti appeared with Recruiter badge → changed role to Admin via dropdown → badge changed to Admin → deleted Teti via delete button + confirmation → Teti removed from list. (5) Company Menu Navigation ✅: All menus navigate to valid pages (Dashboard, Posting Lowongan, Lowongan Saya, Pelamar, Screening Kandidat, Interview, Kandidat Tersimpan, Profil Perusahaan) → Pengaturan shows toast 'segera hadir'. (6) Candidate Menu Navigation ✅: All menus navigate correctly (Dashboard, Cari Lowongan, Lamaran Saya, Lowongan Tersimpan, Profil Karier, Pengaturan Akun, Bantuan & Kontak) → new application from Quick Apply visible in Lamaran Saya → Komunitas shows toast 'segera hadir'. (7) Upgrade Buttons ✅: Candidate dashboard → clicked 'Kelola Referral & Komisi' → navigated to /candidate/referral, displays referral code BUDISAB20D and commission data → Company dashboard → clicked 'Kelola Membership' → navigated to /company/membership, page loaded. (8) Responsive ✅: Tested 1366px & 390px for both candidate and company dashboards → no horizontal overflow detected, desktop sidebar width 256px (w-64 correct). MINOR: 2x 401 errors on /api/auth/me during initial page load (timing-related, not blocking). All critical functionality working perfectly. 14 screenshots captured. NO MAJOR ISSUES FOUND."
