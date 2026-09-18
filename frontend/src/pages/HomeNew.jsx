@@ -110,17 +110,17 @@ const DEMO_UMKM = [
   { id: "demo-umkm-5", title: "Kurir Antar Jemput", company_name: "Laundry Express Cirebon", location: "Kota Cirebon", job_type: "Part Time", created_at: hoursAgoIso(11), demo: true },
 ];
 
-const DEMO_COMPANIES = [
-  { id: "demo-comp-1", name: "Alfamart", logo: "", slug: "", demo: true },
-  { id: "demo-comp-2", name: "BCA", logo: "", slug: "", demo: true },
-  { id: "demo-comp-3", name: "Indomaret", logo: "", slug: "", demo: true },
-  { id: "demo-comp-4", name: "Indofood", logo: "", slug: "", demo: true },
-  { id: "demo-comp-5", name: "Bank Mandiri", logo: "", slug: "", demo: true },
-  { id: "demo-comp-6", name: "Wardah", logo: "", slug: "", demo: true },
-  { id: "demo-comp-7", name: "Paragon", logo: "", slug: "", demo: true },
-  { id: "demo-comp-8", name: "Pertamina", logo: "", slug: "", demo: true },
-  { id: "demo-comp-9", name: "KAI", logo: "", slug: "", demo: true },
-  { id: "demo-comp-10", name: "Telkomsel", logo: "", slug: "", demo: true },
+const TRUSTED_BRANDS = [
+  { name: "Telkom Indonesia", category: "Telekomunikasi", logo: "/brands/telkom.png" },
+  { name: "BCA", category: "Perbankan", logo: "/brands/bca.png" },
+  { name: "Alfamart", category: "Retail", logo: "/brands/alfamart.png" },
+  { name: "Indofood", category: "Makanan & Minuman", logo: "/brands/indofood.png" },
+  { name: "Danamon", category: "Perbankan", logo: "/brands/danamon.png" },
+  { name: "Wardah", category: "Kecantikan & Personal Care", logo: "wardah" },
+  { name: "Paragon", category: "Manufaktur", logo: "paragon" },
+  { name: "Pertamina", category: "Energi", logo: "/brands/pertamina.png" },
+  { name: "KAI", category: "Transportasi", logo: "/brands/kai.png" },
+  { name: "Indomaret", category: "Retail", logo: "/brands/indomaret.png" },
 ];
 
 const TOP_KARIR = [
@@ -1030,85 +1030,89 @@ function UmkmSection() {
 
 /* ============================== PERUSAHAAN TERPERCAYA ============================== */
 
+function WardahLogo() {
+  return (
+    <div className="flex flex-col items-center leading-none">
+      <span className="font-display text-[22px] text-[#177E8B]" style={{ fontWeight: 500, letterSpacing: "0.02em" }}>Wardah</span>
+      <span className="text-[6.5px] tracking-[0.3em] text-[#177E8B] mt-1.5 font-semibold">BEAUTY MOVES YOU</span>
+    </div>
+  );
+}
+
+function ParagonLogo() {
+  return (
+    <div className="flex flex-col items-center leading-none">
+      <div className="flex items-center gap-1.5">
+        <svg viewBox="0 0 24 22" className="h-5 w-5 shrink-0" fill="#1E3A8A" aria-hidden="true">
+          <path d="M1 2h8.5L21 11l-11.5 9H1l9.5-9z" />
+        </svg>
+        <span className="font-display font-extrabold text-[17px] tracking-tight text-[#1E3A8A]">PARAGON</span>
+      </div>
+      <span className="text-[6.5px] tracking-[0.22em] text-slate-500 mt-1 font-semibold">TECHNOLOGY AND INNOVATION</span>
+    </div>
+  );
+}
+
 function CompaniesCarousel() {
   const scroller = useRef(null);
-  const [companies, setCompanies] = useState(null);
-  const [usingFallback, setUsingFallback] = useState(false);
-
-  const loadCompanies = useCallback(() => {
-    return api.get("/companies")
-      .then((r) => {
-        const items = Array.isArray(r.data) ? r.data : [];
-        if (items.length > 0) {
-          setCompanies(items);
-          setUsingFallback(false);
-        } else {
-          setCompanies(DEMO_COMPANIES);
-          setUsingFallback(true);
-        }
-      })
-      .catch(() => {
-        setCompanies(DEMO_COMPANIES);
-        setUsingFallback(true);
-      });
-  }, []);
-
-  useEffect(() => {
-    loadCompanies();
-  }, [loadCompanies]);
-
-  useEffect(() => {
-    if (!usingFallback) return;
-    const iv = setInterval(() => { loadCompanies(); }, 5000);
-    return () => clearInterval(iv);
-  }, [usingFallback, loadCompanies]);
-
-  if (companies === null) {
-    return (
-      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-14" data-testid="companies-section">
-        <div className="h-24 rounded-2xl bg-white border border-slate-200 animate-pulse" />
-      </section>
-    );
-  }
-
-  const scroll = (dir) => scroller.current?.scrollBy({ left: dir * 480, behavior: "smooth" });
+  const scroll = (dir) => scroller.current?.scrollBy({ left: dir * 640, behavior: "smooth" });
 
   return (
-    <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-14" data-testid="companies-section">
-      <div className="text-center">
-        <h2 className="font-display text-xl sm:text-2xl font-extrabold text-slate-900">Bekerja Sama dengan Perusahaan Terpercaya</h2>
-        <p className="mt-2 text-[13px] text-slate-500">Bergabung dengan perusahaan-perusahaan terpercaya yang mendukung pengembangan karier di Cirebon</p>
-      </div>
-      <div className="relative mt-7 group">
-        <button
-          onClick={() => scroll(-1)}
-          aria-label="Sebelumnya"
-          className="hidden md:inline-flex absolute -left-4 top-1/2 -translate-y-1/2 z-10 h-10 w-10 items-center justify-center rounded-full bg-white border border-slate-200 text-slate-600 shadow-lg hover:bg-blue-600 hover:text-white hover:border-blue-600 transition-colors"
-          data-testid="companies-prev"
-        >
-          <ChevronLeft className="h-5 w-5" />
-        </button>
-        <div ref={scroller} className="flex gap-4 overflow-x-auto no-scrollbar scroll-smooth px-1 py-2" data-testid="companies-track">
-          {companies.map((c) => (
-            <Link
-              key={c.id}
-              to={c.demo || !c.slug ? "/companies" : `/companies/${c.slug}`}
-              className="shrink-0 w-[150px] h-[88px] bg-white border border-slate-200 rounded-xl shadow-sm hover:shadow-md hover:border-blue-300 transition-all flex flex-col items-center justify-center gap-1.5 p-3"
-              data-testid={`company-card-${c.id}`}
-            >
-              <img src={logoUrl(c.logo, c.name)} alt={c.name} className="h-9 w-9 rounded-lg object-contain" loading="lazy" />
-              <span className="text-[11px] font-bold text-slate-700 text-center leading-tight line-clamp-1">{c.name}</span>
-            </Link>
-          ))}
+    <section className="mt-14 bg-[#EEF3FB] py-14 sm:py-16" data-testid="companies-section">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="flex items-center justify-center gap-4">
+          <span className="hidden sm:block h-px w-20 bg-blue-300/80" />
+          <p className="text-[12px] font-bold tracking-[0.22em] text-blue-600 uppercase text-center" data-testid="companies-eyebrow">Perusahaan Terverifikasi</p>
+          <span className="hidden sm:block h-px w-20 bg-blue-300/80" />
         </div>
-        <button
-          onClick={() => scroll(1)}
-          aria-label="Berikutnya"
-          className="hidden md:inline-flex absolute -right-4 top-1/2 -translate-y-1/2 z-10 h-10 w-10 items-center justify-center rounded-full bg-white border border-slate-200 text-slate-600 shadow-lg hover:bg-blue-600 hover:text-white hover:border-blue-600 transition-colors"
-          data-testid="companies-next"
-        >
-          <ChevronRight className="h-5 w-5" />
-        </button>
+        <div className="mt-3 flex flex-col lg:flex-row lg:items-end justify-between gap-4">
+          <div className="text-center lg:text-left">
+            <h2 className="font-display text-2xl sm:text-3xl font-extrabold text-[#0B1F4B]">Bekerja Sama dengan Perusahaan Terpercaya</h2>
+            <p className="mt-2 text-[13.5px] text-slate-500">Bergabunglah bersama perusahaan pilihan yang telah membuka peluang karier di Cirebon dan sekitarnya.</p>
+          </div>
+          <Link to="/companies" className="shrink-0 inline-flex items-center gap-1.5 text-[13px] font-bold text-blue-600 hover:text-blue-800 lg:pb-1 mx-auto lg:mx-0" data-testid="lihat-semua-perusahaan">
+            Lihat Semua Perusahaan <ArrowRight className="h-4 w-4" />
+          </Link>
+        </div>
+
+        <div className="relative mt-9">
+          <button
+            onClick={() => scroll(-1)}
+            aria-label="Sebelumnya"
+            className="absolute -left-3 lg:-left-5 top-1/2 -translate-y-1/2 z-10 h-10 w-10 items-center justify-center rounded-full bg-white border border-slate-100 text-blue-600 shadow-lg hover:bg-blue-600 hover:text-white transition-colors hidden sm:inline-flex"
+            data-testid="companies-prev"
+          >
+            <ChevronLeft className="h-5 w-5" />
+          </button>
+          <div ref={scroller} className="flex gap-4 sm:gap-5 overflow-x-auto no-scrollbar scroll-smooth py-1" data-testid="companies-track">
+            {TRUSTED_BRANDS.map((b) => (
+              <div
+                key={b.name}
+                className="shrink-0 w-[158px] sm:w-[168px] bg-white rounded-xl border border-slate-100 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all p-4 flex flex-col items-center"
+                data-testid={`company-card-${b.name.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`}
+              >
+                <div className="h-16 sm:h-[68px] w-full flex items-center justify-center">
+                  {b.logo === "wardah" ? (
+                    <WardahLogo />
+                  ) : b.logo === "paragon" ? (
+                    <ParagonLogo />
+                  ) : (
+                    <img src={b.logo} alt={b.name} className="max-h-14 sm:max-h-16 max-w-full object-contain" loading="lazy" />
+                  )}
+                </div>
+                <p className="mt-3 min-h-[32px] flex items-center text-[12px] text-slate-500 text-center leading-snug">{b.category}</p>
+              </div>
+            ))}
+          </div>
+          <button
+            onClick={() => scroll(1)}
+            aria-label="Berikutnya"
+            className="absolute -right-3 lg:-right-5 top-1/2 -translate-y-1/2 z-10 h-10 w-10 items-center justify-center rounded-full bg-white border border-slate-100 text-blue-600 shadow-lg hover:bg-blue-600 hover:text-white transition-colors hidden sm:inline-flex"
+            data-testid="companies-next"
+          >
+            <ChevronRight className="h-5 w-5" />
+          </button>
+        </div>
       </div>
     </section>
   );
