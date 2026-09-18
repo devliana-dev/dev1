@@ -5,7 +5,7 @@ import {
   Search, MapPin, Briefcase, BadgeCheck, Bookmark, ArrowRight, ArrowUpRight,
   Flame, Crown, Building2, Users, GraduationCap, Clock, ShieldCheck, Gift, Zap,
   Star, ChevronLeft, ChevronRight, Menu, X, LayoutDashboard, LogOut, Instagram,
-  Linkedin, Youtube, Music2, Megaphone, Newspaper, Store, CheckCircle2, Sparkles, Send,
+  Linkedin, Youtube, Music2, Megaphone, Newspaper, Store, CheckCircle2, Send, Monitor,
 } from "lucide-react";
 import api from "../lib/api";
 import { useAuth } from "../context/AuthContext";
@@ -70,15 +70,15 @@ const TRUST_CHIPS = [
 ];
 
 const DEMO_URGENT = [
-  { id: "demo-urgent-1", title: "Staff Admin", company: "Alfamart", location: "Cirebon", job_type: "Full Time", time: "2 jam lalu", initial: "a", bg: "bg-red-600" },
-  { id: "demo-urgent-2", title: "Teknisi Motor", company: "Honda Astra", location: "Cirebon", job_type: "Full Time", time: "10 jam lalu", initial: "H", bg: "bg-red-700" },
+  { id: "demo-urgent-1", title: "Staff Admin", company: "Alfamart", location: "Cirebon", job_type: "Full Time", time: "2 jam lalu", logo: "/brands/alfamart.png" },
+  { id: "demo-urgent-2", title: "Teknisi Motor", company: "Honda Astra", location: "Cirebon", job_type: "Full Time", time: "10 jam lalu", logo: "/brands/ahm.png" },
 ];
 
 const DEMO_CANDIDATES = [
-  { name: "Andi Pratama", edu: "SMA/SMK lulusan", loc: "Cirebon", skills: "Admin, Data Entry", grad: "from-blue-500 to-indigo-600" },
-  { name: "Siti Aisyah", edu: "SMA/SMK lulusan", loc: "Indramayu", skills: "Sales, Customer Service", grad: "from-rose-500 to-pink-600" },
-  { name: "Rizky Maulana", edu: "D3", loc: "Kuningan", skills: "Digital Marketing, Design", grad: "from-emerald-500 to-teal-600" },
-  { name: "Hesti Hidayati", edu: "SMA/SMK lulusan", loc: "Majalengka", skills: "Customer Service, Admin", grad: "from-amber-500 to-orange-600" },
+  { name: "Andi Pratama", edu: "SMA/SMK lulusan", loc: "Cirebon", skills: "Admin, Data Entry", photo: "https://images.unsplash.com/photo-1589386417686-0d34b5903d23?w=200&h=200&fit=crop&q=80&auto=format" },
+  { name: "Siti Aisyah", edu: "SMA/SMK lulusan", loc: "Indramayu", skills: "Sales, Customer Service", photo: "https://images.unsplash.com/photo-1581065178047-8ee15951ede6?w=200&h=200&fit=crop&q=80&auto=format" },
+  { name: "Rizky Maulana", edu: "D3", loc: "Kuningan", skills: "Digital Marketing, Design", photo: "https://images.unsplash.com/photo-1579420593648-0deba81fd762?w=200&h=200&fit=crop&q=80&auto=format" },
+  { name: "Hesti Hidayati", edu: "SMA/SMK lulusan", loc: "Majalengka", skills: "Customer Service, Admin", photo: "https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=200&h=200&fit=crop&q=80&auto=format" },
 ];
 
 const FALLBACK_TIPS = [
@@ -280,6 +280,36 @@ function HomeHeader() {
 
 /* ============================== HERO ============================== */
 
+const PEOPLE_IMG = "https://images.unsplash.com/photo-1573496130141-209d200cebd8?w=900&q=85&auto=format&fit=crop";
+
+const QUICK_LINKS = [
+  { title: "Loker Terbaru", sub: "Lowongan Terkini di Sekitarmu", icon: Briefcase, iconBg: "bg-blue-600 shadow-blue-600/30", to: "/jobs" },
+  { title: "Perusahaan Terpercaya", sub: "Bergabung dengan Perusahaan Berkualitas", icon: Building2, iconBg: "bg-blue-500 shadow-blue-500/30", to: "/companies" },
+  { title: "Kerja Remote", sub: "Kerja Fleksibel, Lebih Bebas", icon: Monitor, iconBg: "bg-purple-600 shadow-purple-600/30", to: "/jobs?q=Remote" },
+  { title: "Fresh Graduate", sub: "Peluang untuk Langkah Pertama", icon: Users, iconBg: "bg-violet-500 shadow-violet-500/30", to: "/jobs?q=Fresh%20Graduate" },
+  { title: "Lamar Cepat", sub: "Proses Lamaran Lebih Mudah", icon: Send, iconBg: "bg-yellow-400 shadow-yellow-400/30", to: "/candidate/cv-professional" },
+];
+
+function GratisRibbon() {
+  return (
+    <Link to="/candidate/cv-professional" className="relative inline-flex flex-col items-center transition-transform hover:scale-[1.03]" data-testid="gratis-ribbon">
+      <span className="absolute -left-4 -top-3 text-yellow-300 text-lg rotate-[-15deg]" aria-hidden="true">&#10022;</span>
+      <span className="absolute -right-5 top-2 text-yellow-300 text-base rotate-[20deg]" aria-hidden="true">&#10022;</span>
+      <div className="relative flex items-center gap-2.5 bg-gradient-to-b from-yellow-300 to-amber-400 rounded-xl pl-3 pr-5 py-2 shadow-xl shadow-blue-900/25 rotate-1">
+        <span className="inline-flex h-10 w-10 items-center justify-center rounded-lg bg-[#0B1F4B] text-yellow-400">
+          <Gift className="h-5 w-5" />
+        </span>
+        <span className="font-display font-extrabold text-[15px] leading-[1.15] text-[#0B1F4B] text-left">
+          CV PROFESIONAL<br />GRATIS!
+        </span>
+      </div>
+      <div className="relative -mt-1 bg-[#0B1F4B] text-white text-[11px] font-bold px-4 py-1.5 rounded-lg -rotate-1 shadow-md">
+        Selama Masa Launching
+      </div>
+    </Link>
+  );
+}
+
 function Hero() {
   const navigate = useNavigate();
   const [keyword, setKeyword] = useState("");
@@ -296,49 +326,52 @@ function Hero() {
   return (
     <section
       className="relative overflow-hidden"
-      style={{ background: "linear-gradient(105deg, #FDFEFF 0%, #F4F8FF 42%, #E9F1FF 72%, #DCE9FD 100%)" }}
+      style={{ background: "linear-gradient(100deg, #1B3FC4 0%, #2453E8 42%, #2E6BF5 74%, #3B7BFF 100%)" }}
       data-testid="home-hero"
     >
-      <img
-        src={HERO_IMG}
-        alt="Kota Cirebon"
-        className="absolute inset-y-0 right-0 h-full w-full lg:w-[60%] object-cover object-center opacity-80"
-      />
-      <div className="absolute inset-0" style={{ background: "linear-gradient(90deg, #FDFEFF 6%, rgba(250,252,255,0.97) 30%, rgba(243,248,255,0.78) 50%, rgba(233,241,255,0.30) 72%, rgba(220,233,253,0.40) 100%)" }} />
-      <div className="absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-white to-transparent" />
-      <div className="absolute -top-24 -left-24 h-96 w-96 rounded-full bg-blue-200/50 blur-3xl" />
-      <div className="absolute top-6 right-[30%] h-72 w-72 rounded-full bg-amber-100/70 blur-3xl" />
+      <img src={HERO_IMG} alt="" className="absolute inset-0 h-full w-full object-cover opacity-[0.14] mix-blend-luminosity" />
+      <div className="absolute top-4 right-[24%] h-64 w-64 rounded-full bg-white/10 blur-3xl" />
+      <div className="absolute -top-20 -left-20 h-80 w-80 rounded-full bg-blue-300/20 blur-3xl" />
+      <svg className="absolute top-7 right-6 h-12 w-12 text-red-400/80 hidden lg:block" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+        <path d="M4 16c-1.7 0-3-1.3-3-3s1.3-3 3-3h.5C5 7.6 7 6 9.5 6c2 0 3.7 1 4.6 2.6.6-.4 1.4-.6 2.2-.6 2 0 3.7 1.4 4.1 3.2 1.5.2 2.6 1.5 2.6 3 0 1.7-1.3 3-3 3H4z" />
+      </svg>
 
-      <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-10 pb-16 lg:pt-14 lg:pb-20">
-        <div className="hidden lg:flex justify-end">
-          <p className="font-serif italic text-slate-500 text-lg leading-snug text-right -rotate-2">
-            Dari Cirebon untuk Indonesia
-            <span className="block font-display font-extrabold not-italic text-[#0B1F4B] text-2xl">Masa Depan Lebih Hebat</span>
+      <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-9 pb-10 lg:pt-11 lg:pb-12">
+        <div className="hidden lg:flex justify-end items-start">
+          <p className="font-serif italic text-white/90 text-base leading-snug text-right">
+            Dari Cirebon
+            <span className="block font-display font-extrabold not-italic text-white text-xl">untuk Indonesia</span>
+            <span className="block h-1 w-16 bg-yellow-400 rounded-full ml-auto mt-1.5" />
           </p>
         </div>
+        <p className="hidden xl:block absolute top-6 left-[46%] font-serif italic text-white/90 text-base leading-snug -rotate-2">
+          Karier Lebih Dekat
+          <span className="block font-display font-extrabold not-italic text-white text-lg">Masa Depan Lebih Hebat</span>
+          <span className="block h-1 w-14 bg-yellow-400 rounded-full mt-1" />
+        </p>
 
-        <div className="grid lg:grid-cols-12 gap-10 items-center mt-4">
+        <div className="grid lg:grid-cols-12 gap-8 items-center mt-1">
           {/* Kolom kiri */}
-          <div className="lg:col-span-7">
+          <div className="lg:col-span-5">
             <div className="flex flex-wrap items-center gap-2.5">
-              <span className="inline-flex items-center gap-1.5 h-8 px-4 rounded-full bg-blue-600 text-white text-[11px] font-bold tracking-wide uppercase shadow-md shadow-blue-600/20">
+              <span className="inline-flex items-center gap-1.5 h-8 px-4 rounded-full bg-[#0A1F4B] text-white text-[11px] font-bold tracking-wide uppercase">
                 <MapPin className="h-3 w-3" /> Cirebon &amp; Sekitarnya
               </span>
-              <span className="text-[12px] text-slate-600 font-medium">
-                Cirebon <span className="text-slate-300 mx-1">|</span> Indramayu <span className="text-slate-300 mx-1">|</span> Kuningan <span className="text-slate-300 mx-1">|</span> Majalengka
+              <span className="text-[12px] text-white/80 font-medium">
+                Cirebon <span className="text-white/40 mx-1">|</span> Indramayu <span className="text-white/40 mx-1">|</span> Kuningan <span className="text-white/40 mx-1">|</span> Majalengka
               </span>
             </div>
 
-            <h1 className="mt-5 font-display text-4xl sm:text-5xl lg:text-[56px] font-extrabold leading-[1.08] tracking-tight text-[#0B1F4B]" data-testid="hero-headline">
+            <h1 className="mt-5 font-display text-4xl sm:text-5xl lg:text-[54px] font-extrabold leading-[1.1] tracking-tight text-white" data-testid="hero-headline">
               Cari Kerja atau
-              <span className="block text-transparent bg-clip-text bg-gradient-to-r from-amber-500 via-yellow-500 to-amber-400">Cari Karyawan?</span>
+              <span className="block text-transparent bg-clip-text bg-gradient-to-r from-[#FFD34D] via-[#FFC93C] to-[#F5B301]">Cari Karyawan?</span>
             </h1>
-            <p className="mt-4 text-[15px] sm:text-base text-slate-600 max-w-xl leading-relaxed">
+            <p className="mt-4 text-[15px] sm:text-base text-white/85 max-w-md leading-relaxed">
               Temukan peluang terbaik, talenta berkualitas, dan bangun masa depan yang lebih baik di Cirebon dan sekitarnya.
             </p>
 
-            <form onSubmit={search} className="mt-7 max-w-2xl" data-testid="hero-search-form">
-              <div className="bg-white rounded-2xl p-2 border border-slate-100 shadow-2xl shadow-blue-900/10 flex flex-col md:flex-row md:items-center gap-2">
+            <form onSubmit={search} className="mt-7 lg:w-[680px] lg:-mr-40" data-testid="hero-search-form">
+              <div className="bg-white rounded-2xl p-2 shadow-2xl shadow-blue-900/30 flex flex-col md:flex-row md:items-center gap-2">
                 <div className="flex items-center gap-2 flex-1 px-3 h-12">
                   <Search className="h-5 w-5 text-slate-400 shrink-0" />
                   <input
@@ -355,7 +388,7 @@ function Hero() {
                   <select
                     value={location}
                     onChange={(e) => setLocation(e.target.value)}
-                    className="w-full md:w-44 bg-transparent outline-none text-sm text-slate-700"
+                    className="w-full md:w-40 bg-transparent outline-none text-sm text-slate-700"
                     data-testid="hero-location-select"
                   >
                     <option value="">Cirebon &amp; Sekitarnya</option>
@@ -366,7 +399,7 @@ function Hero() {
                 </div>
                 <button
                   type="submit"
-                  className="h-12 md:h-11 px-6 rounded-xl bg-blue-600 text-white text-sm font-bold shadow-md shadow-blue-600/30 hover:bg-blue-700 transition-colors inline-flex items-center justify-center gap-2"
+                  className="h-12 md:h-11 px-6 rounded-xl bg-blue-600 text-white text-sm font-bold shadow-md shadow-blue-900/25 hover:bg-blue-700 transition-colors inline-flex items-center justify-center gap-2"
                   data-testid="hero-search-btn"
                 >
                   Cari Sekarang <ArrowRight className="h-4 w-4" />
@@ -374,55 +407,54 @@ function Hero() {
               </div>
             </form>
 
-            <div className="mt-7 grid grid-cols-2 sm:grid-cols-4 gap-3 max-w-2xl" data-testid="hero-trust-chips">
-              {TRUST_CHIPS.map((c) => (
-                <div key={c.label} className="flex items-center gap-2.5">
-                  <span className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-blue-100 border border-blue-100 text-blue-700">
+            <div className="mt-7 flex flex-wrap items-center gap-y-3 lg:w-[680px] lg:-mr-40" data-testid="hero-trust-chips">
+              {TRUST_CHIPS.map((c, i) => (
+                <div key={c.label} className="flex items-center gap-2">
+                  {i > 0 && <span className="hidden sm:block h-9 w-px bg-white/20 mx-3" />}
+                  <span className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#3B7BFF] text-white shadow-md shadow-blue-900/20">
                     <c.icon className="h-4 w-4" />
                   </span>
-                  <span className="text-[11.5px] leading-tight text-slate-500 font-medium">
+                  <span className="text-[10.5px] leading-tight text-white/80 font-medium">
                     {c.label}
-                    <span className="block font-bold text-[#0B1F4B]">{c.sub}</span>
+                    <span className="block font-bold text-white">{c.sub}</span>
                   </span>
                 </div>
               ))}
             </div>
           </div>
 
-          {/* Kolom kanan: panel */}
+          <div className="hidden lg:block lg:col-span-2" />
+
+          {/* Kolom kanan: ribbon gratis + panel */}
           <div className="lg:col-span-5 relative">
-            <div className="flex xl:hidden justify-end mb-3">
-              <p className="font-serif italic text-slate-500 text-base text-right -rotate-2">
-                Dari Cirebon untuk Indonesia
-                <span className="block font-display font-extrabold not-italic text-[#0B1F4B] text-xl">Masa Depan Lebih Hebat</span>
-              </p>
+            <div className="flex justify-center lg:justify-end mb-3 lg:pr-3">
+              <GratisRibbon />
             </div>
-            <span className="hidden xl:inline-flex items-center gap-1.5 rotate-[-4deg] rounded-full bg-white px-4 py-2 text-[12px] font-bold text-[#0B1F4B] shadow-xl mb-3">
-              Lebih Banyak Peluang di Sini! <ArrowUpRight className="h-3.5 w-3.5 text-blue-600" />
-            </span>
-            <div className="grid sm:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2 gap-4">
+            <div className="grid sm:grid-cols-2 gap-4">
               {/* Career Pro */}
-              <div className="rounded-2xl bg-gradient-to-b from-amber-50 to-white p-5 border border-amber-200/80 shadow-2xl shadow-blue-900/10 relative overflow-hidden" data-testid="hero-panel-career-pro">
-                <div className="absolute -top-8 -right-8 h-24 w-24 rounded-full bg-amber-300/40 blur-2xl" />
+              <div className="rounded-2xl bg-[#FFF9E8] p-4 border border-yellow-200/70 shadow-2xl shadow-blue-900/25" data-testid="hero-panel-career-pro">
                 <div className="flex items-center gap-3">
-                  <span className="inline-flex h-11 w-11 items-center justify-center rounded-xl bg-gradient-to-br from-amber-400 to-yellow-500 text-white shadow-md shadow-amber-500/30">
-                    <Crown className="h-5 w-5" />
+                  <span className="inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-yellow-400 text-white shadow-md shadow-yellow-500/30">
+                    <Crown className="h-6 w-6" />
                   </span>
                   <div>
-                    <p className="font-display font-extrabold text-[#0B1F4B] leading-tight">Career Pro</p>
-                    <p className="text-[11px] text-slate-500 leading-tight mt-0.5">Fitur Lengkap untuk<br />Pengembangan Karier</p>
+                    <p className="font-display font-extrabold text-[15px] text-[#0B1F4B] leading-tight">Career Pro</p>
+                    <p className="text-[10.5px] text-slate-500 leading-tight mt-0.5">Fitur Lengkap untuk Pengembangan Karier</p>
                   </div>
                 </div>
-                <ul className="mt-4 space-y-2">
+                <ul className="mt-4 space-y-2.5">
                   {CAREER_PRO_ITEMS.map((item) => (
-                    <li key={item} className="flex items-center gap-2 text-[12px] font-medium text-slate-700">
-                      <CheckCircle2 className="h-3.5 w-3.5 text-amber-500 shrink-0" /> {item}
+                    <li key={item} className="flex items-center gap-2 text-[12px] font-medium text-slate-700 whitespace-nowrap">
+                      <span className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-yellow-400 shrink-0">
+                        <CheckCircle2 className="h-3.5 w-3.5 text-white" />
+                      </span>
+                      {item}
                     </li>
                   ))}
                 </ul>
                 <Link
                   to="/candidate/cv-professional"
-                  className="mt-4 inline-flex w-full items-center justify-center gap-1.5 h-10 rounded-xl bg-gradient-to-r from-amber-400 to-yellow-500 text-[#0B1F4B] text-[13px] font-bold shadow-md shadow-amber-500/30 hover:brightness-105 transition"
+                  className="mt-4 inline-flex w-full items-center justify-center gap-1.5 h-11 rounded-xl bg-yellow-400 text-[#0B1F4B] text-[13.5px] font-bold shadow-md shadow-yellow-500/30 hover:brightness-105 transition"
                   data-testid="hero-career-pro-btn"
                 >
                   Lihat Career Pro <ArrowRight className="h-4 w-4" />
@@ -430,26 +462,29 @@ function Hero() {
               </div>
 
               {/* Untuk Perusahaan */}
-              <div className="rounded-2xl bg-white p-5 border border-slate-100 shadow-2xl shadow-blue-900/10" data-testid="hero-panel-company">
+              <div className="rounded-2xl bg-white p-4 shadow-2xl shadow-blue-900/25" data-testid="hero-panel-company">
                 <div className="flex items-center gap-3">
-                  <span className="inline-flex h-11 w-11 items-center justify-center rounded-xl bg-gradient-to-br from-emerald-500 to-green-600 text-white shadow-md shadow-emerald-500/30">
-                    <Building2 className="h-5 w-5" />
+                  <span className="inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-green-500 text-white shadow-md shadow-green-500/30">
+                    <Building2 className="h-6 w-6" />
                   </span>
                   <div>
-                    <p className="font-display font-extrabold text-[#0B1F4B] leading-tight">Untuk Perusahaan</p>
-                    <p className="text-[11px] text-slate-500 leading-tight mt-0.5">Temukan Kandidat<br />Terbaik Lebih Cepat</p>
+                    <p className="font-display font-extrabold text-[15px] text-[#0B1F4B] leading-tight">Untuk Perusahaan</p>
+                    <p className="text-[10.5px] text-slate-500 leading-tight mt-0.5">Temukan Kandidat Terbaik Lebih Cepat</p>
                   </div>
                 </div>
-                <ul className="mt-4 space-y-2">
+                <ul className="mt-4 space-y-2.5">
                   {COMPANY_PANEL_ITEMS.map((item) => (
-                    <li key={item} className="flex items-center gap-2 text-[12px] font-medium text-slate-700">
-                      <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500 shrink-0" /> {item}
+                    <li key={item} className="flex items-center gap-2 text-[12px] font-medium text-slate-700 whitespace-nowrap">
+                      <span className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-green-500 shrink-0">
+                        <CheckCircle2 className="h-3.5 w-3.5 text-white" />
+                      </span>
+                      {item}
                     </li>
                   ))}
                 </ul>
                 <Link
                   to="/register-company"
-                  className="mt-4 inline-flex w-full items-center justify-center gap-1.5 h-10 rounded-xl bg-emerald-600 text-white text-[13px] font-bold shadow-md shadow-emerald-600/30 hover:bg-emerald-700 transition-colors"
+                  className="mt-4 inline-flex w-full items-center justify-center gap-1.5 h-11 rounded-xl bg-green-600 text-white text-[13.5px] font-bold shadow-md shadow-green-600/30 hover:bg-green-700 transition-colors"
                   data-testid="hero-company-btn"
                 >
                   Mulai Rekrut <ArrowRight className="h-4 w-4" />
@@ -458,32 +493,48 @@ function Hero() {
             </div>
           </div>
         </div>
+
+        {/* Quick links */}
+        <div className="mt-8 grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-5 gap-4 relative z-10" data-testid="hero-quick-links">
+          {QUICK_LINKS.map((q) => (
+            <Link
+              key={q.title}
+              to={q.to}
+              className="group bg-white rounded-xl p-4 flex items-center gap-3 shadow-lg shadow-blue-900/15 hover:shadow-xl hover:-translate-y-0.5 transition-all"
+              data-testid={`quick-link-${q.title.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`}
+            >
+              <span className={`inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl ${q.iconBg} text-white shadow-md`}>
+                <q.icon className="h-5 w-5" />
+              </span>
+              <span className="min-w-0">
+                <span className="flex items-center font-display font-bold text-[13.5px] text-[#0B1F4B] leading-tight">
+                  {q.title}
+                  <ChevronRight className="h-4 w-4 text-blue-500 ml-1 shrink-0 transition-transform group-hover:translate-x-0.5" />
+                </span>
+                <span className="block text-[11px] text-slate-500 leading-tight mt-1">{q.sub}</span>
+              </span>
+            </Link>
+          ))}
+        </div>
+
+        <p className="hidden lg:flex justify-end items-center gap-2.5 mt-4 font-serif italic text-white/85 text-sm -rotate-1">
+          Langkah Kecil
+          <span className="not-italic font-display font-bold text-white text-base">Menuju Masa Depan Besar</span>
+          <span className="h-1 w-12 bg-yellow-400 rounded-full" />
+        </p>
+      </div>
+
+      {/* Foto profesional dalam bingkai lingkaran */}
+      <div className="hidden xl:block absolute top-[110px] left-[41%] z-0" data-testid="hero-people">
+        <div className="relative h-[272px] w-[272px] rounded-full ring-4 ring-white/25 shadow-2xl shadow-blue-900/30 overflow-hidden">
+          <img src={PEOPLE_IMG} alt="Profesional Cirebon" className="h-full w-full object-cover" />
+          <div className="absolute inset-0 bg-gradient-to-t from-[#1B3FC4]/40 via-transparent to-transparent" />
+        </div>
+        <span className="absolute bottom-3 left-1/2 -translate-x-1/2 inline-flex items-center gap-1.5 -rotate-2 rounded-lg bg-white px-3 py-2 text-[11.5px] font-bold text-[#0B1F4B] shadow-xl whitespace-nowrap z-10" data-testid="hero-tag">
+          <TrendingIcon className="h-3.5 w-3.5 text-blue-600" /> Lebih Banyak Peluang di Sini!
+        </span>
       </div>
     </section>
-  );
-}
-
-/* ============================== PROMO STRIP ============================== */
-
-function PromoStrip() {
-  return (
-    <div className="bg-gradient-to-r from-amber-400 via-yellow-300 to-amber-400" data-testid="promo-strip">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3 flex flex-col sm:flex-row items-center justify-center gap-2 sm:gap-4 text-center">
-        <p className="flex items-center gap-2 text-[#3B2A00] text-sm sm:text-[15px] font-semibold">
-          <Sparkles className="h-4 w-4 shrink-0" />
-          <span>
-            <span className="font-extrabold">CV PROFESIONAL GRATIS!</span> Selama Masa Launching
-          </span>
-        </p>
-        <Link
-          to="/candidate/cv-professional"
-          className="inline-flex items-center gap-1.5 h-9 px-5 rounded-full bg-[#0B1F4B] text-white text-[12.5px] font-bold hover:bg-[#12307A] transition-colors"
-          data-testid="promo-strip-cta"
-        >
-          Klaim Sekarang <ArrowRight className="h-3.5 w-3.5" />
-        </Link>
-      </div>
-    </div>
   );
 }
 
@@ -686,9 +737,7 @@ function UrgentCard({ item }) {
   return (
     <Link to="/jobs" className="block p-3.5 rounded-xl border border-slate-100 hover:border-red-200 hover:bg-red-50/30 transition-colors" data-testid={`urgent-card-${item.id}`}>
       <div className="flex items-start gap-3">
-        <span className={`inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-lg ${item.bg} text-white font-display font-extrabold`}>
-          {item.initial}
-        </span>
+        <img src={item.logo} alt={item.company} className="h-10 w-10 shrink-0 rounded-lg border border-slate-200 bg-white object-contain p-1" loading="lazy" />
         <div className="min-w-0 flex-1">
           <div className="flex items-center justify-between gap-2">
             <p className="font-display font-bold text-[13.5px] text-slate-900 truncate">{item.title}</p>
@@ -877,9 +926,7 @@ function MainArea() {
             <div className="space-y-3" data-testid="candidate-list">
               {DEMO_CANDIDATES.map((c) => (
                 <div key={c.name} className="flex items-center gap-3 p-3 rounded-xl border border-slate-100 hover:border-blue-200 transition-colors" data-testid={`candidate-card-${c.name.toLowerCase().replace(/\s+/g, "-")}`}>
-                  <span className={`inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-gradient-to-br ${c.grad} text-white font-display font-bold text-sm`}>
-                    {c.name.split(" ").map((w) => w[0]).slice(0, 2).join("")}
-                  </span>
+                  <img src={c.photo} alt={c.name} loading="lazy" className="h-11 w-11 shrink-0 rounded-full object-cover border-2 border-white shadow-md" data-testid={`candidate-photo-${c.name.split(" ")[0].toLowerCase()}`} />
                   <div className="min-w-0 flex-1">
                     <p className="font-display font-bold text-[13px] text-slate-900 truncate">{c.name}</p>
                     <p className="text-[11px] text-slate-500 truncate">{c.edu} • {c.loc}</p>
@@ -1270,7 +1317,6 @@ export default function HomeNew() {
     <div className="bg-white min-h-screen page-fade">
       <HomeHeader />
       <Hero />
-      <PromoStrip />
       <KategoriPills />
       <WilayahSection />
       <StatsBar />
