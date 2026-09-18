@@ -22,7 +22,7 @@ import Register from "@/pages/auth/Register";
 import RegisterCompany from "@/pages/auth/RegisterCompany";
 import ForgotPassword from "@/pages/auth/ForgotPassword";
 
-import CandidateDashboard from "@/pages/candidate/CandidateDashboard";
+import CandidateDashboardNew from "@/pages/candidate/CandidateDashboardNew";
 import MyApplications from "@/pages/candidate/MyApplications";
 import CandidateProfile from "@/pages/candidate/CandidateProfile";
 import CandidateCV from "@/pages/candidate/CandidateCV";
@@ -39,7 +39,7 @@ import { COMPANY_MENU } from "@/pages/company/menu";
 import { ADMIN_MENU } from "@/pages/admin/menu";
 import NotificationsPage from "@/pages/shared/NotificationsPage";
 
-import CompanyDashboard from "@/pages/company/CompanyDashboard";
+import CompanyDashboardNew from "@/pages/company/CompanyDashboardNew";
 import CompanyProfile from "@/pages/company/CompanyProfile";
 import CompanyJobs from "@/pages/company/CompanyJobs";
 import JobForm from "@/pages/company/JobForm";
@@ -120,7 +120,7 @@ function App() {
               <Route path="/jobs/:slug/apply" element={protect("candidate", <ApplyJob />)} />
             </Route>
 
-            <Route path="/candidate/dashboard" element={protect("candidate", <CandidateDashboard />)} />
+            <Route path="/candidate/dashboard" element={protect("candidate", <CandidateDashboardNew />)} />
             <Route path="/candidate/applications" element={protect("candidate", <MyApplications />)} />
             <Route path="/candidate/profile" element={protect("candidate", <CandidateProfile />)} />
             <Route path="/candidate/cv" element={protect("candidate", <CandidateCV />)} />
@@ -136,7 +136,7 @@ function App() {
             <Route path="/candidate/help" element={protect("candidate", <HelpContact />)} />
             <Route path="/candidate/referral" element={protect("candidate", <ReferralDashboard menu={CANDIDATE_MENU} />)} />
 
-            <Route path="/company/dashboard" element={protect("company", <CompanyDashboard />)} />
+            <Route path="/company/dashboard" element={protect("company", <CompanyDashboardNew />)} />
             <Route path="/company/profile" element={protect("company", <CompanyProfile />)} />
             <Route path="/company/jobs" element={protect("company", <CompanyJobs />)} />
             <Route path="/company/jobs/new" element={protect("company", <JobForm />)} />
