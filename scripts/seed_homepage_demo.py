@@ -37,18 +37,18 @@ db = client[env["DB_NAME"]]
 EXP = timedelta(days=45)
 
 COMPANIES = [
-    dict(name="Alfamart", employer_type="company", business_category="Retail", city="Kota Cirebon"),
-    dict(name="Cirebon Elektronik Center", employer_type="company", business_category="Retail", city="Kota Cirebon"),
-    dict(name="CW Outlet & Coffee", employer_type="company", business_category="Retail", city="Kabupaten Cirebon"),
-    dict(name="Granmedia", employer_type="company", business_category="Logistik", city="Indramayu"),
-    dict(name="Mitratek Cirebon", employer_type="company", business_category="Manufaktur", city="Majalengka"),
-    dict(name="KFC Cirebon", employer_type="company", business_category="F&B", city="Kota Cirebon"),
-    dict(name="Indomaret", employer_type="company", business_category="Retail", city="Kuningan"),
-    dict(name="Watsons Cirebon", employer_type="company", business_category="Retail", city="Kota Cirebon"),
-    dict(name="Hypermart Cirebon", employer_type="company", business_category="Retail", city="Kota Cirebon"),
-    dict(name="Astra Honda Motor", employer_type="company", business_category="Otomotif", city="Kota Cirebon"),
-    dict(name="Kedai Kopi Kita", employer_type="umkm", business_category="F&B", city="Kota Cirebon"),
-    dict(name="Bakso Cirebon Pak Untung", employer_type="umkm", business_category="Kuliner", city="Kota Cirebon"),
+    dict(name="Alfamart", logo="/brands/alfamart.png", employer_type="company", business_category="Retail", city="Kota Cirebon"),
+    dict(name="Cirebon Elektronik Center", logo="/logos/elektronik.svg", employer_type="company", business_category="Retail", city="Kota Cirebon"),
+    dict(name="CW Outlet & Coffee", logo="/logos/cw-outlet.svg", employer_type="company", business_category="Retail", city="Kabupaten Cirebon"),
+    dict(name="Granmedia", logo="/logos/granmedia.svg", employer_type="company", business_category="Logistik", city="Indramayu"),
+    dict(name="Mitratek Cirebon", logo="/logos/mitratek.svg", employer_type="company", business_category="Manufaktur", city="Majalengka"),
+    dict(name="KFC Cirebon", logo="/brands/kfc.png", employer_type="company", business_category="F&B", city="Kota Cirebon"),
+    dict(name="Indomaret", logo="/brands/indomaret.png", employer_type="company", business_category="Retail", city="Kuningan"),
+    dict(name="Watsons Cirebon", logo="/brands/watsons.png", employer_type="company", business_category="Retail", city="Kota Cirebon"),
+    dict(name="Hypermart Cirebon", logo="/brands/hypermart.png", employer_type="company", business_category="Retail", city="Kota Cirebon"),
+    dict(name="Astra Honda Motor", logo="/brands/ahm.png", employer_type="company", business_category="Otomotif", city="Kota Cirebon"),
+    dict(name="Kedai Kopi Kita", logo="/logos/kopi.svg", employer_type="umkm", business_category="F&B", city="Kota Cirebon"),
+    dict(name="Bakso Cirebon Pak Untung", logo="/logos/bakso.svg", employer_type="umkm", business_category="Kuliner", city="Kota Cirebon"),
 ]
 
 # (judul, perusahaan, kategori, lokasi, jenis, jam_lalu, pendidikan, pengalaman)
@@ -81,7 +81,7 @@ for c in COMPANIES:
     db.users.insert_one(user)
     db.companies.insert_one({
         "id": str(uuid.uuid4()), "user_id": user["id"], "name": c["name"],
-        "slug": f"{slugify(c['name'])}-{uuid.uuid4().hex[:6]}", "logo": "",
+        "slug": f"{slugify(c['name'])}-{uuid.uuid4().hex[:6]}", "logo": c.get("logo", ""),
         "description": f"{c['name']} adalah mitra terpercaya CirebonKarir.id.",
         "address": c["city"], "city": c["city"], "phone": "081200000000",
         "email": user["email"], "website": "", "instagram": "", "founded_year": "", 

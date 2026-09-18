@@ -44,6 +44,7 @@ export function logoUrl(logo, name) {
   if (!logo)
     return `https://ui-avatars.com/api/?name=${encodeURIComponent((name || "C").slice(0, 2))}&background=0F172A&color=fff&size=128&bold=true`;
   if (logo.startsWith("http")) return logo;
+  if (logo.startsWith("/")) return logo;
   return `${API}/files/${logo}`;
 }
 

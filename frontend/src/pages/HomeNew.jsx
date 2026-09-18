@@ -90,16 +90,16 @@ const FALLBACK_TIPS = [
 const hoursAgoIso = (h) => new Date(Date.now() - h * 3600 * 1000).toISOString();
 
 const DEMO_JOBS = [
-  { id: "demo-job-1", title: "Staff Admin", company_name: "Alfamart", category: "Admin", location: "Cirebon", job_type: "Full Time", education: "SMA/SMK", experience: "1 - 2 Tahun", created_at: hoursAgoIso(2), skills: ["Administrasi", "Microsoft Office", "Data Entry"], demo: true },
-  { id: "demo-job-2", title: "Sales Executive", company_name: "PT Kawan Lama Sejahtera", category: "Sales", location: "Cirebon", job_type: "Full Time", education: "SMA/SMK", experience: "1 - 3 Tahun", created_at: hoursAgoIso(5), skills: ["Sales", "Komunikasi", "Target Oriented"], demo: true },
-  { id: "demo-job-3", title: "Crew Outlet", company_name: "J.CO Donuts & Coffee", category: "F&B", location: "Cirebon", job_type: "Part Time", education: "SMA/SMK", experience: "Tanpa Pengalaman", created_at: hoursAgoIso(8), skills: ["Pelayanan", "Food & Beverage", "Kerja Tim"], demo: true },
-  { id: "demo-job-4", title: "Staff Gudang", company_name: "Gramedia", category: "Gudang", location: "Cirebon", job_type: "Full Time", education: "SMA/SMK", experience: "1 - 2 Tahun", created_at: hoursAgoIso(24), skills: ["Logistik", "Inventory", "Administrasi"], demo: true },
-  { id: "demo-job-5", title: "Kasir", company_name: "Hypermart", category: "Retail", location: "Cirebon", job_type: "Full Time", education: "SMA/SMK", experience: "Tanpa Pengalaman", created_at: hoursAgoIso(26), skills: ["Kasir", "Pelayanan", "Retail"], demo: true },
-  { id: "demo-job-6", title: "Teknisi Motor", company_name: "AHASS Cirebon", category: "Teknisi", location: "Cirebon", job_type: "Full Time", education: "SMK", experience: "1 - 3 Tahun", created_at: hoursAgoIso(28), skills: ["Teknik", "Service Motor", "Mekanik"], demo: true },
-  { id: "demo-job-7", title: "Beauty Advisor", company_name: "Watsons Indonesia", category: "Sales", location: "Cirebon", job_type: "Full Time", education: "SMA/SMK", experience: "Tanpa Pengalaman", created_at: hoursAgoIso(48), skills: ["Beauty Care", "Pelayanan", "Komunikasi"], demo: true },
-  { id: "demo-job-8", title: "Staff Penjualan", company_name: "Mitra10", category: "Sales", location: "Cirebon", job_type: "Full Time", education: "SMA/SMK", experience: "1 - 2 Tahun", created_at: hoursAgoIso(52), skills: ["Penjualan", "Customer Service", "Retail"], demo: true },
-  { id: "demo-job-9", title: "Crew Restaurant", company_name: "KFC Cirebon", category: "F&B", location: "Cirebon", job_type: "Part Time", education: "SMA/SMK", experience: "Tanpa Pengalaman", created_at: hoursAgoIso(72), skills: ["Pelayanan", "Food & Beverage", "Kerja Tim"], demo: true },
-  { id: "demo-job-10", title: "Pramuniaga", company_name: "PT Indomarco Prismatama", category: "Retail", location: "Cirebon", job_type: "Full Time", education: "SMA/SMK", experience: "Tanpa Pengalaman", created_at: hoursAgoIso(74), skills: ["Retail", "Pelayanan", "Kasir"], demo: true },
+  { id: "demo-job-1", title: "Staff Admin", company_name: "Alfamart", company_logo: "/brands/alfamart.png", category: "Admin", location: "Cirebon", job_type: "Full Time", education: "SMA/SMK", experience: "1 - 2 Tahun", created_at: hoursAgoIso(2), skills: ["Administrasi", "Microsoft Office", "Data Entry"], demo: true },
+  { id: "demo-job-2", title: "Sales Executive", company_name: "PT Kawan Lama Sejahtera", company_logo: "/brands/kai.png", category: "Sales", location: "Cirebon", job_type: "Full Time", education: "SMA/SMK", experience: "1 - 3 Tahun", created_at: hoursAgoIso(5), skills: ["Sales", "Komunikasi", "Target Oriented"], demo: true },
+  { id: "demo-job-3", title: "Crew Outlet", company_name: "J.CO Donuts & Coffee", company_logo: "/logos/cw-outlet.svg", category: "F&B", location: "Cirebon", job_type: "Part Time", education: "SMA/SMK", experience: "Tanpa Pengalaman", created_at: hoursAgoIso(8), skills: ["Pelayanan", "Food & Beverage", "Kerja Tim"], demo: true },
+  { id: "demo-job-4", title: "Staff Gudang", company_name: "Gramedia", company_logo: "/logos/granmedia.svg", category: "Gudang", location: "Cirebon", job_type: "Full Time", education: "SMA/SMK", experience: "1 - 2 Tahun", created_at: hoursAgoIso(24), skills: ["Logistik", "Inventory", "Administrasi"], demo: true },
+  { id: "demo-job-5", title: "Kasir", company_name: "Hypermart", company_logo: "/brands/hypermart.png", category: "Retail", location: "Cirebon", job_type: "Full Time", education: "SMA/SMK", experience: "Tanpa Pengalaman", created_at: hoursAgoIso(26), skills: ["Kasir", "Pelayanan", "Retail"], demo: true },
+  { id: "demo-job-6", title: "Teknisi Motor", company_name: "AHASS Cirebon", company_logo: "/brands/ahm.png", category: "Teknisi", location: "Cirebon", job_type: "Full Time", education: "SMK", experience: "1 - 3 Tahun", created_at: hoursAgoIso(28), skills: ["Teknik", "Service Motor", "Mekanik"], demo: true },
+  { id: "demo-job-7", title: "Beauty Advisor", company_name: "Watsons Indonesia", company_logo: "/brands/watsons.png", category: "Sales", location: "Cirebon", job_type: "Full Time", education: "SMA/SMK", experience: "Tanpa Pengalaman", created_at: hoursAgoIso(48), skills: ["Beauty Care", "Pelayanan", "Komunikasi"], demo: true },
+  { id: "demo-job-8", title: "Staff Penjualan", company_name: "Mitra10", company_logo: "/logos/mitratek.svg", category: "Sales", location: "Cirebon", job_type: "Full Time", education: "SMA/SMK", experience: "1 - 2 Tahun", created_at: hoursAgoIso(52), skills: ["Penjualan", "Customer Service", "Retail"], demo: true },
+  { id: "demo-job-9", title: "Crew Restaurant", company_name: "KFC Cirebon", company_logo: "/brands/kfc.png", category: "F&B", location: "Cirebon", job_type: "Part Time", education: "SMA/SMK", experience: "Tanpa Pengalaman", created_at: hoursAgoIso(72), skills: ["Pelayanan", "Food & Beverage", "Kerja Tim"], demo: true },
+  { id: "demo-job-10", title: "Pramuniaga", company_name: "PT Indomarco Prismatama", company_logo: "/brands/indomaret.png", category: "Retail", location: "Cirebon", job_type: "Full Time", education: "SMA/SMK", experience: "Tanpa Pengalaman", created_at: hoursAgoIso(74), skills: ["Retail", "Pelayanan", "Kasir"], demo: true },
 ];
 
 const DEMO_UMKM = [
@@ -296,23 +296,24 @@ function Hero() {
   return (
     <section
       className="relative overflow-hidden"
-      style={{ background: "linear-gradient(105deg, #061428 0%, #0A1F4B 38%, #10307A 68%, #1743AE 100%)" }}
+      style={{ background: "linear-gradient(105deg, #FDFEFF 0%, #F4F8FF 42%, #E9F1FF 72%, #DCE9FD 100%)" }}
       data-testid="home-hero"
     >
       <img
         src={HERO_IMG}
         alt="Kota Cirebon"
-        className="absolute inset-y-0 right-0 h-full w-full lg:w-[62%] object-cover object-center opacity-45 lg:opacity-60"
+        className="absolute inset-y-0 right-0 h-full w-full lg:w-[60%] object-cover object-center opacity-80"
       />
-      <div className="absolute inset-0" style={{ background: "linear-gradient(90deg, #061428 8%, rgba(8,25,60,0.92) 34%, rgba(10,31,75,0.55) 58%, rgba(10,31,75,0.18) 82%, rgba(10,31,75,0.35) 100%)" }} />
-      <div className="absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-[#050F24] to-transparent" />
-      <div className="absolute -top-24 -left-24 h-96 w-96 rounded-full bg-blue-500/20 blur-3xl" />
+      <div className="absolute inset-0" style={{ background: "linear-gradient(90deg, #FDFEFF 6%, rgba(250,252,255,0.97) 30%, rgba(243,248,255,0.78) 50%, rgba(233,241,255,0.30) 72%, rgba(220,233,253,0.40) 100%)" }} />
+      <div className="absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-white to-transparent" />
+      <div className="absolute -top-24 -left-24 h-96 w-96 rounded-full bg-blue-200/50 blur-3xl" />
+      <div className="absolute top-6 right-[30%] h-72 w-72 rounded-full bg-amber-100/70 blur-3xl" />
 
       <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-10 pb-16 lg:pt-14 lg:pb-20">
         <div className="hidden lg:flex justify-end">
-          <p className="font-serif italic text-amber-300/90 text-lg leading-snug text-right -rotate-2">
+          <p className="font-serif italic text-slate-500 text-lg leading-snug text-right -rotate-2">
             Dari Cirebon untuk Indonesia
-            <span className="block font-display font-extrabold not-italic text-white text-2xl drop-shadow">Masa Depan Lebih Hebat</span>
+            <span className="block font-display font-extrabold not-italic text-[#0B1F4B] text-2xl">Masa Depan Lebih Hebat</span>
           </p>
         </div>
 
@@ -320,24 +321,24 @@ function Hero() {
           {/* Kolom kiri */}
           <div className="lg:col-span-7">
             <div className="flex flex-wrap items-center gap-2.5">
-              <span className="inline-flex items-center gap-1.5 h-8 px-4 rounded-full bg-blue-500 text-white text-[11px] font-bold tracking-wide uppercase">
+              <span className="inline-flex items-center gap-1.5 h-8 px-4 rounded-full bg-blue-600 text-white text-[11px] font-bold tracking-wide uppercase shadow-md shadow-blue-600/20">
                 <MapPin className="h-3 w-3" /> Cirebon &amp; Sekitarnya
               </span>
-              <span className="text-[12px] text-blue-100/80 font-medium">
-                Cirebon <span className="text-blue-300/50 mx-1">|</span> Indramayu <span className="text-blue-300/50 mx-1">|</span> Kuningan <span className="text-blue-300/50 mx-1">|</span> Majalengka
+              <span className="text-[12px] text-slate-600 font-medium">
+                Cirebon <span className="text-slate-300 mx-1">|</span> Indramayu <span className="text-slate-300 mx-1">|</span> Kuningan <span className="text-slate-300 mx-1">|</span> Majalengka
               </span>
             </div>
 
-            <h1 className="mt-5 font-display text-4xl sm:text-5xl lg:text-[56px] font-extrabold leading-[1.08] tracking-tight text-white" data-testid="hero-headline">
+            <h1 className="mt-5 font-display text-4xl sm:text-5xl lg:text-[56px] font-extrabold leading-[1.08] tracking-tight text-[#0B1F4B]" data-testid="hero-headline">
               Cari Kerja atau
-              <span className="block text-transparent bg-clip-text bg-gradient-to-r from-amber-300 via-yellow-400 to-amber-300">Cari Karyawan?</span>
+              <span className="block text-transparent bg-clip-text bg-gradient-to-r from-amber-500 via-yellow-500 to-amber-400">Cari Karyawan?</span>
             </h1>
-            <p className="mt-4 text-[15px] sm:text-base text-blue-100/85 max-w-xl leading-relaxed">
+            <p className="mt-4 text-[15px] sm:text-base text-slate-600 max-w-xl leading-relaxed">
               Temukan peluang terbaik, talenta berkualitas, dan bangun masa depan yang lebih baik di Cirebon dan sekitarnya.
             </p>
 
             <form onSubmit={search} className="mt-7 max-w-2xl" data-testid="hero-search-form">
-              <div className="bg-white rounded-2xl p-2 shadow-2xl shadow-black/30 flex flex-col md:flex-row md:items-center gap-2">
+              <div className="bg-white rounded-2xl p-2 border border-slate-100 shadow-2xl shadow-blue-900/10 flex flex-col md:flex-row md:items-center gap-2">
                 <div className="flex items-center gap-2 flex-1 px-3 h-12">
                   <Search className="h-5 w-5 text-slate-400 shrink-0" />
                   <input
@@ -376,12 +377,12 @@ function Hero() {
             <div className="mt-7 grid grid-cols-2 sm:grid-cols-4 gap-3 max-w-2xl" data-testid="hero-trust-chips">
               {TRUST_CHIPS.map((c) => (
                 <div key={c.label} className="flex items-center gap-2.5">
-                  <span className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-blue-500/25 border border-blue-400/30 text-blue-200">
+                  <span className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-blue-100 border border-blue-100 text-blue-700">
                     <c.icon className="h-4 w-4" />
                   </span>
-                  <span className="text-[11.5px] leading-tight text-blue-100/85 font-medium">
+                  <span className="text-[11.5px] leading-tight text-slate-500 font-medium">
                     {c.label}
-                    <span className="block font-bold text-white">{c.sub}</span>
+                    <span className="block font-bold text-[#0B1F4B]">{c.sub}</span>
                   </span>
                 </div>
               ))}
@@ -391,9 +392,9 @@ function Hero() {
           {/* Kolom kanan: panel */}
           <div className="lg:col-span-5 relative">
             <div className="flex xl:hidden justify-end mb-3">
-              <p className="font-serif italic text-amber-300/90 text-base text-right -rotate-2">
+              <p className="font-serif italic text-slate-500 text-base text-right -rotate-2">
                 Dari Cirebon untuk Indonesia
-                <span className="block font-display font-extrabold not-italic text-white text-xl drop-shadow">Masa Depan Lebih Hebat</span>
+                <span className="block font-display font-extrabold not-italic text-[#0B1F4B] text-xl">Masa Depan Lebih Hebat</span>
               </p>
             </div>
             <span className="hidden xl:inline-flex items-center gap-1.5 rotate-[-4deg] rounded-full bg-white px-4 py-2 text-[12px] font-bold text-[#0B1F4B] shadow-xl mb-3">
@@ -401,7 +402,7 @@ function Hero() {
             </span>
             <div className="grid sm:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2 gap-4">
               {/* Career Pro */}
-              <div className="rounded-2xl bg-gradient-to-b from-amber-50 to-white p-5 border border-amber-200 shadow-2xl shadow-black/25 relative overflow-hidden" data-testid="hero-panel-career-pro">
+              <div className="rounded-2xl bg-gradient-to-b from-amber-50 to-white p-5 border border-amber-200/80 shadow-2xl shadow-blue-900/10 relative overflow-hidden" data-testid="hero-panel-career-pro">
                 <div className="absolute -top-8 -right-8 h-24 w-24 rounded-full bg-amber-300/40 blur-2xl" />
                 <div className="flex items-center gap-3">
                   <span className="inline-flex h-11 w-11 items-center justify-center rounded-xl bg-gradient-to-br from-amber-400 to-yellow-500 text-white shadow-md shadow-amber-500/30">
@@ -429,7 +430,7 @@ function Hero() {
               </div>
 
               {/* Untuk Perusahaan */}
-              <div className="rounded-2xl bg-white p-5 border border-slate-100 shadow-2xl shadow-black/25" data-testid="hero-panel-company">
+              <div className="rounded-2xl bg-white p-5 border border-slate-100 shadow-2xl shadow-blue-900/10" data-testid="hero-panel-company">
                 <div className="flex items-center gap-3">
                   <span className="inline-flex h-11 w-11 items-center justify-center rounded-xl bg-gradient-to-br from-emerald-500 to-green-600 text-white shadow-md shadow-emerald-500/30">
                     <Building2 className="h-5 w-5" />
@@ -939,6 +940,34 @@ function MainArea() {
               </Link>
             </div>
           </div>
+
+          {/* Banner iklan kedua */}
+          <div className="relative overflow-hidden rounded-2xl shadow-xl" data-testid="ad-banner-2">
+            <img src="https://images.unsplash.com/photo-1502285751408-54ef434c8381?crop=entropy&cs=srgb&fm=jpg&q=85&w=940" alt="Iklan UMKM" className="absolute inset-0 h-full w-full object-cover" />
+            <div className="absolute inset-0" style={{ background: "linear-gradient(180deg, rgba(30,15,0,0.72) 0%, rgba(60,30,0,0.88) 100%)" }} />
+            <div className="relative p-6 text-center">
+              <span className="inline-flex h-11 w-11 items-center justify-center rounded-xl bg-blue-600 text-white shadow-lg">
+                <Store className="h-5 w-5" />
+              </span>
+              <h3 className="mt-3 font-display text-lg font-extrabold text-white leading-snug">
+                Promosikan Usaha &amp; <span className="text-amber-300">UMKM Anda</span> di CirebonKarir.id
+              </h3>
+              <ul className="mt-4 space-y-2 text-left">
+                {["Ribuan pengunjung setiap hari", "Harga terjangkau untuk UMKM", "Tampil di seluruh wilayah Cirebon"].map((t) => (
+                  <li key={t} className="flex items-center gap-2 text-[12px] font-medium text-blue-100">
+                    <CheckCircle2 className="h-3.5 w-3.5 text-amber-300 shrink-0" /> {t}
+                  </li>
+                ))}
+              </ul>
+              <Link
+                to="/hubungi-kami"
+                className="mt-5 inline-flex w-full items-center justify-center gap-1.5 h-11 rounded-xl bg-blue-600 text-white text-[13px] font-bold shadow-lg shadow-blue-900/30 hover:bg-blue-500 transition-colors"
+                data-testid="ad-banner-2-cta"
+              >
+                Pasang Iklan <ArrowRight className="h-4 w-4" />
+              </Link>
+            </div>
+          </div>
         </aside>
       </div>
     </section>
@@ -987,8 +1016,6 @@ function UmkmSection() {
     );
   }
 
-  const COLORS = ["bg-blue-600", "bg-emerald-600", "bg-rose-500", "bg-violet-600", "bg-amber-500"];
-
   return (
     <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-14" data-testid="umkm-section">
       <div className="flex flex-wrap items-end justify-between gap-3 mb-6">
@@ -1011,9 +1038,13 @@ function UmkmSection() {
             {isNewJob(job.created_at) && (
               <span className="absolute top-3 right-3 inline-flex h-5 px-2 items-center rounded-full bg-emerald-100 text-emerald-700 text-[10px] font-bold" data-testid={`umkm-badge-baru-${job.id}`}>Baru</span>
             )}
-            <span className={`inline-flex h-14 w-14 items-center justify-center rounded-full ${COLORS[i % COLORS.length]} text-white font-display font-extrabold text-lg shadow-md`}>
-              {(job.company_name || "U").charAt(0).toUpperCase()}
-            </span>
+            <img
+              src={logoUrl(job.company_logo, job.company_name)}
+              alt={job.company_name}
+              className="mx-auto h-16 w-16 rounded-2xl border border-slate-200 bg-white object-contain p-1.5 shadow-sm"
+              loading="lazy"
+              data-testid={`umkm-logo-${job.id}`}
+            />
             <Link to={job.demo ? "/jobs?employer_type=umkm" : `/jobs/${job.slug}`} className="mt-3 block" data-testid={`umkm-title-${job.id}`}>
               <h3 className="font-display font-bold text-[13.5px] text-slate-900 leading-snug line-clamp-2 hover:text-blue-700 transition-colors">{job.title}</h3>
             </Link>
