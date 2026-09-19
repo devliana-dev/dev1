@@ -83,9 +83,34 @@ const CONFIG = {
     avatarTop: "bg-gradient-to-br from-green-500 to-emerald-700",
     testPrefix: "company",
   },
+  admin: {
+    menu: null, // dari props (ADMIN_MENU, sudah difilter ownerOnly)
+    notifPath: "/admin/notifications",
+    proLabel: "",
+    freeLabel: "",
+    proCheck: null,
+    upgradePath: "/admin",
+    upgradeToast: "",
+    roleBadge: true,
+    planDataTestid: "plan-badge",
+    avatarFooter: "bg-white/15 border-white/20",
+    avatarTop: "bg-gradient-to-br from-slate-600 to-slate-800",
+    testPrefix: "admin",
+  },
 };
 
-function PlanBadge({ pro, config }) {
+function PlanBadge({ pro, config, user }) {
+  if (config.roleBadge) {
+    return user?.role === "owner" ? (
+      <span className="inline-flex items-center gap-1.5 h-8 px-3.5 rounded-full bg-gradient-to-r from-yellow-400 to-amber-400 text-[#0B1F4B] text-[11.5px] font-extrabold shadow-md shadow-amber-400/30" data-testid={config.planDataTestid}>
+        <Crown className="h-3.5 w-3.5" /> Owner
+      </span>
+    ) : (
+      <span className="inline-flex items-center gap-1.5 h-8 px-3.5 rounded-full bg-sky-600 text-white text-[11.5px] font-extrabold" data-testid={config.planDataTestid}>
+        <ShieldCheck className="h-3.5 w-3.5" /> Admin
+      </span>
+    );
+  }
   return pro ? (
     <span className="inline-flex items-center gap-1.5 h-8 px-3.5 rounded-full bg-gradient-to-r from-yellow-400 to-amber-400 text-[#0B1F4B] text-[11.5px] font-extrabold shadow-md shadow-amber-400/30" data-testid={config.planDataTestid}>
       <Crown className="h-3.5 w-3.5" /> {config.proLabel}
@@ -97,8 +122,9 @@ function PlanBadge({ pro, config }) {
   );
 }
 
-export default function DashboardShell({ variant = "candidate", title, subtitle, children }) {
+export default function DashboardShell({ variant = "candidate", title, subtitle, children, menu: menuProp }) {
   const config = CONFIG[variant] || CONFIG.candidate;
+  const menuItems = menuProp || config.menu || [];
   const { user, logout } = useAuth();
   const navigate = useNavigate();
   const { pathname } = useLocation();
@@ -106,6 +132,7 @@ export default function DashboardShell({ variant = "candidate", title, subtitle,
   const [pro, setPro] = useState(false);
 
   useEffect(() => {
+    if (!config.proCheck) return;
     let alive = true;
     api.get(config.proCheck)
       .then((r) => { if (alive) setPro(variant === "candidate" ? !!r.data?.has_access : !!r.data?.is_member); })
@@ -113,9 +140,9 @@ export default function DashboardShell({ variant = "candidate", title, subtitle,
     return () => { alive = false; };
   }, [config.proCheck, variant]);
 
-  const activeIdx = config.menu.findIndex((m) => {
+  const activeIdx = menuItems.findIndex((m) => {
     if (!m.to || m.to.startsWith("#")) return false;
-    if (m.exact) return pathname === m.to;
+    if (m.exact || m.end) return pathname === m.to;
     return pathname === m.to || pathname.startsWith(m.to + "/");
   });
 
@@ -136,7 +163,7 @@ export default function DashboardShell({ variant = "candidate", title, subtitle,
     navigate(item.to);
   };
 
-  const navItems = config.menu.map((m, idx) => {
+  const navItems = menuItems.map((m, idx) => {
     if (m.header) {
       return (
         <p key={`header-${m.header}`} className="px-3 pt-4 pb-1 text-[10px] font-bold uppercase tracking-wider text-blue-300/70">
@@ -187,7 +214,9 @@ export default function DashboardShell({ variant = "candidate", title, subtitle,
           </span>
           <div className="min-w-0 flex-1">
             <p className="text-[12.5px] font-bold truncate">{user?.name}</p>
-            <p className="text-[10px] text-blue-200/80">{pro ? config.proLabel : config.freeLabel}</p>
+            <p className="text-[10px] text-blue-200/80">
+              {config.roleBadge ? (user?.role === "owner" ? "Owner" : "Admin") : (pro ? config.proLabel : config.freeLabel)}
+            </p>
           </div>
           <button
             onClick={async () => { await logout(); navigate("/"); }}
@@ -232,7 +261,7 @@ export default function DashboardShell({ variant = "candidate", title, subtitle,
               <h1 className="font-display font-extrabold text-[16px] text-[#0B1F4B] leading-tight">{title}</h1>
               <p className="text-[10.5px] text-slate-400 leading-tight">{subtitle}</p>
             </div>
-            <PlanBadge pro={pro} config={config} />
+            <PlanBadge pro={pro} config={config} user={user} />
             <Link to={config.notifPath} className="relative inline-flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50" aria-label="Notifikasi">
               <Bell className="h-4 w-4" />
             </Link>
