@@ -1,0 +1,24 @@
+{
+  "summary": "Frontend testing for unified DashboardShell (single shell per role). Tested candidate Pro/Free flows, company premium flow, active menu highlighting, PRO gating, right rail, regression pages, public pages, and mobile drawer. All acceptance criteria PASS.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "DashboardLayout.jsx still contains legacy admin/owner sidebar code (~90 lines) that could be split; minor since it's still in use for admin.",
+    "Two data-testid values are duplicated because of shared to-paths (company-menu-cari-kandidat & company-menu-invite-candidate both -> /company/candidates; likewise Pelamar & Screening Kandidat -> /company/applicants). Currently distinguished by testid (based on label) so tests are unaffected, but active-highlight tie-break relies on findIndex returning first match — works today but is fragile if menu order changes.",
+    "Old /app/frontend/src/pages/candidate/menu.js and /app/frontend/src/pages/company/menu.js appear to no longer be sources of truth (DashboardShell hard-codes CANDIDATE_MENU/COMPANY_MENU). Consider removing to avoid drift."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "N/A", "frontend": "100%"},
+  "test_credentials": "budi.demo@cirebonkarir.id / password123 (Career Pro), budi@example.com / password123 (FREE), premium@perusahaan.com / password123 (Premium company)",
+  "seed_data_creation": "",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "All shell criteria verified: candidate sidebar navy retained across /candidate/dashboard, /job-alerts, /applications, /profile, /cv-professional; company shell retained on /company/team, /candidates, /stats plus regression pages (/applicants, /interviews, /shortlists, /profile, /membership). Active highlight bg-blue-600 works (Cari Kandidat active while Invite not). FREE candidate Job Alert click correctly redirects to /candidate/cv-professional/upgrade. Right rails and premium/pro cards present. Mobile hamburger opens drawer. Public pages (/, /jobs, /login) not affected.",
+  "rca of the issue": "N/A — no issues found."
+}
