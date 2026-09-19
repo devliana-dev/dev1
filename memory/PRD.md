@@ -138,6 +138,13 @@ Lihat CHANGELOG.md (register role, admin edit job, hero, job list horizontal, ka
 
 
 
+
+## Iterasi 19 — Dashboard Admin Satu Shell Navy (19 Sep 2026)
+- **Perubahan**: Dashboard admin/owner kini memakai `DashboardShell` navy yang sama persis dengan kandidat & perusahaan (gradien `#0A1F4B→#12307A`, w-64, header putih sticky + badge + Bell + avatar + drawer mobile). `DashboardLayout` menjadi delegator murni untuk semua role — sidebar putih lama dihapus total.
+- **Admin variant**: badge role di header — "Owner" emas dengan Crown / "Admin" biru sky; menu dari `ADMIN_MENU` (via props, filter `ownerOnly` tetap jalan: Tim Admin & Settings hanya muncul untuk owner); section headers kapital (PELAMAR, PERUSAHAAN, LOWONGAN & LAMARAN, ANALITIK, MONETISASI, SISTEM) tampil sebagai label biru muda; notifikasi → `/admin/notifications`.
+- **Konten admin 100% tetap** (Command Center, Business Health, stat cards, chart, Quick Actions, semua tabel & aksi moderasi) — hanya shell-nya yang berganti.
+- **Testing iterasi 20**: frontend 11/11 lulus (`/app/test_reports/iteration_20.json`) — ownerOnly visibility, single active highlight, navigasi shell-consistent di seluruh halaman admin, regresi kandidat/perusahaan tidak bocor menu admin, mobile drawer OK.
+
 ## Akun Demo
 - Owner: owner@cirebonkarir.com / owner123 (env OWNER_EMAIL/OWNER_PASSWORD)
 - Admin: muhamadwahid.sih@gmail.com / admin123

@@ -1,0 +1,22 @@
+{
+  "summary": "Frontend-only regression test for admin dashboard shell (navy DashboardShell w/ admin variant). All 11 requested test scenarios PASS. Admin login shows navy sidebar with CirebonKarir logo, blue 'Admin' badge, all 6 section headers (PELAMAR, PERUSAHAAN, LOWONGAN & LAMARAN, ANALITIK, MONETISASI, SISTEM); ownerOnly items (Tim Admin, Settings) correctly hidden for admin and shown for owner; owner shows gold 'Owner' badge with Crown. Navigation to /admin/jobs, /admin/candidates, /admin/analytics, /admin/audit-log, /admin/monetisasi all keep the shell and highlight the active menu (single active — count=1). Back to Overview highlights Overview. Bell -> /admin/notifications with shell intact. Command Center content (Business Health card, stat cards Pelamar/Perusahaan/Lowongan Aktif/Total Lamaran/Career Pro, Aktivitas 7 Hari chart, Quick Actions) fully renders in new shell. Mobile 390px: hamburger opens navy drawer with full menu + close button, no overflow. Regression: candidate (budi.demo) uses candidate-sidebar-desktop, company (premium@perusahaan.com) uses company-sidebar-desktop; no admin menu leak in either role.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "Note: 500 errors observed on /admin/audit-log page load (backend), but out of scope for this frontend shell iteration — shell still renders correctly. Main agent may want to check the audit-log backend endpoint.",
+    "DashboardShell.jsx is now ~280 lines with 3 role configs — still readable but approaching the point where extracting CANDIDATE_MENU/COMPANY_MENU/CONFIG into a separate module would improve maintainability."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "n/a", "frontend": "100%"},
+  "test_credentials": "admin@cirebonkarir.com/admin123, owner@cirebonkarir.com/owner123, budi.demo@cirebonkarir.id/password123, premium@perusahaan.com/password123 — all verified working",
+  "seed_data_creation": "none",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Admin shell unification complete. DashboardLayout is a pure delegator to DashboardShell with variant candidate/company/admin. Admin variant reads menu from props (ADMIN_MENU with ownerOnly filter applied in DashboardLayout). Section headers render as small uppercase blue-300/70 labels. Active menu uses bg-blue-600. Mobile drawer via admin-dash-hamburger opens admin-sidebar-mobile. All data-testids follow pattern admin-menu-<slug>, admin-sidebar-desktop, admin-dash-hamburger, admin-dash-logout, plan-badge, admin-topbar. Unrelated: /admin/audit-log backend returns 500 (surfaced in console) — separate issue not related to shell task."
+}
