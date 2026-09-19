@@ -1,31 +1,15 @@
 import { useEffect, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
-import { toast } from "sonner";
+import { Link } from "react-router-dom";
 import {
-  LayoutDashboard, FilePlus2, Briefcase, Users, UserCheck, CalendarCheck,
-  UserSearch, Star, Building2, UserCog, Settings, HelpCircle, Crown, Bell,
-  LogOut, Menu, X, Check, ArrowRight, ShieldCheck, Megaphone, Clock,
+  FilePlus2, Briefcase, Users, CalendarCheck,
+  UserCheck, Megaphone, Clock, Check, ArrowRight, ShieldCheck, Crown,
 } from "lucide-react";
 import api from "../../lib/api";
 import { useAuth } from "../../context/AuthContext";
 import { timeAgo, formatDate, logoUrl } from "../../lib/format";
+import DashboardShell from "../../components/DashboardShell";
 
 /* ---------- data statis ---------- */
-const MENU = [
-  { to: "/company/dashboard", label: "Dashboard", icon: LayoutDashboard, end: true },
-  { to: "/company/jobs/new", label: "Posting Lowongan", icon: FilePlus2 },
-  { to: "/company/jobs", label: "Lowongan Saya", icon: Briefcase },
-  { to: "/company/applicants", label: "Pelamar", icon: Users },
-  { to: "/company/applicants", label: "Screening Kandidat", icon: UserCheck },
-  { to: "/company/interviews", label: "Interview", icon: CalendarCheck },
-  { to: "/company/candidates", label: "Cari Kandidat", icon: UserSearch, premium: true },
-  { to: "/company/shortlists", label: "Kandidat Tersimpan", icon: Star },
-  { to: "/company/profile", label: "Profil Perusahaan", icon: Building2 },
-  { to: "/company/team", label: "Tim & Akses", icon: UserCog, adminOnly: true },
-  { to: "#pengaturan", label: "Pengaturan", icon: Settings, soon: true },
-  { to: "#bantuan", label: "Bantuan & Kontak", icon: HelpCircle, soon: true },
-];
-
 const PREMIUM_FEATURES = [
   "Cari Kandidat",
   "Invite Candidate",
@@ -57,82 +41,6 @@ function StatusBadge({ status }) {
     <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-[10.5px] font-bold capitalize ${STATUS_STYLE[status] || "bg-slate-100 text-slate-600"}`}>
       {status || "-"}
     </span>
-  );
-}
-
-function PlanBadge({ premium }) {
-  return premium ? (
-    <span className="inline-flex items-center gap-1.5 h-8 px-3.5 rounded-full bg-gradient-to-r from-yellow-400 to-amber-400 text-[#0B1F4B] text-[11.5px] font-extrabold shadow-md shadow-amber-400/30">
-      <Crown className="h-3.5 w-3.5" /> Premium
-    </span>
-  ) : (
-    <span className="inline-flex items-center gap-1.5 h-8 px-3.5 rounded-full bg-slate-200 text-slate-700 text-[11.5px] font-extrabold">
-      <ShieldCheck className="h-3.5 w-3.5" /> FREE
-    </span>
-  );
-}
-
-function Sidebar({ onNavigate, premium, testPrefix = "" }) {
-  const { user, logout } = useAuth();
-  const navigate = useNavigate();
-  const handleClick = (item) => {
-    if (item.soon) {
-      toast.info(`${item.label} segera hadir. Nantikan update berikutnya!`);
-      return;
-    }
-    if (item.adminOnly && !premium) {
-      toast.info("Tim & Akses tersedia setelah upgrade Premium Perusahaan.");
-      return;
-    }
-    if (item.premium && !premium) {
-      toast.info("Cari Kandidat adalah fitur Premium Perusahaan. Upgrade untuk mengaksesnya.");
-      return;
-    }
-    onNavigate();
-    navigate(item.to);
-  };
-  return (
-    <div className="h-full flex flex-col bg-gradient-to-b from-[#0A1F4B] to-[#12307A] text-white">
-      <div className="px-5 pt-6 pb-5">
-        <Link to="/" className="flex items-center gap-2.5">
-          <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-blue-500 to-blue-700 font-display text-lg font-extrabold text-white">C</span>
-          <span className="leading-tight">
-            <span className="block font-display text-[15px] font-extrabold">CirebonKarir<span className="text-blue-300">.id</span></span>
-            <span className="block text-[9px] text-blue-200/80">Hubungkan Talenta dengan Peluang</span>
-          </span>
-        </Link>
-      </div>
-      <nav className="flex-1 px-3 space-y-1 overflow-y-auto" data-testid="company-dash-menu">
-        {MENU.map((m) => (
-          <button
-            key={m.label}
-            onClick={() => handleClick(m)}
-            className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-[13px] font-semibold transition-colors ${
-              m.end ? "bg-blue-600 text-white shadow-md shadow-blue-900/30" : "text-blue-100/85 hover:bg-white/10 hover:text-white"
-            }`}
-            data-testid={`${testPrefix}menu-${m.label.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`}
-          >
-            <m.icon className="h-4 w-4 shrink-0" />
-            <span className="flex-1 text-left">{m.label}</span>
-            {m.premium && !premium && <Crown className="h-3.5 w-3.5 text-yellow-400 shrink-0" />}
-          </button>
-        ))}
-      </nav>
-      <div className="p-4 border-t border-white/10">
-        <div className="flex items-center gap-2.5 px-2">
-          <span className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-green-500/30 border border-white/20 font-display font-bold text-sm">
-            {(user?.name || "P").charAt(0).toUpperCase()}
-          </span>
-          <div className="min-w-0 flex-1">
-            <p className="text-[12.5px] font-bold truncate">{user?.name}</p>
-            <p className="text-[10px] text-blue-200/80">{premium ? "Premium Perusahaan" : "Paket FREE"}</p>
-          </div>
-          <button onClick={() => { logout(); navigate("/"); }} className="p-2 rounded-lg text-blue-200/80 hover:text-white hover:bg-white/10" aria-label="Keluar" data-testid="company-dash-logout">
-            <LogOut className="h-4 w-4" />
-          </button>
-        </div>
-      </div>
-    </div>
   );
 }
 
@@ -215,7 +123,6 @@ export default function CompanyDashboardNew() {
   const [ent, setEnt] = useState(null);
   const [jobs, setJobs] = useState([]);
   const [apps, setApps] = useState([]);
-  const [open, setOpen] = useState(false);
 
   useEffect(() => {
     api.get("/company/stats").then((r) => setStats(r.data)).catch(() => {});
@@ -229,45 +136,9 @@ export default function CompanyDashboardNew() {
   const freePostsLeft = ent?.quota ? `${ent.quota.remaining}/${ent.quota.limit}` : "-";
 
   return (
-    <div className="min-h-screen bg-[#F4F7FD]">
-      <aside className="hidden lg:block fixed inset-y-0 left-0 w-64 z-30" data-testid="company-sidebar-desktop">
-        <Sidebar premium={premium} onNavigate={() => {}} />
-      </aside>
-      {open && (
-        <div className="lg:hidden fixed inset-0 z-50 flex" data-testid="company-sidebar-mobile">
-          <div className="absolute inset-0 bg-black/50" onClick={() => setOpen(false)} />
-          <aside className="relative w-64 max-w-[80%]">
-            <Sidebar premium={premium} testPrefix="drawer-" onNavigate={() => setOpen(false)} />
-            <button onClick={() => setOpen(false)} className="absolute top-4 -right-11 h-9 w-9 rounded-lg bg-white text-slate-700 shadow-lg flex items-center justify-center" aria-label="Tutup menu">
-              <X className="h-4 w-4" />
-            </button>
-          </aside>
-        </div>
-      )}
-
-      <div className="lg:pl-64">
-        <header className="sticky top-0 z-20 bg-white/95 backdrop-blur border-b border-slate-200/70">
-          <div className="flex items-center gap-3 px-4 sm:px-6 h-16">
-            <button onClick={() => setOpen(true)} className="lg:hidden inline-flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 text-[#0B1F4B]" aria-label="Menu" data-testid="company-dash-hamburger">
-              <Menu className="h-5 w-5" />
-            </button>
-            <div className="flex-1 min-w-0">
-              <h1 className="font-display font-extrabold text-[16px] text-[#0B1F4B] leading-tight">Dashboard Perusahaan</h1>
-              <p className="text-[10.5px] text-slate-400 leading-tight">Kelola rekrutmen tim Anda</p>
-            </div>
-            <PlanBadge premium={premium} />
-            <Link to="/company/notifications" className="relative inline-flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50" aria-label="Notifikasi">
-              <Bell className="h-4 w-4" />
-            </Link>
-            <span className="hidden sm:inline-flex h-9 w-9 items-center justify-center rounded-full bg-gradient-to-br from-green-500 to-emerald-700 text-white font-display font-bold text-sm">
-              {companyName.charAt(0).toUpperCase()}
-            </span>
-          </div>
-        </header>
-
-        <main className="p-4 sm:p-6">
-          <div className="grid lg:grid-cols-[1fr_320px] gap-6 items-start max-w-[1400px] mx-auto">
-            <div className="space-y-5 min-w-0">
+    <DashboardShell variant="company" title="Dashboard Perusahaan" subtitle="Kelola rekrutmen tim Anda">
+      <div className="grid lg:grid-cols-[1fr_320px] gap-6 items-start max-w-[1400px] mx-auto">
+        <div className="space-y-5 min-w-0">
               {/* Sambutan */}
               <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-[#0A1F4B] via-[#12307A] to-[#1A43B8] p-5 sm:p-6 text-white shadow-sm" data-testid="greeting-card">
                 <div className="absolute -top-10 -right-10 h-40 w-40 rounded-full bg-green-400/15 blur-2xl" />
@@ -374,8 +245,6 @@ export default function CompanyDashboardNew() {
               <PromoPremium premium={premium} ent={ent} />
             </aside>
           </div>
-        </main>
-      </div>
-    </div>
+    </DashboardShell>
   );
 }

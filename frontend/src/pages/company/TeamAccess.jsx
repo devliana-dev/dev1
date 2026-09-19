@@ -1,9 +1,11 @@
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { UserCog, Plus, X, Crown, ShieldCheck, Users, Trash2, ArrowRight } from "lucide-react";
+import DashboardLayout from "../../components/DashboardLayout";
 import api from "../../lib/api";
 import { useAuth } from "../../context/AuthContext";
 import { formatDate } from "../../lib/format";
+import { COMPANY_MENU } from "./menu";
 
 const ROLE_STYLE = {
   owner: "bg-gradient-to-r from-yellow-400 to-amber-400 text-[#0B1F4B]",
@@ -83,7 +85,8 @@ export default function TeamAccess() {
   const canManage = myRole === "owner" || myRole === "admin";
 
   return (
-    <div className="p-4 sm:p-6 max-w-5xl mx-auto page-fade" data-testid="team-access-page">
+    <DashboardLayout menu={COMPANY_MENU} title="Tim & Akses">
+    <div className="max-w-5xl mx-auto page-fade" data-testid="team-access-page">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
         <div className="flex items-center gap-3">
           <span className="inline-flex h-11 w-11 items-center justify-center rounded-xl bg-gradient-to-br from-[#0A1F4B] to-[#12307A] text-white shadow-md">
@@ -252,5 +255,6 @@ export default function TeamAccess() {
         <p className="mt-4 text-center text-[11.5px] text-slate-400">Hanya Owner/Admin yang dapat mengelola Tim &amp; Akses.</p>
       )}
     </div>
+    </DashboardLayout>
   );
 }

@@ -3,7 +3,7 @@ import { Link, NavLink, useNavigate } from "react-router-dom";
 import { Briefcase, Menu, X, LogOut, Home } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import NotificationBell from "./NotificationBell";
-import CandidateLayout from "./CandidateLayout";
+import DashboardShell from "./DashboardShell";
 
 export default function DashboardLayout({ menu, title, children }) {
   const [open, setOpen] = useState(false);
@@ -19,8 +19,20 @@ export default function DashboardLayout({ menu, title, children }) {
 
   const visibleMenu = menu.filter((item) => !item.ownerOnly || user?.role === "owner");
 
+  // SATU shell per role: sidebar navy + header tetap, hanya konten tengah berganti.
   if (user?.role === "candidate") {
-    return <CandidateLayout menu={visibleMenu} title={title}>{children}</CandidateLayout>;
+    return (
+      <DashboardShell variant="candidate" title={title || "Dashboard Kandidat"} subtitle="Kelola kariermu dari satu tempat">
+        {children}
+      </DashboardShell>
+    );
+  }
+  if (user?.role === "company") {
+    return (
+      <DashboardShell variant="company" title={title || "Dashboard Perusahaan"} subtitle="Kelola rekrutmen tim Anda">
+        {children}
+      </DashboardShell>
+    );
   }
 
   const navItems = (

@@ -2,26 +2,15 @@ import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import {
-  LayoutDashboard, Search, Send, Bookmark, Users, User, Settings, HelpCircle,
-  Crown, Bell, LogOut, Menu, X, Check, Briefcase, Clock, CalendarCheck,
-  CheckCircle2, FileText, ArrowRight, ShieldCheck, Copy,
+  Send, Bookmark, Users, Check, Briefcase, Clock, CalendarCheck,
+  CheckCircle2, FileText, ArrowRight, ShieldCheck, Copy, Crown,
 } from "lucide-react";
 import api from "../../lib/api";
 import { useAuth } from "../../context/AuthContext";
 import { timeAgo, formatDate, logoUrl } from "../../lib/format";
+import DashboardShell from "../../components/DashboardShell";
 
 /* ---------- data statis ---------- */
-const MENU = [
-  { to: "/candidate/dashboard", label: "Dashboard", icon: LayoutDashboard, end: true },
-  { to: "/jobs", label: "Cari Lowongan", icon: Search },
-  { to: "/candidate/applications", label: "Lamaran Saya", icon: Send },
-  { to: "/candidate/saved", label: "Lowongan Tersimpan", icon: Bookmark },
-  { to: "#komunitas", label: "Komunitas", icon: Users, soon: true },
-  { to: "/candidate/profile", label: "Profil Karier", icon: User },
-  { to: "/candidate/settings", label: "Pengaturan Akun", icon: Settings },
-  { to: "/candidate/help", label: "Bantuan & Kontak", icon: HelpCircle },
-];
-
 const PRO_FEATURES = ["Job Alert", "CV Profesional", "Lamar Cepat 30x", "Statistik Lamaran", "Badge Career Pro", "Referral & Komisi"];
 
 const STATUS_STYLE = {
@@ -39,72 +28,6 @@ function StatusBadge({ status }) {
     <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-[10.5px] font-bold capitalize ${STATUS_STYLE[status] || "bg-slate-100 text-slate-600"}`}>
       {status || "-"}
     </span>
-  );
-}
-
-function PlanBadge({ pro }) {
-  return pro ? (
-    <span className="inline-flex items-center gap-1.5 h-8 px-3.5 rounded-full bg-gradient-to-r from-yellow-400 to-amber-400 text-[#0B1F4B] text-[11.5px] font-extrabold shadow-md shadow-amber-400/30">
-      <Crown className="h-3.5 w-3.5" /> Career Pro
-    </span>
-  ) : (
-    <span className="inline-flex items-center gap-1.5 h-8 px-3.5 rounded-full bg-slate-200 text-slate-700 text-[11.5px] font-extrabold">
-      <ShieldCheck className="h-3.5 w-3.5" /> FREE
-    </span>
-  );
-}
-
-function Sidebar({ onNavigate, pro, testPrefix = "" }) {
-  const { user, logout } = useAuth();
-  const navigate = useNavigate();
-  const handleClick = (item) => {
-    if (item.soon) {
-      toast.info(`${item.label} segera hadir. Nantikan update berikutnya!`);
-      return;
-    }
-    onNavigate();
-    navigate(item.to);
-  };
-  return (
-    <div className="h-full flex flex-col bg-gradient-to-b from-[#0A1F4B] to-[#12307A] text-white">
-      <div className="px-5 pt-6 pb-5">
-        <Link to="/" className="flex items-center gap-2.5">
-          <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-blue-500 to-blue-700 font-display text-lg font-extrabold text-white">C</span>
-          <span className="leading-tight">
-            <span className="block font-display text-[15px] font-extrabold">CirebonKarir<span className="text-blue-300">.id</span></span>
-            <span className="block text-[9px] text-blue-200/80">Hubungkan Talenta dengan Peluang</span>
-          </span>
-        </Link>
-      </div>
-      <nav className="flex-1 px-3 space-y-1 overflow-y-auto" data-testid="candidate-dash-menu">
-        {MENU.map((m) => (
-          <button
-            key={m.label}
-            onClick={() => handleClick(m)}
-            className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-[13px] font-semibold transition-colors ${
-              m.end ? "bg-blue-600 text-white shadow-md shadow-blue-900/30" : "text-blue-100/85 hover:bg-white/10 hover:text-white"
-            }`}
-            data-testid={`${testPrefix}menu-${m.label.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`}
-          >
-            <m.icon className="h-4 w-4 shrink-0" /> {m.label}
-          </button>
-        ))}
-      </nav>
-      <div className="p-4 border-t border-white/10">
-        <div className="flex items-center gap-2.5 px-2">
-          <span className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-blue-500/30 border border-white/20 font-display font-bold text-sm">
-            {(user?.name || "U").charAt(0).toUpperCase()}
-          </span>
-          <div className="min-w-0 flex-1">
-            <p className="text-[12.5px] font-bold truncate">{user?.name}</p>
-            <p className="text-[10px] text-blue-200/80">{pro ? "Career Pro" : "Paket FREE"}</p>
-          </div>
-          <button onClick={() => { logout(); navigate("/"); }} className="p-2 rounded-lg text-blue-200/80 hover:text-white hover:bg-white/10" aria-label="Keluar" data-testid="candidate-dash-logout">
-            <LogOut className="h-4 w-4" />
-          </button>
-        </div>
-      </div>
-    </div>
   );
 }
 
@@ -242,7 +165,6 @@ export default function CandidateDashboardNew() {
   const [cvStatus, setCvStatus] = useState({ has_access: false });
   const [referral, setReferral] = useState({ code: "", conversions: 0 });
   const [savedCount, setSavedCount] = useState(0);
-  const [open, setOpen] = useState(false);
   const [applying, setApplying] = useState("");
 
   const loadAll = () => {
@@ -287,49 +209,10 @@ export default function CandidateDashboardNew() {
   };
 
   return (
-    <div className="min-h-screen bg-[#F4F7FD]">
-      {/* Sidebar desktop */}
-      <aside className="hidden lg:block fixed inset-y-0 left-0 w-64 z-30" data-testid="candidate-sidebar-desktop">
-        <Sidebar pro={pro} onNavigate={() => {}} />
-      </aside>
-      {/* Drawer mobile */}
-      {open && (
-        <div className="lg:hidden fixed inset-0 z-50 flex" data-testid="candidate-sidebar-mobile">
-          <div className="absolute inset-0 bg-black/50" onClick={() => setOpen(false)} />
-          <aside className="relative w-64 max-w-[80%]">
-            <Sidebar pro={pro} testPrefix="drawer-" onNavigate={() => setOpen(false)} />
-            <button onClick={() => setOpen(false)} className="absolute top-4 -right-11 h-9 w-9 rounded-lg bg-white text-slate-700 shadow-lg flex items-center justify-center" aria-label="Tutup menu">
-              <X className="h-4 w-4" />
-            </button>
-          </aside>
-        </div>
-      )}
-
-      <div className="lg:pl-64">
-        {/* Topbar */}
-        <header className="sticky top-0 z-20 bg-white/95 backdrop-blur border-b border-slate-200/70">
-          <div className="flex items-center gap-3 px-4 sm:px-6 h-16">
-            <button onClick={() => setOpen(true)} className="lg:hidden inline-flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 text-[#0B1F4B]" aria-label="Menu" data-testid="candidate-dash-hamburger">
-              <Menu className="h-4.5 w-4.5 h-5 w-5" />
-            </button>
-            <div className="flex-1 min-w-0">
-              <h1 className="font-display font-extrabold text-[16px] text-[#0B1F4B] leading-tight">Dashboard Kandidat</h1>
-              <p className="text-[10.5px] text-slate-400 leading-tight">Kelola kariermu dari satu tempat</p>
-            </div>
-            <PlanBadge pro={pro} />
-            <Link to="/candidate/notifications" className="relative inline-flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50" aria-label="Notifikasi">
-              <Bell className="h-4 w-4" />
-            </Link>
-            <span className="hidden sm:inline-flex h-9 w-9 items-center justify-center rounded-full bg-gradient-to-br from-blue-500 to-blue-700 text-white font-display font-bold text-sm">
-              {(user?.name || "U").charAt(0).toUpperCase()}
-            </span>
-          </div>
-        </header>
-
-        <main className="p-4 sm:p-6">
-          <div className="grid lg:grid-cols-[1fr_320px] gap-6 items-start max-w-[1400px] mx-auto">
-            {/* Konten utama */}
-            <div className="space-y-5 min-w-0">
+    <DashboardShell variant="candidate" title="Dashboard Kandidat" subtitle="Kelola kariermu dari satu tempat">
+      <div className="grid lg:grid-cols-[1fr_320px] gap-6 items-start max-w-[1400px] mx-auto">
+        {/* Konten utama */}
+        <div className="space-y-5 min-w-0">
               {/* Sambutan */}
               <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-[#0A1F4B] via-[#12307A] to-[#1A43B8] p-5 sm:p-6 text-white shadow-sm" data-testid="greeting-card">
                 <div className="absolute -top-10 -right-10 h-40 w-40 rounded-full bg-blue-400/20 blur-2xl" />
@@ -449,8 +332,6 @@ export default function CandidateDashboardNew() {
               <PromoPro pro={pro} quota={quota} sub={cvStatus.subscription} referral={referral} />
             </aside>
           </div>
-        </main>
-      </div>
-    </div>
+    </DashboardShell>
   );
 }
