@@ -155,9 +155,7 @@ function jobTags(job) {
 function Logo({ dark = false }) {
   return (
     <Link to="/" className="flex items-center gap-2.5 shrink-0" data-testid="home-logo">
-      <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-blue-600 to-blue-800 font-display text-xl font-extrabold text-white shadow-md shadow-blue-900/20">
-        C
-      </span>
+      <img src="/logos/cirebonkarir-mark.png" alt="Logo CirebonKarir.id" className="h-11 w-auto" />
       <span className="leading-tight">
         <span className={`block font-display text-lg font-extrabold ${dark ? "text-white" : "text-[#0B1F4B]"}`}>
           CirebonKarir<span className="text-blue-600">.id</span>

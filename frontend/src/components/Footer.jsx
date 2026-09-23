@@ -1,5 +1,4 @@
 import { Link } from "react-router-dom";
-import { Briefcase } from "lucide-react";
 
 export default function Footer() {
   return (
@@ -8,9 +7,7 @@ export default function Footer() {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
           <div>
             <div className="flex items-center gap-2 mb-3">
-              <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-white/10 text-white">
-                <Briefcase className="h-5 w-5" />
-              </span>
+              <img src="/logos/cirebonkarir-mark.png" alt="Logo CirebonKarir.id" className="h-10 w-auto" />
               <span className="font-display font-extrabold text-lg text-white">
                 CirebonKarir<span className="text-sky-400">.com</span>
               </span>

@@ -197,7 +197,7 @@ export default function DashboardShell({ variant = "candidate", title, subtitle,
     <div className="h-full flex flex-col bg-gradient-to-b from-[#0A1F4B] to-[#12307A] text-white">
       <div className="px-5 pt-6 pb-5">
         <Link to="/" className="flex items-center gap-2.5">
-          <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-blue-500 to-blue-700 font-display text-lg font-extrabold text-white">C</span>
+          <img src="/logos/cirebonkarir-mark.png" alt="Logo CirebonKarir.id" className="h-10 w-auto" />
           <span className="leading-tight">
             <span className="block font-display text-[15px] font-extrabold">CirebonKarir<span className="text-blue-300">.id</span></span>
             <span className="block text-[9px] text-blue-200/80">Hubungkan Talenta dengan Peluang</span>

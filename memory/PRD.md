@@ -172,3 +172,14 @@ Lihat CHANGELOG.md (register role, admin edit job, hero, job list horizontal, ka
 1. ~~Testing iterasi 7~~ DONE (25 Agu 2026): 27/27 backend pytest lulus + seluruh flow frontend baru lulus (`/app/test_reports/iteration_7.json`). Dua nit code review diperbaiki (cap completion 100%, strftime).
 2. Kumpulkan feedback user.
 3. Hardening security (audit message 124: hapus demo credentials di Login.jsx, security headers, rate limiting).
+
+## Iterasi 20 — Ganti Logo CirebonKarir (23 Sep 2026)
+- Logo baru (emblem gelombang Cirebon + matahari emas, wordmark CirebonKarir.id + tagline) dipasang menggantikan logo lama ("C" kotak gradient / ikon Briefcase) di SEMUA tempat:
+  - `Navbar.jsx` → full logo image (light surface, h-10)
+  - `HomeNew.jsx` Logo() → emblem mark (light & dark hero variant, h-11)
+  - `DashboardShell.jsx` sidebar (candidate/company/admin) → emblem mark (h-10, transparan di navy)
+  - `Footer.jsx` → emblem mark (h-10 di bg gelap)
+  - `Login.jsx` → emblem mark (h-14)
+  - Favicon baru: favicon-32/64/192.png dari emblem (index.html <link rel="icon">)
+- Aset di `/app/frontend/public/logos/`: cirebonkarir-logo.png (full, transparan), cirebonkarir-mark.png (emblem saja, transparan), favicon-*.png.
+- Hanya logo yang berubah — teks, layout, warna, dan fitur lain tidak tersentuh. Verifikasi visual: homepage, login, footer, sidebar dashboard (navy) — semua render bersih.

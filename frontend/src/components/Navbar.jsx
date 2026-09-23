@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link, NavLink, useNavigate } from "react-router-dom";
-import { Briefcase, Menu, X, LayoutDashboard, LogOut } from "lucide-react";
+import { Menu, X, LayoutDashboard, LogOut } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 
 const NAV_LINKS = [
@@ -31,13 +31,8 @@ export default function Navbar() {
     <header className="sticky top-0 z-50 bg-white/90 backdrop-blur-xl border-b border-slate-200" data-testid="navbar">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16">
-          <Link to="/" className="flex items-center gap-2" data-testid="navbar-logo">
-            <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-slate-900 text-white">
-              <Briefcase className="h-5 w-5" />
-            </span>
-            <span className="font-display font-extrabold text-lg text-slate-900">
-              CirebonKarir<span className="text-sky-600">.com</span>
-            </span>
+          <Link to="/" className="flex items-center" data-testid="navbar-logo">
+            <img src="/logos/cirebonkarir-logo.png" alt="CirebonKarir.id" className="h-10 w-auto" />
           </Link>
 
           <nav className="hidden lg:flex items-center gap-1" data-testid="navbar-menu">

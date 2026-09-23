@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { Loader2, Briefcase, Info } from "lucide-react";
+import { Loader2, Info } from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
 import { formatApiError } from "../../lib/api";
 
@@ -35,9 +35,7 @@ export default function Login() {
     <div className="min-h-[80vh] flex items-center justify-center px-4 py-12 page-fade" data-testid="login-page">
       <div className="w-full max-w-md">
         <div className="text-center mb-8">
-          <span className="inline-flex h-12 w-12 items-center justify-center rounded-xl bg-slate-900 text-white mb-4">
-            <Briefcase className="h-6 w-6" />
-          </span>
+          <img src="/logos/cirebonkarir-mark.png" alt="Logo CirebonKarir.id" className="inline-block h-14 w-auto mb-4" />
           <h1 className="font-display text-2xl font-bold text-slate-900">Masuk ke Akun Anda</h1>
           <p className="text-sm text-slate-500 mt-1">Selamat datang kembali di CirebonKarir.com</p>
         </div>
